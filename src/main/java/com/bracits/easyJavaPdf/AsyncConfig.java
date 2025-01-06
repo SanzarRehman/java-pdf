@@ -1,4 +1,4 @@
-package com.bracits.pdftester;
+package com.bracits.easyJavaPdf;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

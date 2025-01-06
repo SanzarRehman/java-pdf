@@ -22,9 +22,10 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
+	implementation 'com.itextpdf:kernel:9.0.0'
+	implementation 'com.itextpdf:layout:9.0.0'
 	implementation 'com.itextpdf:html2pdf:6.0.0'
-	implementation 'com.itextpdf:itextpdf:5.5.13.4'
-	implementation 'com.itextpdf:itext-core:9.0.0'
+
 	implementation 'org.seleniumhq.selenium:selenium-java:4.27.0'
 }
 
