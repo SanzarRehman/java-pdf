@@ -1,7 +1,7 @@
 package com.bracits.easyJavaPdf;
 
-import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.event.AbstractPdfDocumentEvent;
@@ -11,6 +11,7 @@ import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.element.IBlockElement;
 import com.itextpdf.layout.element.IElement;
+import com.itextpdf.html2pdf.HtmlConverter;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -34,13 +35,14 @@ class Header extends AbstractPdfDocumentEventHandler {
   @Override
   protected void onAcceptedEvent(AbstractPdfDocumentEvent event) {
     PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
+    PdfDocument pdf = docEvent.getDocument();
     PdfPage page = docEvent.getPage();
     Rectangle pageSize = page.getPageSize();
 
     PdfCanvas pdfCanvas = new PdfCanvas(page);
     Canvas canvas = new Canvas(pdfCanvas, pageSize);
 
-    List<IElement> elements;
+    List<IElement> elements = null;
     try {
       elements = HtmlConverter.convertToElements(new ByteArrayInputStream(headerHtmlContent.getBytes(StandardCharsets.UTF_8)));
     } catch (IOException e) {

@@ -136,6 +136,12 @@ public class PdfService {
 
   private String wrapHtmlWithCss(String htmlContent, String cssContent) {
     return htmlContent;
+
+//    if(cssContent == null || cssContent.isEmpty()) {
+//      return htmlContent;
+//    }
+//    // Wrap HTML content with the provided CSS styles
+//    return "<html><head><style>" + cssContent + "</style></head><body>" + htmlContent + "</body></html>";
   }
 
 
@@ -185,9 +191,14 @@ public class PdfService {
   }
 
   private String getHeaderFooterCss(String headerHtml, String footerHtml) {
-    return "@page { size: A4 portrait; margin: 1cm; }";
+    return "@page { size: A4 portrait; margin-left: 0.5cm; margin-right: 0.5cm; background: #FFF; }" +
+        "@page { @top-left { margin: 10pt 0 10pt 10pt; border-top: .25pt solid #666; font-size: 9pt; color: #FFF; }" +
+        "@top-center { margin: 10pt 10pt 10pt 0; border-top: .25pt solid #666; font-size: 9pt; color: #FFF; }" +
+        "@top-right { margin: 10pt 10pt 10pt 0; border-top: .25pt solid #666; font-size: 9pt; color: #FFF; } }" +
+        "@page { @bottom-left { margin: 10pt 0 10pt 10pt; border-top: .25pt solid #666; font-size: 9pt; color: #FFF; }" +
+        "@bottom-center { margin: 10pt 10pt 10pt 0; border-top: .25pt solid #666; font-size: 9pt; color: #FFF; }" +
+        "@bottom-right { margin: 10pt 10pt 10pt 0; border-top: .25pt solid #666; font-size: 9pt; color: #FFF; content: 'Page ' counter(page) ' of ' counter(pages); } }";
   }
-
 
   private String wrapHtmlWithCssH(String htmlContent, String cssContent) {
     return "<html><head><style>" + cssContent + "</style></head><body>" + htmlContent + "</body></html>";

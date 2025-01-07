@@ -1,7 +1,7 @@
 package com.bracits.easyJavaPdf;
 
-import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.event.AbstractPdfDocumentEvent;
@@ -11,6 +11,9 @@ import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.element.IBlockElement;
 import com.itextpdf.layout.element.IElement;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.html2pdf.HtmlConverter;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -21,7 +24,9 @@ class Footer extends AbstractPdfDocumentEventHandler {
   protected PdfFormXObject placeholder;
   protected float side = 20;
   protected float x = 300;
-  protected float bottomMargin = 15;
+  protected float y = 25;
+  protected float space = 4.5f;
+  protected float descent = 3;
   private final String footerHtmlContent;
 
   public Footer(String footerHtmlContent) {
@@ -32,35 +37,32 @@ class Footer extends AbstractPdfDocumentEventHandler {
   @Override
   protected void onAcceptedEvent(AbstractPdfDocumentEvent event) {
     PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
+    PdfDocument pdf = docEvent.getDocument();
     PdfPage page = docEvent.getPage();
+    int pageNumber = pdf.getPageNumber(page);
     Rectangle pageSize = page.getPageSize();
 
     PdfCanvas pdfCanvas = new PdfCanvas(page);
     Canvas canvas = new Canvas(pdfCanvas, pageSize);
 
-    // Parse and render the HTML content for the footer
-    List<IElement> elements;
+    List<IElement> elements = null;
     try {
       elements = HtmlConverter.convertToElements(new ByteArrayInputStream(footerHtmlContent.getBytes(StandardCharsets.UTF_8)));
     } catch (IOException e) {
-      throw new RuntimeException("Error parsing footer HTML content", e);
+      throw new RuntimeException(e);
     }
 
-    // Add parsed HTML elements to the canvas
     for (IElement element : elements) {
-      if (element instanceof IBlockElement) {
+      if (element instanceof Paragraph) {
+        ((Paragraph) element).add(" Page " + pageNumber);
+        canvas.showTextAligned((Paragraph) element, x, y, TextAlignment.RIGHT);
+      } else {
         canvas.add((IBlockElement) element);
       }
     }
 
-    // Footer placement logic (adjust `footerY` for proper placement)
-    float footerY = pageSize.getBottom() + bottomMargin;
-    float footerWidth = pageSize.getWidth();
-
-    // Set fixed position for the footer
-    canvas.setFixedPosition(0, footerY, footerWidth);
-
     canvas.close();
+    pdfCanvas.addXObjectAt(placeholder, x + space, y - descent);
     pdfCanvas.release();
   }
 }
