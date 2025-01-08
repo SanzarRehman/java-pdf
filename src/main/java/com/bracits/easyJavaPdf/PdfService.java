@@ -173,7 +173,7 @@ public class PdfService {
 
         PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outputStream));
         pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, new Header(headerHtml));
-        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new Footer(footerHtml));
+        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new BengaliPageNumberHandler(footerHtml));
 
         HtmlConverter.convertToPdf(finalHtmlContent, pdfDocument, converterProperties);
 
