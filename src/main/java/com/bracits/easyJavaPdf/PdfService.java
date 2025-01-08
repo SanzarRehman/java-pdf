@@ -2,8 +2,6 @@ package com.bracits.easyJavaPdf;
 
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
-import com.itextpdf.kernel.font.PdfFont;
-import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
@@ -15,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,7 +23,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 @Service
 public class PdfService {
@@ -38,14 +34,6 @@ public class PdfService {
     this.executor = executor;
   }
 
-  public byte[] generatePdfFromHtml(String htmlContent) {
-    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-      HtmlConverter.convertToPdf(htmlContent, outputStream);
-      return outputStream.toByteArray();
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to generate PDF", e);
-    }
-  }
 
   @Async
   public CompletableFuture<byte[]> generatePdfFromHtml(String htmlContent, String cssContent, MultipartFile[] fontFiles) {
@@ -120,19 +108,6 @@ public class PdfService {
   }
 
 
-  private List<PdfFont> loadFontsFromFiles(MultipartFile[] fontFiles) throws IOException {
-    return List.of(fontFiles).stream()
-        .map(fontFile -> {
-          try {
-            File tempFontFile = File.createTempFile("font", ".otf");
-            fontFile.transferTo(tempFontFile);
-            return PdfFontFactory.createRegisteredFont(tempFontFile.getAbsolutePath());
-          } catch (IOException e) {
-            throw new RuntimeException("Error loading font file", e);
-          }
-        })
-        .collect(Collectors.toList());
-  }
 
   private String wrapHtmlWithCss(String htmlContent, String cssContent) {
     return htmlContent;
@@ -164,16 +139,27 @@ public class PdfService {
           converterProperties.setFontProvider(fontProvider);
         }
 
-        String htmlContent = Files.readString(htmlFile);
-
-        String cssContent = cssFile != null ? Files.readString(cssFile) : "";
+        String htmlContent = Files.readString(htmlFile, StandardCharsets.UTF_8);
+        String cssContent = cssFile != null ? Files.readString(cssFile, StandardCharsets.UTF_8) : "";
         cssContent += getHeaderFooterCss(headerHtml, footerHtml);
-
         String finalHtmlContent = wrapHtmlWithCssH(htmlContent, cssContent);
+        if (formData.containsKey("jsEnable") && formData.get("jsEnable").equals("true")) {
+          System.setProperty("webdriver.chrome.driver", "src/main/resources/chromedriver"); // Path to ChromeDriver
+          ChromeOptions options = new ChromeOptions();
+          options.addArguments("--headless", "--disable-gpu", "--no-sandbox");
+          ChromeDriver driver = new ChromeDriver(options);
+
+          try {
+            driver.navigate().to("data:text/html;charset=utf-8," + finalHtmlContent);
+            finalHtmlContent = (String) driver.executeScript("return document.documentElement.innerHTML;");
+          } finally {
+            driver.quit();
+          }
+        }
 
         PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outputStream));
         pdfDocument.addEventHandler(PdfDocumentEvent.START_PAGE, new Header(headerHtml));
-        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new Footer(footerHtml));
+        pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new BengaliPageNumberHandler(footerHtml));
 
         HtmlConverter.convertToPdf(finalHtmlContent, pdfDocument, converterProperties);
 
@@ -184,6 +170,7 @@ public class PdfService {
     });
   }
 
+
   private String getHeaderFooterCss(String headerHtml, String footerHtml) {
     return "@page { size: A4 portrait; margin: 1cm; }";
   }
@@ -192,7 +179,6 @@ public class PdfService {
   private String wrapHtmlWithCssH(String htmlContent, String cssContent) {
     return "<html><head><style>" + cssContent + "</style></head><body>" + htmlContent + "</body></html>";
   }
-
 
 
 }
