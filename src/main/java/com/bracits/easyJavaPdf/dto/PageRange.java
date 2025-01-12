@@ -1,31 +1,17 @@
 package com.bracits.easyJavaPdf.dto;
 
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@AllArgsConstructor
 public class PageRange {
   private String file;
   private int startPage;
   private int endPage;
   private int step;
 
-  public PageRange(String file, int startPage, int endPage, int step) {
-    this.file = file;
-    this.startPage = startPage;
-    this.endPage = endPage;
-    this.step = step;
-  }
-
-  public String getFile() {
-    return file;
-  }
-
-  public int getStartPage() {
-    return startPage;
-  }
-
-  public int getEndPage() {
-    return endPage;
-  }
-
-  public int getStep() {
-    return step;
-  }
 }
