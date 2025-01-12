@@ -39,4 +39,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: sanzar686/easyJavaPdf:latest
+          tags: sanzar686/easyjavapdf:latest
