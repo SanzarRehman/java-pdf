@@ -158,6 +158,13 @@ Contributions are welcome! Feel free to fork the repository and submit a pull re
 
 ---
 
+
+## Inspiration
+
+This project is inspired by [easy-pdf-rest](https://github.com/ronisaha/easy-pdf-rest). Special thanks to the developers for their amazing contribution and idea-sharing within the open-source community!
+
+---
+
 ## Note on Dependencies
 
 This project uses external dependencies like **iText** to handle PDF operations. Ensure compliance with their respective licenses when modifying or distributing the project.
