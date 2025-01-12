@@ -1,4 +1,4 @@
-package com.bracits.easyJavaPdf;
+package com.bracits.easyJavaPdf.handler;
 
 import com.itextpdf.barcodes.BarcodeQRCode;
 import com.itextpdf.barcodes.qrcode.EncodeHintType;

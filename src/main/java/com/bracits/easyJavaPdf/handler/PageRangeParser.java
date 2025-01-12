@@ -1,16 +1,15 @@
-package com.bracits.easyJavaPdf.PdfMerger.Service;
+package com.bracits.easyJavaPdf.handler;
 
+import com.bracits.easyJavaPdf.dto.PageRange;
+import com.bracits.easyJavaPdf.dto.PageRangeInput;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 

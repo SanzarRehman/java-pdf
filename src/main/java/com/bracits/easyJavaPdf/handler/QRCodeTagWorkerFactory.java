@@ -1,4 +1,4 @@
-package com.bracits.easyJavaPdf;
+package com.bracits.easyJavaPdf.handler;
 
 import com.itextpdf.html2pdf.attach.ITagWorker;
 import com.itextpdf.html2pdf.attach.ProcessorContext;

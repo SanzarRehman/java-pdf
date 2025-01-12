@@ -1,13 +1,12 @@
-package com.bracits.easyJavaPdf.PdfMerger.Service;
+package com.bracits.easyJavaPdf.service;
 
-import java.io.ByteArrayInputStream;
+import com.bracits.easyJavaPdf.dto.PageRange;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.apache.pdfbox.Loader;
@@ -19,17 +18,14 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
-import org.apache.pdfbox.pdmodel.interactive.digitalsignature.PDSignature;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
 
 @Service
 public class PdfMergerService {
 
 
-  public byte[] mergePdfs(List<Path> tempFiles, List<PageRange> pageRanges, String password,Path tempLoc,String optimizer) throws IOException {
+  public byte[] mergePdfs(List<Path> tempFiles, List<PageRange> pageRanges, String password, Path tempLoc, String optimizer) throws IOException {
     if (tempFiles == null || tempFiles.isEmpty()) {
       throw new IllegalArgumentException("The list of temporary files cannot be null or empty.");
     }

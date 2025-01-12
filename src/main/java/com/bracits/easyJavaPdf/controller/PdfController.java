@@ -1,6 +1,7 @@
-package com.bracits.easyJavaPdf;
+package com.bracits.easyJavaPdf.controller;
 
 
+import com.bracits.easyJavaPdf.service.PdfService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;

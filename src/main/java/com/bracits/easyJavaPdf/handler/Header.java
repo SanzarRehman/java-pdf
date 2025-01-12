@@ -1,4 +1,4 @@
-package com.bracits.easyJavaPdf;
+package com.bracits.easyJavaPdf.handler;
 
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.geom.Rectangle;
@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-class Header extends AbstractPdfDocumentEventHandler {
+public class Header extends AbstractPdfDocumentEventHandler {
   protected PdfFormXObject placeholder;
   protected float side = 20;
   protected float x = 300;

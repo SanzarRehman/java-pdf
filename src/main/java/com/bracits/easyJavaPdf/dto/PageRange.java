@@ -1,4 +1,4 @@
-package com.bracits.easyJavaPdf.PdfMerger.Service;
+package com.bracits.easyJavaPdf.dto;
 
 public class PageRange {
   private String file;

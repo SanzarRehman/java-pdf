@@ -1,6 +1,9 @@
-package com.bracits.easyJavaPdf.PdfMerger.Service;
+package com.bracits.easyJavaPdf.controller;
 
 
+import com.bracits.easyJavaPdf.dto.PageRange;
+import com.bracits.easyJavaPdf.handler.PageRangeParser;
+import com.bracits.easyJavaPdf.service.PdfMergerService;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Stream;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;

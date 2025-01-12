@@ -1,5 +1,8 @@
-package com.bracits.easyJavaPdf;
+package com.bracits.easyJavaPdf.service;
 
+import com.bracits.easyJavaPdf.handler.BengaliPageNumberHandler;
+import com.bracits.easyJavaPdf.handler.Footer;
+import com.bracits.easyJavaPdf.handler.Header;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.pdf.EncryptionConstants;

@@ -1,4 +1,4 @@
-package com.bracits.easyJavaPdf;
+package com.bracits.easyJavaPdf.handler;
 
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.geom.Rectangle;
