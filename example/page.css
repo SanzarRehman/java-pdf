@@ -1,0 +1,41 @@
+@page {
+    size: A4;
+    margin: 1in;
+}
+
+   @page:first {
+            background-color: lightblue;
+        }
+
+
+
+@page:right {
+    margin-left: 5in;
+}
+@font-face {
+  font-family: Fira Sans;
+  font-weight: bold;
+  src: url(FiraSans-Bold.otf);
+}
+
+@font-face {
+  font-family: LiAdor;
+  font-weight: bold;
+  src: url(LiAdorTrikonomitiANSIV2-Regular.ttf);
+}
+
+
+.first {
+  color: #393939;
+  font-family: Fira Sans;
+  font-size: 11pt;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+.bangla {
+ 
+  font-family: LiAdor;
+ 
+}
+
