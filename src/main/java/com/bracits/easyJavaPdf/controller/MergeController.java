@@ -15,6 +15,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Stream;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,19 +28,20 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping
-public class Controller {
+@Log4j2
+public class MergeController {
 
 
   private final PdfMergerService pdfMergerService;
 
-  public Controller(PdfMergerService pdfMergerService) {
+  public MergeController(PdfMergerService pdfMergerService) {
     this.pdfMergerService = pdfMergerService;
   }
 
 
-  @PostMapping("/merge")
+  @PostMapping("/api/v1.0/merge")
   public ResponseEntity<byte[]> mergePdfWithTempFiles(
-      @RequestParam("files") MultipartFile[] files,
+      @RequestParam("files[]") MultipartFile[] files,
       @RequestParam(value = "pages") String pagesDefinition,
       @RequestParam(value = "disposition", defaultValue = "inline") String disposition,
       @RequestParam(value = "file_name", defaultValue = "merged.pdf") String fileName,
@@ -77,6 +79,7 @@ public class Controller {
           .body(mergedPdfBytes);
 
     } catch (IOException e) {
+      log.error("Error merging PDF: ", e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
           .body(("Error merging PDF: " + e.getMessage()).getBytes());
     } catch (Exception e) {

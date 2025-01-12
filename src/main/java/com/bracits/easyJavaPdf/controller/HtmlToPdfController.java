@@ -28,12 +28,12 @@ import java.util.stream.Stream;
 
 @RestController
 @RequestMapping
-public class PdfController {
+public class HtmlToPdfController {
 
 
   private final PdfService pdfService;
 
-  public PdfController(PdfService pdfService) {
+  public HtmlToPdfController(PdfService pdfService) {
     this.pdfService = pdfService;
   }
 
@@ -71,14 +71,14 @@ public class PdfController {
    * @return
    */
 
-  @PostMapping("/generate")
+  @PostMapping("/api/v1.0/print")
   public ResponseEntity<byte[]> generatePdfWithPassword(
-      @RequestParam("file") MultipartFile htmlFile,
+      @RequestParam("html") MultipartFile htmlFile,
       @RequestParam(value = "style", required = false) MultipartFile cssFile,
       @RequestParam(value = "header", required = false) MultipartFile headerFile,
       @RequestParam(value = "footer", required = false) MultipartFile footerFile,
       @RequestParam(value = "bangla_footer", required = false) MultipartFile banglaFooter,
-      @RequestParam(value = "fonts", required = false) MultipartFile[] fontFiles,
+      @RequestParam(value = "asset[]", required = false) MultipartFile[] fontFiles,
       @RequestParam(value = "password", required = false) String password) {
 
     Path parentTempDir = null;
