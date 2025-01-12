@@ -1,8 +1,10 @@
 package com.bracits.easyJavaPdf;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
+
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -11,7 +13,8 @@ import java.util.concurrent.Executors;
 public class AsyncConfig {
 
   @Bean
+  @Qualifier("executor")
   public Executor taskExecutor() {
-    return Executors.newFixedThreadPool(8);  // Define the size of the thread pool
+    return Executors.newFixedThreadPool(8);
   }
 }

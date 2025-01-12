@@ -28,9 +28,11 @@ public class BengaliPageNumberHandler extends AbstractPdfDocumentEventHandler {
 
     PdfCanvas pdfCanvas = new PdfCanvas(page);
     Canvas canvas = new Canvas(pdfCanvas, pageSize);
-    
+
     int pageNumber = pdfDocument.getPageNumber(page);
     int totalPages = pdfDocument.getNumberOfPages();
+
+
     String bengaliPageNumber = convertToBengali(pageNumber);
     String bengaliTotalPages = convertToBengali(totalPages);
 
@@ -56,6 +58,7 @@ public class BengaliPageNumberHandler extends AbstractPdfDocumentEventHandler {
     canvas.close();
     pdfCanvas.release();
   }
+
 
   private String convertToBengali(int number) {
     StringBuilder bengaliNumber = new StringBuilder();

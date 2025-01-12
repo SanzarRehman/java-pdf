@@ -1,5 +1,6 @@
 package com.bracits.easyJavaPdf;
 
+import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
@@ -7,19 +8,18 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.event.AbstractPdfDocumentEvent;
 import com.itextpdf.kernel.pdf.event.AbstractPdfDocumentEventHandler;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
-import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Canvas;
+import com.itextpdf.layout.element.BlockElement;
+import com.itextpdf.layout.element.IBlockElement;
+import com.itextpdf.layout.element.IElement;
 
-class Footer extends AbstractPdfDocumentEventHandler {
-  protected PdfFormXObject placeholder;
-  protected float side = 20;
-  protected float x = 300;
-  protected float y = 25;
-  private String footerHtmlContent;
+import java.util.List;
+
+public class Footer extends AbstractPdfDocumentEventHandler {
+  private final String footerHtmlContent;
 
   public Footer(String footerHtmlContent) {
     this.footerHtmlContent = footerHtmlContent;
-    placeholder = new PdfFormXObject(new Rectangle(0, 0, side, side));
   }
 
   @Override
@@ -30,21 +30,27 @@ class Footer extends AbstractPdfDocumentEventHandler {
     int pageNumber = pdf.getPageNumber(page);
     Rectangle pageSize = page.getPageSize();
 
-    PdfCanvas pdfCanvas = new PdfCanvas(page);
-    Canvas canvas = new Canvas(pdfCanvas, pageSize);
-
     float footerY = pageSize.getBottom() + 30;
 
+    try {
+      PdfCanvas pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
+      Canvas canvas = new Canvas(pdfCanvas, pageSize);
 
-//    Paragraph footerContent = new Paragraph("Page " + banglaPageNumber + "\n© 2025 Your Company Name")
-//        .setTextAlignment(TextAlignment.CENTER)
-//        .setFontSize(10)
-//        .setFontColor(com.itextpdf.kernel.colors.ColorConstants.GRAY);
+      String footerHtmlWithPage = footerHtmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
 
-//    canvas.showTextAligned(footerContent, pageSize.getWidth() / 2, footerY, TextAlignment.CENTER);
+      List<IElement> elements = HtmlConverter.convertToElements(footerHtmlWithPage);
 
-    canvas.close();
-    pdfCanvas.release();
+      for (IElement element : elements) {
+        if (element instanceof BlockElement) {
+          BlockElement<?> block = (BlockElement<?>) element;
+          canvas.add((IBlockElement) block.setFixedPosition(pageSize.getWidth() / 2 - 100, footerY, 200));
+        }
+      }
+
+      canvas.close();
+      pdfCanvas.release();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
-
 }
