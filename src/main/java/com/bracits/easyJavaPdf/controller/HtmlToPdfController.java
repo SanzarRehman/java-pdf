@@ -1,6 +1,9 @@
 package com.bracits.easyJavaPdf.controller;
 
 
+import static com.bracits.easyJavaPdf.util.FileUtil.deleteDirectory;
+import static com.bracits.easyJavaPdf.util.FileUtil.saveFileInDirectory;
+
 import com.bracits.easyJavaPdf.service.PdfService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -37,27 +40,6 @@ public class HtmlToPdfController {
     this.pdfService = pdfService;
   }
 
-
-  private Path saveFileInDirectory(MultipartFile file, Path directory) throws IOException {
-    if (!Files.exists(directory)) {
-      Files.createDirectories(directory);
-    }
-
-    Path filePath = directory.resolve(Objects.requireNonNull(file.getOriginalFilename()));
-    Files.write(filePath, file.getBytes());
-    System.out.println("Saved file: " + filePath.toAbsolutePath());
-    return filePath;
-  }
-
-  private void deleteDirectory(Path directory) {
-    try (Stream<Path> files = Files.walk(directory)) {
-      files.sorted(Comparator.reverseOrder())
-          .map(Path::toFile)
-          .forEach(File::delete);
-    } catch (IOException e) {
-      System.err.println("Failed to delete directory: " + directory);
-    }
-  }
 
   /**
    * Generate PDF from HTML file

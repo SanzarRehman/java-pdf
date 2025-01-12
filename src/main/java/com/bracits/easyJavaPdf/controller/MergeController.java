@@ -1,6 +1,9 @@
 package com.bracits.easyJavaPdf.controller;
 
 
+import static com.bracits.easyJavaPdf.util.FileUtil.deleteDirectory;
+import static com.bracits.easyJavaPdf.util.FileUtil.saveFileInDirectory;
+
 import com.bracits.easyJavaPdf.dto.PageRange;
 import com.bracits.easyJavaPdf.handler.PageRangeParser;
 import com.bracits.easyJavaPdf.service.PdfMergerService;
@@ -90,21 +93,9 @@ public class MergeController {
       }
     }
   }
-  private Path saveFileInDirectory(MultipartFile file, Path directory) throws IOException {
-    Path filePath = directory.resolve(file.getOriginalFilename());
-    Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-    return filePath;
-  }
 
-  private void deleteDirectory(Path directory) {
-    try (Stream<Path> files = Files.walk(directory)) {
-      files.sorted(Comparator.reverseOrder())
-          .map(Path::toFile)
-          .forEach(File::delete);
-    } catch (IOException e) {
-      System.err.println("Failed to delete directory: " + directory);
-    }
-  }
+
+
 
 
 }
