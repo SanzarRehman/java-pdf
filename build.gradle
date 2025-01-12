@@ -25,6 +25,11 @@ dependencies {
 	implementation 'com.itextpdf:kernel:9.0.0'
 	implementation 'com.itextpdf:layout:9.0.0'
 	implementation 'com.itextpdf:html2pdf:6.0.0'
+	implementation 'com.itextpdf:barcodes:9.0.0'
+	implementation 'org.apache.pdfbox:pdfbox:3.0.3'
+
+
+
 	implementation 'com.itextpdf:bouncy-castle-adapter:9.0.0'
 	implementation 'org.seleniumhq.selenium:selenium-java:4.27.0'
 }
