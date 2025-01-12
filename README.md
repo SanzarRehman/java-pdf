@@ -13,12 +13,24 @@
 
 
 
+## Inspiration
+
+This project is inspired by [easy-pdf-rest](https://github.com/ronisaha/easy-pdf-rest). Special thanks to the developers for their amazing contribution and idea-sharing within the open-source community!
+
+---
+
+
+
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0 (AGPLv3).  
 See the [LICENSE](LICENSE) file for details.
 
 ---
+##  Usage
+```bash
+docker run -p 8081:8081 sanzar686/easyjavapdf
+```
 
 ## API Usage
 
@@ -156,14 +168,6 @@ curl --location 'http://localhost:8081/api/v1.0/print' \
 
 Contributions are welcome! Feel free to fork the repository and submit a pull request if you want to add new features or improve the project.
 
----
-
-
-## Inspiration
-
-This project is inspired by [easy-pdf-rest](https://github.com/ronisaha/easy-pdf-rest). Special thanks to the developers for their amazing contribution and idea-sharing within the open-source community!
-
----
 
 ## Note on Dependencies
 
