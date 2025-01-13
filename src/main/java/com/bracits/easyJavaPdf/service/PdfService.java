@@ -11,6 +11,8 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
 import com.itextpdf.layout.font.FontProvider;
+import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -58,7 +60,8 @@ public class PdfService {
       String footerHtml,
       String banglaFooterHtml,
       List<Path> fontFiles,
-      String password) {
+      String password,
+      String jsEnable) {
 
     return CompletableFuture.supplyAsync(() -> {
       try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
@@ -97,6 +100,16 @@ public class PdfService {
 
         if (banglaFooterHtml != null && footerHtml == null) {
           pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new BengaliPageNumberHandler(banglaFooterHtml));
+        }
+
+
+        if (jsEnable != null && jsEnable.equals("true")) {
+          System.setProperty("webdriver.chrome.driver", "src/main/resources/chromedriver");
+          ChromeOptions options = new ChromeOptions();
+          options.addArguments("--headless");
+          ChromeDriver driver = new ChromeDriver(options);
+          driver.navigate().to("data:text/html;charset=utf-8," + finalHtmlContent);
+          finalHtmlContent = (String) driver.executeScript("return document.documentElement.innerHTML;");
         }
 
         HtmlConverter.convertToPdf(finalHtmlContent, pdfDocument, converterProperties);
