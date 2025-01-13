@@ -61,7 +61,9 @@ public class HtmlToPdfController {
       @RequestParam(value = "footer", required = false) MultipartFile footerFile,
       @RequestParam(value = "bangla_footer", required = false) MultipartFile banglaFooter,
       @RequestParam(value = "asset[]", required = false) MultipartFile[] fontFiles,
-      @RequestParam(value = "password", required = false) String password) {
+      @RequestParam(value = "password", required = false) String password,
+      @RequestParam(value = "jsEnable", required = false) String jsEnable
+  ) {
 
     Path parentTempDir = null;
     Path tempDir = null;
@@ -89,7 +91,7 @@ public class HtmlToPdfController {
       }
 
       CompletableFuture<byte[]> pdfFuture = pdfService.generate(
-          tempHtmlFile, tempCssFile, headerHtml, footerHtml, banglaFooterHtml, tempFontFiles, password);
+          tempHtmlFile, tempCssFile, headerHtml, footerHtml, banglaFooterHtml, tempFontFiles, password,jsEnable);
 
       byte[] pdfBytes = pdfFuture.get();
 
