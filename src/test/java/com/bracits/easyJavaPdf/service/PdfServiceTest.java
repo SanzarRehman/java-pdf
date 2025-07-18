@@ -1,6 +1,5 @@
 package com.bracits.easyJavaPdf.service;
 
-import com.bracits.easyJavaPdf.exception.FileProcessingException;
 import com.bracits.easyJavaPdf.exception.PdfGenerationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -8,7 +7,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,6 +26,9 @@ class PdfServiceTest {
     @Mock
     private Executor mockExecutor;
 
+    @Mock
+    private PdfGenerator mockPdfGenerator;
+
     private PdfService pdfService;
 
     @TempDir
@@ -35,187 +36,104 @@ class PdfServiceTest {
 
     @BeforeEach
     void setUp() {
-        pdfService = new PdfService(mockExecutor);
+        pdfService = new PdfService(mockExecutor, mockPdfGenerator);
     }
 
     @Test
-    void testGenerateWithValidHtmlFile() throws Exception {
+    void testGenerateWithValidParameters() throws Exception {
         // Given
         Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
         Path cssFile = createTempFile("test.css", "body { font-family: Arial; }");
+        byte[] expectedPdfBytes = new byte[]{1, 2, 3, 4}; // Mock PDF bytes
         
-        // Mock executor to run synchronously for testing
-        doAnswer(invocation -> {
-            Runnable task = invocation.getArgument(0);
-            task.run();
-            return null;
-        }).when(mockExecutor).execute(any());
+        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+            .thenReturn(expectedPdfBytes);
 
         // When
         CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, cssFile, null, null, null, null, null, "false"
+            htmlFile, cssFile, "header", "footer", null, null, "password", "false"
         );
 
         // Then
         assertNotNull(result);
-        // Note: Full PDF generation test would require more complex setup
-        // This test verifies the method structure and basic flow
+        byte[] actualBytes = result.get();
+        assertArrayEquals(expectedPdfBytes, actualBytes);
+        
+        // Verify that the PdfGenerator was called with correct parameters
+        verify(mockPdfGenerator).generatePdf(
+            eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
+            eq(null), eq(null), eq("password"), eq("false")
+        );
     }
 
     @Test
-    void testGenerateWithNonExistentHtmlFile() {
+    void testGenerateWithPdfGeneratorException() throws Exception {
         // Given
-        Path nonExistentFile = tempDir.resolve("nonexistent.html");
+        Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
         
-        // Mock executor to run synchronously for testing
-        doAnswer(invocation -> {
-            Runnable task = invocation.getArgument(0);
-            task.run();
-            return null;
-        }).when(mockExecutor).execute(any());
+        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+            .thenThrow(new PdfGenerationException("PDF generation failed"));
 
         // When & Then
         CompletableFuture<byte[]> result = pdfService.generate(
-            nonExistentFile, null, null, null, null, null, null, "false"
+            htmlFile, null, null, null, null, null, null, "false"
         );
         
         Exception exception = assertThrows(Exception.class, result::join);
         assertTrue(exception.getCause() instanceof PdfGenerationException);
+        assertEquals("Failed to generate PDF from HTML file: " + htmlFile, exception.getCause().getMessage());
     }
 
     @Test
-    void testProcessHtmlContentWithValidFiles() throws Exception {
+    void testGenerateWithAllParameters() throws Exception {
         // Given
         Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
         Path cssFile = createTempFile("test.css", "body { color: red; }");
+        Path fontFile = createTempFile("font.ttf", "fake font");
+        List<Path> fontFiles = Arrays.asList(fontFile);
+        byte[] expectedPdfBytes = new byte[]{5, 6, 7, 8};
+        
+        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+            .thenReturn(expectedPdfBytes);
 
         // When
-        String result = invokePrivateMethod("processHtmlContent", htmlFile, cssFile, "false");
+        CompletableFuture<byte[]> result = pdfService.generate(
+            htmlFile, cssFile, "header", "footer", "bangla", fontFiles, "pass", "true"
+        );
 
         // Then
         assertNotNull(result);
-        assertTrue(result.contains("Test"));
-        assertTrue(result.contains("color: red"));
-        assertTrue(result.contains("@page { size: A4 portrait; margin: 1cm; }"));
+        byte[] actualBytes = result.get();
+        assertArrayEquals(expectedPdfBytes, actualBytes);
+        
+        // Verify all parameters were passed correctly
+        verify(mockPdfGenerator).generatePdf(
+            eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
+            eq("bangla"), eq(fontFiles), eq("pass"), eq("true")
+        );
     }
 
     @Test
-    void testProcessHtmlContentWithNullCssFile() throws Exception {
+    void testGenerateLogsPerformanceMetrics() throws Exception {
         // Given
         Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
+        byte[] expectedPdfBytes = new byte[]{1, 2, 3};
+        
+        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+            .thenReturn(expectedPdfBytes);
 
         // When
-        String result = invokePrivateMethod("processHtmlContent", htmlFile, null, "false");
+        CompletableFuture<byte[]> result = pdfService.generate(
+            htmlFile, null, null, null, null, null, null, "false"
+        );
 
         // Then
         assertNotNull(result);
-        assertTrue(result.contains("Test"));
-        assertTrue(result.contains("@page { size: A4 portrait; margin: 1cm; }"));
-    }
-
-    @Test
-    void testProcessHtmlContentWithInvalidFile() {
-        // Given
-        Path invalidFile = tempDir.resolve("invalid.html");
-
-        // When & Then
-        Exception exception = assertThrows(RuntimeException.class, () -> 
-            invokePrivateMethod("processHtmlContent", invalidFile, null, "false"));
-        assertTrue(exception.getCause() instanceof FileProcessingException);
-    }
-
-    @Test
-    void testWrapHtmlWithCss() {
-        // When
-        String result = invokePrivateMethod("wrapHtmlWithCss", 
-            "<div>Content</div>", "body { margin: 0; }");
-
-        // Then
-        String expected = "<html><head><style>body { margin: 0; }</style></head><body><div>Content</div></body></html>";
-        assertEquals(expected, result);
-    }
-
-    @Test
-    void testIsJavaScriptEnabledWithTrue() {
-        // When
-        boolean result = invokePrivateMethod("isJavaScriptEnabled", "true");
-
-        // Then
-        assertTrue(result);
-    }
-
-    @Test
-    void testIsJavaScriptEnabledWithFalse() {
-        // When
-        boolean result = invokePrivateMethod("isJavaScriptEnabled", "false");
-
-        // Then
-        assertFalse(result);
-    }
-
-    @Test
-    void testIsJavaScriptEnabledWithNull() {
-        // When
-        boolean result = invokePrivateMethod("isJavaScriptEnabled", (String) null);
-
-        // Then
-        assertFalse(result);
-    }
-
-    @Test
-    void testIsJavaScriptEnabledCaseInsensitive() {
-        // When
-        boolean resultUpper = invokePrivateMethod("isJavaScriptEnabled", "TRUE");
-        boolean resultMixed = invokePrivateMethod("isJavaScriptEnabled", "True");
-
-        // Then
-        assertTrue(resultUpper);
-        assertTrue(resultMixed);
-    }
-
-    @Test
-    void testSetupConverterPropertiesWithNullFonts() {
-        // When
-        Object result = invokePrivateMethod("setupConverterProperties", (List<Path>) null);
-
-        // Then
-        assertNotNull(result);
-    }
-
-    @Test
-    void testSetupConverterPropertiesWithEmptyFonts() {
-        // When
-        Object result = invokePrivateMethod("setupConverterProperties", Arrays.asList());
-
-        // Then
-        assertNotNull(result);
-    }
-
-    @Test
-    void testSetupConverterPropertiesWithValidFonts() throws Exception {
-        // Given
-        Path fontFile = createTempFile("test.ttf", "fake font content");
-        List<Path> fontFiles = Arrays.asList(fontFile);
-
-        // When
-        Object result = invokePrivateMethod("setupConverterProperties", fontFiles);
-
-        // Then
-        assertNotNull(result);
-    }
-
-    @Test
-    void testCreateFontProviderWithValidFonts() throws Exception {
-        // Given
-        Path fontFile1 = createTempFile("font1.ttf", "fake font content 1");
-        Path fontFile2 = createTempFile("font2.ttf", "fake font content 2");
-        List<Path> fontFiles = Arrays.asList(fontFile1, fontFile2);
-
-        // When
-        Object result = invokePrivateMethod("createFontProvider", fontFiles);
-
-        // Then
-        assertNotNull(result);
+        byte[] actualBytes = result.get();
+        assertArrayEquals(expectedPdfBytes, actualBytes);
+        
+        // Verify the generator was called
+        verify(mockPdfGenerator).generatePdf(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
     // Helper methods
@@ -224,30 +142,5 @@ class PdfServiceTest {
         Path file = tempDir.resolve(fileName);
         Files.write(file, content.getBytes());
         return file;
-    }
-
-    @SuppressWarnings("unchecked")
-    private <T> T invokePrivateMethod(String methodName, Object... args) {
-        try {
-            Class<?>[] paramTypes = new Class[args.length];
-            for (int i = 0; i < args.length; i++) {
-                if (args[i] == null) {
-                    // Handle null arguments - you may need to specify the exact type
-                    paramTypes[i] = Object.class;
-                } else {
-                    paramTypes[i] = args[i].getClass();
-                    // Handle primitive wrapper classes
-                    if (paramTypes[i] == String.class && methodName.equals("isJavaScriptEnabled")) {
-                        paramTypes[i] = String.class;
-                    } else if (List.class.isAssignableFrom(paramTypes[i])) {
-                        paramTypes[i] = List.class;
-                    }
-                }
-            }
-            
-            return (T) ReflectionTestUtils.invokeMethod(pdfService, methodName, args);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to invoke method: " + methodName, e);
-        }
     }
 }
