@@ -35,3 +35,9 @@ out/
 .vscode/
 
 .gradle/
+.kiro/specs/code-improvement/design.md
+.kiro/specs/code-improvement/requirements.md
+.kiro/specs/code-improvement/tasks.md
+.kiro/steering/product.md
+.kiro/steering/structure.md
+.kiro/steering/tech.md
