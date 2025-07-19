@@ -1,56 +1,82 @@
 package com.bracits.easyJavaPdf.handler;
 
-import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.kernel.pdf.event.AbstractPdfDocumentEvent;
-import com.itextpdf.kernel.pdf.event.AbstractPdfDocumentEventHandler;
-import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.element.BlockElement;
 import com.itextpdf.layout.element.IBlockElement;
 import com.itextpdf.layout.element.IElement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class Footer extends AbstractPdfDocumentEventHandler {
-  private final String footerHtmlContent;
+/**
+ * Handler for rendering footers in PDF documents.
+ * Extends the AbstractHtmlDocumentEventHandler to render HTML content as a footer.
+ */
+public class Footer extends AbstractHtmlDocumentEventHandler {
+  private static final Logger logger = LoggerFactory.getLogger(Footer.class);
+  private static final float FOOTER_Y_OFFSET = 30f;
+  private static final float FOOTER_WIDTH = 200f;
 
+  /**
+   * Creates a new footer handler with the specified HTML content.
+   *
+   * @param footerHtmlContent the HTML content for the footer
+   */
   public Footer(String footerHtmlContent) {
-    this.footerHtmlContent = footerHtmlContent;
+    super(footerHtmlContent);
   }
 
+  /**
+   * Creates a PDF canvas specifically for footer rendering.
+   * Uses a new content stream before the existing content to ensure footer appears behind content.
+   *
+   * @param page the PDF page
+   * @param pdf the PDF document
+   * @return the PDF canvas
+   */
   @Override
-  protected void onAcceptedEvent(AbstractPdfDocumentEvent event) {
-    PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
-    PdfDocument pdf = docEvent.getDocument();
-    PdfPage page = docEvent.getPage();
+  protected PdfCanvas createPdfCanvas(PdfPage page, PdfDocument pdf) {
+    return new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
+  }
+
+  /**
+   * Processes the HTML content before rendering, replacing page number placeholders.
+   *
+   * @param pdf the PDF document
+   * @param page the PDF page
+   * @return the processed HTML content
+   */
+  @Override
+  protected String processHtmlContent(PdfDocument pdf, PdfPage page) {
     int pageNumber = pdf.getPageNumber(page);
-    Rectangle pageSize = page.getPageSize();
+    logger.debug("Processing footer for page {}", pageNumber);
+    return htmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
+  }
 
-    float footerY = pageSize.getBottom() + 30;
-
-    try {
-      PdfCanvas pdfCanvas = new PdfCanvas(page.newContentStreamBefore(), page.getResources(), pdf);
-      Canvas canvas = new Canvas(pdfCanvas, pageSize);
-
-      String footerHtmlWithPage = footerHtmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
-
-      List<IElement> elements = HtmlConverter.convertToElements(footerHtmlWithPage);
-
-      for (IElement element : elements) {
-        if (element instanceof BlockElement) {
-          BlockElement<?> block = (BlockElement<?>) element;
-          canvas.add((IBlockElement) block.setFixedPosition(pageSize.getWidth() / 2 - 100, footerY, 200));
-        }
+  /**
+   * Renders the footer elements on the canvas.
+   *
+   * @param canvas the canvas to render on
+   * @param elements the elements to render
+   * @param pageSize the page size
+   */
+  @Override
+  protected void renderElements(Canvas canvas, List<IElement> elements, Rectangle pageSize) {
+    float footerY = pageSize.getBottom() + FOOTER_Y_OFFSET;
+    float centerX = pageSize.getWidth() / 2 - FOOTER_WIDTH / 2;
+    
+    logger.debug("Rendering footer with {} elements at y-position {}", elements.size(), footerY);
+    
+    for (IElement element : elements) {
+      if (element instanceof BlockElement) {
+        BlockElement<?> block = (BlockElement<?>) element;
+        canvas.add((IBlockElement) block.setFixedPosition(centerX, footerY, FOOTER_WIDTH));
       }
-
-      canvas.close();
-      pdfCanvas.release();
-    } catch (Exception e) {
-      e.printStackTrace();
     }
   }
 }

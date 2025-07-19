@@ -41,3 +41,6 @@ out/
 .kiro/steering/product.md
 .kiro/steering/structure.md
 .kiro/steering/tech.md
+curl-examples.md
+test-api.sh
+.kiro/specs/api-enhancement/requirements.md
