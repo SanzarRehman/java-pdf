@@ -1,6 +1,9 @@
 package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.dto.PageRange;
+import com.bracits.easyJavaPdf.exception.FileProcessingException;
+import com.bracits.easyJavaPdf.exception.PdfMergeException;
+import com.bracits.easyJavaPdf.exception.ValidationException;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -11,159 +14,271 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
-
 import org.apache.pdfbox.pdfwriter.compress.CompressParameters;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
 @Service
 public class PdfMergerService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PdfMergerService.class);
+    
+    private final ImageToPdfConverter imageToPdfConverter;
 
-  public byte[] mergePdfs(List<Path> tempFiles, List<PageRange> pageRanges, String password, Path tempLoc, String optimizer) throws IOException {
-    if (tempFiles == null || tempFiles.isEmpty()) {
-      throw new IllegalArgumentException("The list of temporary files cannot be null or empty.");
+    @Autowired
+    public PdfMergerService(ImageToPdfConverter imageToPdfConverter) {
+        this.imageToPdfConverter = imageToPdfConverter;
     }
-    if (pageRanges == null || pageRanges.isEmpty()) {
-      throw new IllegalArgumentException("The list of page ranges cannot be null or empty.");
-    }
 
-
-    try {
-      PDFMergerUtility pdfmerge = new PDFMergerUtility();
-
-      if(optimizer.equals("true")){
-        pdfmerge.setDocumentMergeMode(PDFMergerUtility.DocumentMergeMode.OPTIMIZE_RESOURCES_MODE);
-      }else{
-        pdfmerge.setDocumentMergeMode(PDFMergerUtility.DocumentMergeMode.PDFBOX_LEGACY_MODE);
-      }
-
-      
-      
-      for (PageRange pageRange : pageRanges) {
-        Path inputPath = tempFiles.stream()
-            .filter(file -> file.getFileName().toString().equals(pageRange.getFile() + ".pdf") || file.getFileName().toString().equals(pageRange.getFile()))
-            .findFirst()
-            .orElseThrow(() -> new FileNotFoundException("File not found: " + pageRange.getFile() + ".pdf"));
-
-        if (Files.notExists(inputPath)) {
-          throw new FileNotFoundException("File does not exist: " + inputPath);
+    public byte[] mergePdfs(List<Path> tempFiles, List<PageRange> pageRanges, String password, Path tempLoc, String optimizer) {
+        logger.info("Starting PDF merge operation with {} files and {} page ranges", 
+                   tempFiles != null ? tempFiles.size() : 0, 
+                   pageRanges != null ? pageRanges.size() : 0);
+        
+        validateMergeInputs(tempFiles, pageRanges);
+        
+        try {
+            PDFMergerUtility pdfMerger = configurePdfMerger(optimizer);
+            
+            for (PageRange pageRange : pageRanges) {
+                processPageRange(tempFiles, pageRange, tempLoc, pdfMerger);
+            }
+            
+            return executeMerge(pdfMerger);
+            
+        } catch (IOException e) {
+            logger.error("Failed to merge PDFs", e);
+            throw new PdfMergeException("Failed to merge PDFs: " + e.getMessage(), e);
         }
+    }
 
-        if (inputPath.toString().toLowerCase().endsWith(".pdf")) {
+    /**
+     * Validates the input parameters for PDF merging
+     */
+    private void validateMergeInputs(List<Path> tempFiles, List<PageRange> pageRanges) {
+        if (tempFiles == null || tempFiles.isEmpty()) {
+            throw new ValidationException("The list of temporary files cannot be null or empty");
+        }
+        if (pageRanges == null || pageRanges.isEmpty()) {
+            throw new ValidationException("The list of page ranges cannot be null or empty");
+        }
+        
+        logger.debug("Validated merge inputs: {} files, {} page ranges", tempFiles.size(), pageRanges.size());
+    }
 
-          try (PDDocument sourceDocument = Loader.loadPDF(inputPath.toFile())) {
-            PDDocument newDocument = new PDDocument();
-
-
-            int start = Math.max(0, pageRange.getStartPage());
-            int end;
-            end = Math.min(pageRange.getEndPage(), sourceDocument.getNumberOfPages() - 1);
-
-            if(start == 0 && end == -1){
-              end = sourceDocument.getNumberOfPages() - 1;
-            }
-
-            if (start <= end) {
-              for (int i = start; i <= end; i += pageRange.getStep()) {
-                newDocument.addPage(sourceDocument.getPage(i));
-              }
-            } else {
-              for (int i = start; i >= end; i += pageRange.getStep()) {
-                newDocument.addPage(sourceDocument.getPage(i));
-              }
-            }
-
-
-            String tempPdf = tempLoc.toString()+"/"+UUID.randomUUID().toString()+".pdf";
-            newDocument.save(tempPdf);
-
-            pdfmerge.addSource(tempPdf);
-            newDocument.close();
-
-
-          }
-          catch (IOException e) {
-            throw new RuntimeException("Failed to merge PDFs", e);
-          }
-
-
-
-
-
-        } else if (isImage(inputPath.toString())) {
-          PDDocument imageDocument = convertImageToPDF(inputPath.toString());
-          String tempPdf = tempLoc.toString()+"/"+UUID.randomUUID().toString()+".pdf";
-          imageDocument.save(tempPdf);
-         pdfmerge.addSource(tempPdf);
+    /**
+     * Configures the PDF merger utility with optimization settings
+     */
+    private PDFMergerUtility configurePdfMerger(String optimizer) {
+        PDFMergerUtility pdfMerger = new PDFMergerUtility();
+        
+        if ("true".equals(optimizer)) {
+            pdfMerger.setDocumentMergeMode(PDFMergerUtility.DocumentMergeMode.OPTIMIZE_RESOURCES_MODE);
+            logger.debug("PDF merger configured with resource optimization");
         } else {
-          throw new IllegalArgumentException("Unsupported file format: " + inputPath.getFileName());
+            pdfMerger.setDocumentMergeMode(PDFMergerUtility.DocumentMergeMode.PDFBOX_LEGACY_MODE);
+            logger.debug("PDF merger configured with legacy mode");
         }
-      }
-
-      try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-
-        pdfmerge.setDestinationStream(outputStream);
-        CompressParameters compressParameters = new CompressParameters();
-        compressParameters.isCompress();
-
-
-        pdfmerge.mergeDocuments(null, compressParameters);
-
-
-        return outputStream.toByteArray();
-      } catch (IOException e) {
-        throw new RuntimeException("Error occurred while merging PDF documents", e);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to merge PDFs", e);
-
-    } finally {
-
-
-
+        
+        return pdfMerger;
     }
-  }
 
-
-  private static boolean isImage(String filepath) {
-    File file = new File(filepath);
-    String[] supportedExtensions = {"jpeg", "jpg", "png", "bmp", "gif"};
-    String fileName = file.getName().toLowerCase();
-    for (String ext : supportedExtensions) {
-      if (fileName.endsWith(ext)) {
-        return true;
-      }
+    /**
+     * Processes a single page range by finding the file and handling it based on type
+     */
+    private void processPageRange(List<Path> tempFiles, PageRange pageRange, Path tempLoc, PDFMergerUtility pdfMerger) {
+        logger.debug("Processing page range for file: {}", pageRange.getFile());
+        
+        Path inputPath = findInputFile(tempFiles, pageRange);
+        validateFileExists(inputPath);
+        
+        try {
+            if (isPdfFile(inputPath)) {
+                processPdfFile(inputPath, pageRange, tempLoc, pdfMerger);
+            } else if (isImageFile(inputPath)) {
+                processImageFile(inputPath, tempLoc, pdfMerger);
+            } else {
+                throw new ValidationException("Unsupported file format: " + inputPath.getFileName());
+            }
+        } catch (IOException e) {
+            logger.error("Failed to process file: {}", inputPath, e);
+            throw new FileProcessingException("Failed to process file: " + inputPath.getFileName(), e);
+        }
     }
-    return false;
-  }
 
-  private static PDDocument convertImageToPDF(String imageFilePath) throws IOException {
-    File imageFile = new File(imageFilePath);
-    PDDocument document = new PDDocument();
-    PDImageXObject image = PDImageXObject.createFromFile(imageFile.getAbsolutePath(), document);
-    PDRectangle pageSize = PDRectangle.A4;
-    float imageWidth = image.getWidth();
-    float imageHeight = image.getHeight();
-    float pageWidth = pageSize.getWidth();
-    float pageHeight = pageSize.getHeight();
-    float widthScale = pageWidth / imageWidth;
-    float heightScale = pageHeight / imageHeight;
-    float scale = Math.min(widthScale, heightScale);
-    float scaledWidth = imageWidth * scale;
-    float scaledHeight = imageHeight * scale;
-    float xOffset = (pageWidth - scaledWidth) / 2;
-    float yOffset = (pageHeight - scaledHeight) / 2;
-    PDPage page = new PDPage(pageSize);
-    document.addPage(page);
-    try (var contentStream = new PDPageContentStream(document, page)) {
-      contentStream.drawImage(image, xOffset, yOffset, scaledWidth, scaledHeight);
+    /**
+     * Finds the input file matching the page range specification
+     */
+    private Path findInputFile(List<Path> tempFiles, PageRange pageRange) {
+        return tempFiles.stream()
+                .filter(file -> {
+                    String fileName = file.getFileName().toString();
+                    return fileName.equals(pageRange.getFile() + ".pdf") || 
+                           fileName.equals(pageRange.getFile());
+                })
+                .findFirst()
+                .orElseThrow(() -> new FileProcessingException("File not found: " + pageRange.getFile()));
     }
-    return document;
-  }
+
+    /**
+     * Validates that the specified file exists
+     */
+    private void validateFileExists(Path inputPath) {
+        if (Files.notExists(inputPath)) {
+            throw new FileProcessingException("File does not exist: " + inputPath);
+        }
+    }
+
+    /**
+     * Processes a PDF file with the specified page range
+     */
+    private void processPdfFile(Path inputPath, PageRange pageRange, Path tempLoc, PDFMergerUtility pdfMerger) throws IOException {
+        logger.debug("Processing PDF file: {} with page range {}-{}", inputPath.getFileName(), 
+                    pageRange.getStartPage(), pageRange.getEndPage());
+        
+        try (PDDocument sourceDocument = Loader.loadPDF(inputPath.toFile())) {
+            validatePageRange(pageRange, sourceDocument.getNumberOfPages());
+            
+            PDDocument newDocument = extractPagesFromDocument(sourceDocument, pageRange);
+            String tempPdfPath = saveTempDocument(newDocument, tempLoc);
+            
+            pdfMerger.addSource(tempPdfPath);
+            newDocument.close();
+            
+            logger.debug("Successfully processed PDF file: {}", inputPath.getFileName());
+        }
+    }
+
+    /**
+     * Validates that the page range is valid for the document
+     */
+    private void validatePageRange(PageRange pageRange, int totalPages) {
+        if (pageRange.getStartPage() < 0 || pageRange.getEndPage() >= totalPages) {
+            if (!(pageRange.getStartPage() == 0 && pageRange.getEndPage() == -1)) {
+                logger.warn("Page range {}-{} may be invalid for document with {} pages", 
+                           pageRange.getStartPage(), pageRange.getEndPage(), totalPages);
+            }
+        }
+    }
+
+    /**
+     * Extracts specified pages from a PDF document
+     */
+    private PDDocument extractPagesFromDocument(PDDocument sourceDocument, PageRange pageRange) {
+        PDDocument newDocument = new PDDocument();
+        
+        int start = Math.max(0, pageRange.getStartPage());
+        int end = calculateEndPage(pageRange, sourceDocument.getNumberOfPages());
+        int step = pageRange.getStep();
+        
+        logger.debug("Extracting pages from {} to {} with step {}", start, end, step);
+        
+        if (start <= end) {
+            for (int i = start; i <= end; i += step) {
+                if (i < sourceDocument.getNumberOfPages()) {
+                    newDocument.addPage(sourceDocument.getPage(i));
+                }
+            }
+        } else {
+            for (int i = start; i >= end; i += step) {
+                if (i >= 0 && i < sourceDocument.getNumberOfPages()) {
+                    newDocument.addPage(sourceDocument.getPage(i));
+                }
+            }
+        }
+        
+        return newDocument;
+    }
+
+    /**
+     * Calculates the actual end page based on page range and document size
+     */
+    private int calculateEndPage(PageRange pageRange, int totalPages) {
+        int end = Math.min(pageRange.getEndPage(), totalPages - 1);
+        
+        if (pageRange.getStartPage() == 0 && pageRange.getEndPage() == -1) {
+            end = totalPages - 1;
+        }
+        
+        return end;
+    }
+
+    /**
+     * Processes an image file by converting it to PDF
+     */
+    private void processImageFile(Path inputPath, Path tempLoc, PDFMergerUtility pdfMerger) throws IOException {
+        logger.debug("Processing image file: {}", inputPath.getFileName());
+        
+        try (PDDocument imageDocument = imageToPdfConverter.convertImageToPdf(
+                inputPath.toString(), 
+                ImageToPdfConverter.PageSize.A4, 
+                ImageToPdfConverter.ScalingMode.FIT_PAGE, 
+                0.9f)) {
+            
+            String tempPdfPath = saveTempDocument(imageDocument, tempLoc);
+            pdfMerger.addSource(tempPdfPath);
+            
+            logger.debug("Successfully processed image file: {}", inputPath.getFileName());
+        }
+    }
+
+    /**
+     * Saves a temporary PDF document and returns its path
+     */
+    private String saveTempDocument(PDDocument document, Path tempLoc) throws IOException {
+        String tempPdfPath = tempLoc.toString() + "/" + UUID.randomUUID().toString() + ".pdf";
+        document.save(tempPdfPath);
+        logger.debug("Saved temporary PDF: {}", tempPdfPath);
+        return tempPdfPath;
+    }
+
+    /**
+     * Executes the final merge operation
+     */
+    private byte[] executeMerge(PDFMergerUtility pdfMerger) throws IOException {
+        logger.debug("Executing final PDF merge");
+        
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            pdfMerger.setDestinationStream(outputStream);
+            
+            CompressParameters compressParameters = new CompressParameters();
+            compressParameters.isCompress();
+            
+            pdfMerger.mergeDocuments(null, compressParameters);
+            
+            byte[] result = outputStream.toByteArray();
+            logger.info("PDF merge completed successfully, output size: {} bytes", result.length);
+            
+            return result;
+        }
+    }
+
+    /**
+     * Checks if the file is a PDF file
+     */
+    private boolean isPdfFile(Path filePath) {
+        return filePath.toString().toLowerCase().endsWith(".pdf");
+    }
+
+    /**
+     * Checks if the file is an image file
+     */
+    private boolean isImageFile(Path filePath) {
+        return imageToPdfConverter.isImageFile(filePath.toString());
+    }
+
+    /**
+     * Converts an image file to PDF document
+     */
+    private PDDocument convertImageToPDF(String imageFilePath) throws IOException {
+        return imageToPdfConverter.convertImageToPdf(imageFilePath);
+    }
 }
