@@ -32,14 +32,14 @@ class ImageToPdfConverterTest {
 
     @Test
     void testIsImageFile_WithValidImageExtensions() {
-        // Test all supported image formats
+
         assertTrue(imageToPdfConverter.isImageFile("test.jpg"));
         assertTrue(imageToPdfConverter.isImageFile("test.jpeg"));
         assertTrue(imageToPdfConverter.isImageFile("test.png"));
         assertTrue(imageToPdfConverter.isImageFile("test.bmp"));
         assertTrue(imageToPdfConverter.isImageFile("test.gif"));
         
-        // Case insensitivity
+
         assertTrue(imageToPdfConverter.isImageFile("test.JPG"));
         assertTrue(imageToPdfConverter.isImageFile("test.PNG"));
     }
@@ -122,23 +122,23 @@ class ImageToPdfConverterTest {
 
     @Test
     void testConvertImageToPdf_WithValidJpegImage() throws IOException {
-        // Create a minimal JPEG file for testing
+
         Path jpegFile = tempDir.resolve("test.jpg");
         byte[] jpegHeader = {
-            (byte)0xFF, (byte)0xD8, // SOI marker
-            (byte)0xFF, (byte)0xE0, // APP0 marker
-            0x00, 0x10, // Length of APP0 segment
-            'J', 'F', 'I', 'F', 0x00, // JFIF identifier
-            0x01, 0x01, // Version
-            0x00, // Units
-            0x00, 0x01, // X density
-            0x00, 0x01, // Y density
-            0x00, 0x00, // Thumbnail width/height
-            (byte)0xFF, (byte)0xD9 // EOI marker
+            (byte)0xFF, (byte)0xD8,
+            (byte)0xFF, (byte)0xE0,
+            0x00, 0x10,
+            'J', 'F', 'I', 'F', 0x00,
+            0x01, 0x01,
+            0x00,
+            0x00, 0x01,
+            0x00, 0x01,
+            0x00, 0x00,
+            (byte)0xFF, (byte)0xD9
         };
         Files.write(jpegFile, jpegHeader);
         
-        // This will throw an exception with our minimal JPEG, but we can verify the validation passes
+
         assertThrows(IOException.class, () -> 
                 imageToPdfConverter.convertImageToPdf(jpegFile.toString()));
     }

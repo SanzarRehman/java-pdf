@@ -47,7 +47,7 @@ class FileValidatorTest {
 
     @Test
     void validateFileSize_WithOversizedFile_ShouldThrowValidationException() {
-        long oversizedFileSize = 25 * 1024 * 1024; // 25MB (exceeds 20MB limit)
+        long oversizedFileSize = 25 * 1024 * 1024;
         when(mockFile.getSize()).thenReturn(oversizedFileSize);
         
         ValidationException exception = assertThrows(ValidationException.class, 
@@ -60,7 +60,7 @@ class FileValidatorTest {
 
     @Test
     void validateFileSize_WithValidSizeFile_ShouldNotThrowException() {
-        long validFileSize = 10 * 1024 * 1024; // 10MB (within 20MB limit)
+        long validFileSize = 10 * 1024 * 1024;
         when(mockFile.getSize()).thenReturn(validFileSize);
         
         assertDoesNotThrow(() -> FileValidator.validateFileSize(mockFile, "testFile"));
@@ -350,7 +350,7 @@ class FileValidatorTest {
 
     @Test
     void validateAssetFiles_WithOversizedAsset_ShouldThrowValidationException() {
-        long oversizedFileSize = 25 * 1024 * 1024; // 25MB
+        long oversizedFileSize = 25 * 1024 * 1024;
         MultipartFile oversizedAsset = org.mockito.Mockito.mock(MultipartFile.class);
         when(oversizedAsset.isEmpty()).thenReturn(false);
         when(oversizedAsset.getSize()).thenReturn(oversizedFileSize);

@@ -52,7 +52,7 @@ public class Header extends AbstractHtmlDocumentEventHandler {
       }
     }
     
-    // Add placeholder for additional content if needed
+
     canvas.getPdfCanvas().addXObjectAt(placeholder, x + space, y - descent);
   }
 }

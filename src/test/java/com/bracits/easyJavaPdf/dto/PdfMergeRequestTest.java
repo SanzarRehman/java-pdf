@@ -28,7 +28,7 @@ class PdfMergeRequestTest {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
 
-        // Create mock files for testing
+
         mockPdfFile1 = new MockMultipartFile("pdf1", "document1.pdf", "application/pdf", "PDF content 1".getBytes());
         mockPdfFile2 = new MockMultipartFile("pdf2", "document2.pdf", "application/pdf", "PDF content 2".getBytes());
         mockImageFile = new MockMultipartFile("image", "image.jpg", "image/jpeg", "Image content".getBytes());
@@ -90,7 +90,7 @@ class PdfMergeRequestTest {
 
     @Test
     void testPdfMergeRequestWithValidDispositions() {
-        // Test inline disposition
+
         PdfMergeRequest request1 = new PdfMergeRequest();
         request1.setFiles(Arrays.asList(mockPdfFile1));
         request1.setDisposition("inline");
@@ -98,7 +98,7 @@ class PdfMergeRequestTest {
         Set<ConstraintViolation<PdfMergeRequest>> violations1 = validator.validate(request1);
         assertTrue(violations1.isEmpty(), "Request with 'inline' disposition should be valid");
 
-        // Test attachment disposition
+
         PdfMergeRequest request2 = new PdfMergeRequest();
         request2.setFiles(Arrays.asList(mockPdfFile1));
         request2.setDisposition("attachment");
@@ -121,7 +121,7 @@ class PdfMergeRequestTest {
         PdfMergeRequest request = new PdfMergeRequest();
         List<MultipartFile> files = Arrays.asList(mockPdfFile1, mockImageFile);
         
-        // Test setters and getters
+
         request.setFiles(files);
         assertEquals(files, request.getFiles());
         assertEquals(2, request.getFiles().size());
@@ -168,8 +168,8 @@ class PdfMergeRequestTest {
         
         assertNull(request.getFiles());
         assertNull(request.getPagesDefinition());
-        assertEquals("inline", request.getDisposition()); // default value
-        assertEquals("merged.pdf", request.getFileName()); // default value
+        assertEquals("inline", request.getDisposition());
+        assertEquals("merged.pdf", request.getFileName());
         assertNull(request.getPassword());
         assertFalse(request.isResourceOptimizer());
     }
@@ -178,7 +178,7 @@ class PdfMergeRequestTest {
     void testPdfMergeRequestDefaultValues() {
         PdfMergeRequest request = new PdfMergeRequest();
         
-        // Test default values
+
         assertEquals("inline", request.getDisposition());
         assertEquals("merged.pdf", request.getFileName());
         assertFalse(request.isResourceOptimizer());

@@ -26,7 +26,7 @@ public class PageRangeParser {
   public static List<PageRange> parse(String pages, String tempFiles) throws Exception {
     List<PageRange> pageRanges = new ArrayList<>();
 
-    if (pages.startsWith("[")) { // JSON format
+    if (pages.startsWith("[")) {
       ObjectMapper mapper = new ObjectMapper();
       List<PageRangeInput> inputs = mapper.readValue(pages, new TypeReference<>() {});
 
@@ -44,7 +44,7 @@ public class PageRangeParser {
           String range = fileAndRange.length > 1 ? fileAndRange[1] : null;
           pageRanges.addAll(parseRange(file, range, tempFiles));
         } else {
-          pageRanges.addAll(parseRange(token, null,tempFiles)); // Full file
+          pageRanges.addAll(parseRange(token, null,tempFiles));
         }
       }
     }

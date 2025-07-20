@@ -20,15 +20,24 @@ import java.util.List;
 public class PdfGenerationRequest {
 
     /**
-     * The main HTML file to convert to PDF (required)
+     * The main HTML file to convert to PDF (optional if htmlContent is provided)
      */
-    @NotNull(message = "HTML file is required")
     private MultipartFile htmlFile;
 
     /**
      * Optional CSS file for styling the HTML content
      */
     private MultipartFile cssFile;
+
+    /**
+     * Optional CSS content as string (alternative to cssFile)
+     */
+    private String cssContent;
+
+    /**
+     * Optional HTML content as string (alternative to htmlFile)
+     */
+    private String htmlContent;
 
     /**
      * Optional header HTML file for PDF header

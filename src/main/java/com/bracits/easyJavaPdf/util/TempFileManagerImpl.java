@@ -128,7 +128,7 @@ public class TempFileManagerImpl implements TempFileManager {
         }
         
         Files.walk(directory)
-                .sorted((path1, path2) -> path2.compareTo(path1)) // Delete files before directories
+                .sorted((path1, path2) -> path2.compareTo(path1))
                 .forEach(path -> {
                     try {
                         Files.delete(path);

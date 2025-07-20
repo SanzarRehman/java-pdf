@@ -104,7 +104,7 @@ public class ResourceCleanupService {
             }
         }
         
-        // Remove cleaned up resources from tracking
+
         toRemove.forEach(trackedResources::remove);
         
         logger.info("Manual cleanup completed. Cleaned {} orphaned resources", cleanedCount);
@@ -115,7 +115,7 @@ public class ResourceCleanupService {
      * Scheduled cleanup task that runs periodically to clean up orphaned temporary files.
      * Runs every hour by default.
      */
-    @Scheduled(fixedRateString = "${app.cleanup.schedule-rate-ms:3600000}") // Default: 1 hour
+    @Scheduled(fixedRateString = "${app.cleanup.schedule-rate-ms:3600000}")
     public void scheduledCleanup() {
         logger.debug("Starting scheduled cleanup of orphaned resources");
         
@@ -202,7 +202,7 @@ public class ResourceCleanupService {
         }
         
         Files.walk(directory)
-                .sorted((path1, path2) -> path2.compareTo(path1)) // Delete files before directories
+                .sorted((path1, path2) -> path2.compareTo(path1))
                 .forEach(path -> {
                     try {
                         Files.delete(path);

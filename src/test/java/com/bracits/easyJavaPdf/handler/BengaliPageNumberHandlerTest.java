@@ -43,34 +43,34 @@ class BengaliPageNumberHandlerTest {
 
     @Test
     void testConvertToBengali() {
-        // Given
+
         int number = 123;
         
-        // When
+
         String bengaliNumber = handler.convertToBengali(number);
         
-        // Then
+
         assertEquals("১২৩", bengaliNumber, "Number should be converted to Bengali numerals");
     }
 
     @Test
     void testConvertToBengaliWithZero() {
-        // Given
+
         int number = 0;
         
-        // When
+
         String bengaliNumber = handler.convertToBengali(number);
         
-        // Then
+
         assertEquals("০", bengaliNumber, "Zero should be converted to Bengali numeral");
     }
 
     @Test
     void testBengaliPageNumberHandlerRendering() throws IOException {
-        // Given
+
         BengaliPageNumberHandler handler = new BengaliPageNumberHandler("Test Header");
         
-        // When & Then
+
         assertDoesNotThrow(() -> {
             createTestDocument(handler);
         });
@@ -78,10 +78,10 @@ class BengaliPageNumberHandlerTest {
 
     @Test
     void testBengaliPageNumberHandlerWithInvalidFont() {
-        // Given
+
         String nonExistentFontPath = "non-existent-font.ttf";
         
-        // When & Then
+
         assertThrows(Exception.class, () -> {
             new BengaliPageNumberHandler("Test Header", nonExistentFontPath);
         });
@@ -95,11 +95,11 @@ class BengaliPageNumberHandlerTest {
 
         pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, handler);
 
-        // Add some content
+
         document.add(new Paragraph("Test content page 1"));
         document.add(new Paragraph("This is a test document"));
         
-        // Add a second page
+
         document.add(new Paragraph("Test content page 2").setFixedPosition(100, 100, 400));
 
         document.close();

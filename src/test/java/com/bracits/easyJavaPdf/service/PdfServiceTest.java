@@ -29,6 +29,9 @@ class PdfServiceTest {
     @Mock
     private PdfGenerator mockPdfGenerator;
 
+    @Mock
+    private com.bracits.easyJavaPdf.util.TempFileManager mockTempFileManager;
+
     private PdfService pdfService;
 
     @TempDir
@@ -36,30 +39,30 @@ class PdfServiceTest {
 
     @BeforeEach
     void setUp() {
-        pdfService = new PdfService(mockExecutor, mockPdfGenerator);
+        pdfService = new PdfService(mockExecutor, mockPdfGenerator, mockTempFileManager);
     }
 
     @Test
     void testGenerateWithValidParameters() throws Exception {
-        // Given
+
         Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
         Path cssFile = createTempFile("test.css", "body { font-family: Arial; }");
-        byte[] expectedPdfBytes = new byte[]{1, 2, 3, 4}; // Mock PDF bytes
+        byte[] expectedPdfBytes = new byte[]{1, 2, 3, 4};
         
         when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(expectedPdfBytes);
 
-        // When
+
         CompletableFuture<byte[]> result = pdfService.generate(
             htmlFile, cssFile, "header", "footer", null, null, "password", "false"
         );
 
-        // Then
+
         assertNotNull(result);
         byte[] actualBytes = result.get();
         assertArrayEquals(expectedPdfBytes, actualBytes);
         
-        // Verify that the PdfGenerator was called with correct parameters
+
         verify(mockPdfGenerator).generatePdf(
             eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
             eq(null), eq(null), eq("password"), eq("false")
@@ -68,13 +71,13 @@ class PdfServiceTest {
 
     @Test
     void testGenerateWithPdfGeneratorException() throws Exception {
-        // Given
+
         Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
         
         when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
             .thenThrow(new PdfGenerationException("PDF generation failed"));
 
-        // When & Then
+
         CompletableFuture<byte[]> result = pdfService.generate(
             htmlFile, null, null, null, null, null, null, "false"
         );
@@ -86,7 +89,7 @@ class PdfServiceTest {
 
     @Test
     void testGenerateWithAllParameters() throws Exception {
-        // Given
+
         Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
         Path cssFile = createTempFile("test.css", "body { color: red; }");
         Path fontFile = createTempFile("font.ttf", "fake font");
@@ -96,17 +99,17 @@ class PdfServiceTest {
         when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(expectedPdfBytes);
 
-        // When
+
         CompletableFuture<byte[]> result = pdfService.generate(
             htmlFile, cssFile, "header", "footer", "bangla", fontFiles, "pass", "true"
         );
 
-        // Then
+
         assertNotNull(result);
         byte[] actualBytes = result.get();
         assertArrayEquals(expectedPdfBytes, actualBytes);
         
-        // Verify all parameters were passed correctly
+
         verify(mockPdfGenerator).generatePdf(
             eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
             eq("bangla"), eq(fontFiles), eq("pass"), eq("true")
@@ -115,28 +118,28 @@ class PdfServiceTest {
 
     @Test
     void testGenerateLogsPerformanceMetrics() throws Exception {
-        // Given
+
         Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
         byte[] expectedPdfBytes = new byte[]{1, 2, 3};
         
         when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(expectedPdfBytes);
 
-        // When
+
         CompletableFuture<byte[]> result = pdfService.generate(
             htmlFile, null, null, null, null, null, null, "false"
         );
 
-        // Then
+
         assertNotNull(result);
         byte[] actualBytes = result.get();
         assertArrayEquals(expectedPdfBytes, actualBytes);
         
-        // Verify the generator was called
+
         verify(mockPdfGenerator).generatePdf(any(), any(), any(), any(), any(), any(), any(), any());
     }
 
-    // Helper methods
+
 
     private Path createTempFile(String fileName, String content) throws IOException {
         Path file = tempDir.resolve(fileName);

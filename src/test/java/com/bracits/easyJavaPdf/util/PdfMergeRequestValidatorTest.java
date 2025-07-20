@@ -73,7 +73,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithTooManyFiles_ShouldThrowValidationException() {
         PdfMergeRequest request = new PdfMergeRequest();
         
-        // Create 101 files (exceeds limit of 100)
+
         List<MultipartFile> files = IntStream.range(0, 101)
             .mapToObj(i -> createMockPdfFile("file" + i + ".pdf", 1024L))
             .toList();
@@ -107,8 +107,8 @@ class PdfMergeRequestValidatorTest {
     void validate_WithTotalFileSizeExceedsLimit_ShouldThrowValidationException() {
         PdfMergeRequest request = new PdfMergeRequest();
         
-        // Create files with total size > 100MB
-        long largeFileSize = 60 * 1024 * 1024; // 60MB each
+
+        long largeFileSize = 60 * 1024 * 1024;
         MultipartFile file1 = createMockPdfFile("file1.pdf", largeFileSize);
         MultipartFile file2 = createMockPdfFile("file2.pdf", largeFileSize);
         
@@ -124,7 +124,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithLongPagesDefinition_ShouldThrowValidationException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        String longPagesDefinition = "a".repeat(1001); // Exceeds 1000 character limit
+        String longPagesDefinition = "a".repeat(1001);
         request.setPagesDefinition(longPagesDefinition);
         
         ValidationException exception = assertThrows(ValidationException.class,
@@ -167,7 +167,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithMalformedJsonPagesDefinition_ShouldThrowValidationException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        request.setPagesDefinition("[{\"file\":\"file1.pdf\",\"range\":\"1:3\""); // Missing closing brace
+        request.setPagesDefinition("[{\"file\":\"file1.pdf\",\"range\":\"1:3\"");
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfMergeRequestValidator.validate(request));
@@ -209,7 +209,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithLongFileName_ShouldThrowValidationException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        String longFileName = "a".repeat(256) + ".pdf"; // Exceeds 255 character limit
+        String longFileName = "a".repeat(256) + ".pdf";
         request.setFileName(longFileName);
         
         ValidationException exception = assertThrows(ValidationException.class,
@@ -255,7 +255,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithShortPassword_ShouldThrowValidationException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        request.setPassword("123"); // Too short (less than 4 characters)
+        request.setPassword("123");
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfMergeRequestValidator.validate(request));
@@ -267,7 +267,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithLongPassword_ShouldThrowValidationException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        request.setPassword("a".repeat(129)); // Too long (exceeds 128 characters)
+        request.setPassword("a".repeat(129));
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfMergeRequestValidator.validate(request));
@@ -279,7 +279,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithInvalidPasswordCharacters_ShouldThrowValidationException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        request.setPassword("password\u007F\u0080"); // Contains DEL and extended ASCII characters
+        request.setPassword("password\u007F\u0080");
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfMergeRequestValidator.validate(request));
@@ -314,7 +314,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithPageRangeReferencingMoreFilesThanProvided_ShouldThrowValidationException() {
         PdfMergeRequest request = new PdfMergeRequest();
         
-        // Provide only 1 file but reference 2 files in page range
+
         MultipartFile file = createMockPdfFile("file1.pdf", 1024L);
         request.setFiles(Collections.singletonList(file));
         request.setPagesDefinition("file1.pdf~1:3 file2.pdf~2:5");
@@ -329,7 +329,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithJsonPageRangeReferencingMoreFilesThanProvided_ShouldThrowValidationException() {
         PdfMergeRequest request = new PdfMergeRequest();
         
-        // Provide only 1 file but reference 2 files in JSON page range
+
         MultipartFile file = createMockPdfFile("file1.pdf", 1024L);
         request.setFiles(Collections.singletonList(file));
         request.setPagesDefinition("[{\"file\":\"file1.pdf\",\"range\":\"1:3\"},{\"file\":\"file2.pdf\",\"range\":\"2:5\"}]");
@@ -353,7 +353,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithEmptyPassword_ShouldNotThrowException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        request.setPassword("   "); // Empty after trim
+        request.setPassword("   ");
         
         assertDoesNotThrow(() -> PdfMergeRequestValidator.validate(request));
     }
@@ -371,7 +371,7 @@ class PdfMergeRequestValidatorTest {
     void validate_WithEmptyPagesDefinition_ShouldNotThrowException() {
         PdfMergeRequest request = createValidMinimalRequest();
         
-        request.setPagesDefinition("   "); // Empty after trim
+        request.setPagesDefinition("   ");
         
         assertDoesNotThrow(() -> PdfMergeRequestValidator.validate(request));
     }

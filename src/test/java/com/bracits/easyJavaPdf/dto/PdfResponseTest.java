@@ -102,7 +102,7 @@ class PdfResponseTest {
         
         PdfResponse result = response.addHeader("Authorization", "Bearer token");
         
-        // Should return the same instance for method chaining
+
         assertSame(response, result);
         assertEquals("Bearer token", response.getHeaders().get("Authorization"));
     }
@@ -124,7 +124,7 @@ class PdfResponseTest {
         
         PdfResponse result = response.addMetadata("pages", 10);
         
-        // Should return the same instance for method chaining
+
         assertSame(response, result);
         assertEquals(10, response.getMetadata().get("pages"));
     }
@@ -147,7 +147,7 @@ class PdfResponseTest {
         
         PdfResponse result = response.setContentWithLength(testContent);
         
-        // Should return the same instance for method chaining
+
         assertSame(response, result);
         assertEquals(testContent, response.getContent());
         assertEquals((long) testContent.length, response.getContentLength());

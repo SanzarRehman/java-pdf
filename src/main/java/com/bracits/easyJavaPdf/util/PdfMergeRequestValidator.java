@@ -14,34 +14,34 @@ import java.util.regex.Pattern;
  */
 public final class PdfMergeRequestValidator {
 
-    // Password constraints
+
     private static final int MIN_PASSWORD_LENGTH = 4;
     private static final int MAX_PASSWORD_LENGTH = 128;
     
-    // File limits
+
     private static final int MAX_MERGE_FILES = 100;
     private static final int MIN_MERGE_FILES = 1;
     
-    // Filename constraints
+
     private static final int MAX_FILENAME_LENGTH = 255;
     
-    // Page range patterns - more permissive to allow various formats
+
     private static final Pattern PAGE_RANGE_PATTERN = Pattern.compile(
         "^(\\[.*\\]|[\\w\\s~:,.\\-]+)$"
     );
     
-    // Simple page range syntax patterns - allow dots in filenames
+
     private static final Pattern SIMPLE_RANGE_PATTERN = Pattern.compile(
         "^[\\w.\\-]+(?:~[\\d:,\\-]*)?(?:\\s+[\\w.\\-]+(?:~[\\d:,\\-]*)?)*$"
     );
     
-    // JSON page range pattern
+
     private static final Pattern JSON_RANGE_PATTERN = Pattern.compile(
         "^\\[\\s*\\{.*\\}\\s*(?:,\\s*\\{.*\\}\\s*)*\\]$"
     );
 
     private PdfMergeRequestValidator() {
-        // Utility class - prevent instantiation
+
     }
 
     /**
@@ -62,7 +62,7 @@ public final class PdfMergeRequestValidator {
         validatePassword(request.getPassword());
         validateResourceOptimizer(request.isResourceOptimizer());
         
-        // Cross-field validations
+
         validateFilesWithPageRanges(request);
         validateResourceOptimizerWithFileCount(request);
     }
@@ -78,7 +78,7 @@ public final class PdfMergeRequestValidator {
             throw new ValidationException("At least one file is required for merging");
         }
 
-        // Business rule: Limit the number of files that can be merged
+
         if (files.size() > MAX_MERGE_FILES) {
             throw new ValidationException(
                     "Too many files for merging. Maximum allowed: " + MAX_MERGE_FILES + 
@@ -92,10 +92,10 @@ public final class PdfMergeRequestValidator {
             );
         }
 
-        // Validate each file using FileValidator
+
         FileValidator.validateMergeFiles(files);
 
-        // Additional business logic validations
+
         validateNoDuplicateFilenames(files);
         validateTotalFilesSize(files);
     }
@@ -108,19 +108,19 @@ public final class PdfMergeRequestValidator {
      */
     private static void validatePagesDefinition(String pagesDefinition) {
         if (pagesDefinition == null || pagesDefinition.trim().isEmpty()) {
-            return; // Page definition is optional
+            return;
         }
 
         String trimmedPages = pagesDefinition.trim();
         
-        // Business rule: Page definition should not be too long
+
         if (trimmedPages.length() > 1000) {
             throw new ValidationException(
                     "Page definition is too long. Maximum 1000 characters allowed"
             );
         }
 
-        // Basic format validation - just check for obviously invalid characters
+
         if (trimmedPages.contains("<") || trimmedPages.contains(">") || 
             trimmedPages.contains("&") || trimmedPages.contains("|")) {
             throw new ValidationException(
@@ -129,7 +129,7 @@ public final class PdfMergeRequestValidator {
             );
         }
 
-        // Additional validation based on format type
+
         if (trimmedPages.startsWith("[")) {
             validateJsonPageRangeFormat(trimmedPages);
         } else {
@@ -145,7 +145,7 @@ public final class PdfMergeRequestValidator {
      */
     private static void validateDisposition(String disposition) {
         if (disposition == null || disposition.trim().isEmpty()) {
-            return; // Will use default value
+            return;
         }
 
         String trimmedDisposition = disposition.trim().toLowerCase();
@@ -165,26 +165,26 @@ public final class PdfMergeRequestValidator {
      */
     private static void validateFileName(String fileName) {
         if (fileName == null || fileName.trim().isEmpty()) {
-            return; // Will use default value
+            return;
         }
 
         String trimmedFileName = fileName.trim();
         
-        // Business rule: Filename length limit
+
         if (trimmedFileName.length() > MAX_FILENAME_LENGTH) {
             throw new ValidationException(
                     "Filename is too long. Maximum " + MAX_FILENAME_LENGTH + " characters allowed"
             );
         }
 
-        // Business rule: Filename should end with .pdf
+
         if (!trimmedFileName.toLowerCase().endsWith(".pdf")) {
             throw new ValidationException(
                     "Filename must end with .pdf extension"
             );
         }
 
-        // Business rule: Filename should not contain invalid characters
+
         if (containsInvalidFilenameCharacters(trimmedFileName)) {
             throw new ValidationException(
                     "Filename contains invalid characters. Use only alphanumeric characters, " +
@@ -201,12 +201,12 @@ public final class PdfMergeRequestValidator {
      */
     private static void validatePassword(String password) {
         if (password == null || password.trim().isEmpty()) {
-            return; // Password is optional
+            return;
         }
 
         String trimmedPassword = password.trim();
         
-        // Business rules for password (same as PDF generation)
+
         if (trimmedPassword.length() < MIN_PASSWORD_LENGTH) {
             throw new ValidationException(
                     "Password is too short. Minimum length: " + MIN_PASSWORD_LENGTH + " characters"
@@ -219,7 +219,7 @@ public final class PdfMergeRequestValidator {
             );
         }
 
-        // Check for invalid characters that might cause issues with PDF encryption
+
         if (containsInvalidPasswordCharacters(trimmedPassword)) {
             throw new ValidationException(
                     "Password contains invalid characters. Use only alphanumeric characters and common symbols"
@@ -234,8 +234,8 @@ public final class PdfMergeRequestValidator {
      * @throws ValidationException if the flag configuration is invalid
      */
     private static void validateResourceOptimizer(boolean resourceOptimizer) {
-        // Currently no specific validation needed for boolean flag
-        // This method is here for future business rules if needed
+
+
     }
 
     /**
@@ -249,15 +249,15 @@ public final class PdfMergeRequestValidator {
         List<MultipartFile> files = request.getFiles();
         
         if (pagesDefinition == null || pagesDefinition.trim().isEmpty()) {
-            return; // No page ranges to validate
+            return;
         }
 
-        // Business rule: If page ranges are specified, validate they don't exceed file count
+
         if (pagesDefinition.startsWith("[")) {
-            // JSON format - basic validation (detailed validation would require parsing)
+
             validateJsonPageRangeConsistency(pagesDefinition, files);
         } else {
-            // Simple format - validate file references
+
             validateSimplePageRangeConsistency(pagesDefinition, files);
         }
     }
@@ -272,13 +272,13 @@ public final class PdfMergeRequestValidator {
         List<MultipartFile> files = request.getFiles();
         boolean resourceOptimizer = request.isResourceOptimizer();
         
-        // Business rule: Recommend resource optimizer for large merges
+
         if (files.size() > 20 && !resourceOptimizer) {
-            // This is a warning-level validation - we could log this instead of throwing
-            // For now, we'll allow it but could add logging in the future
+
+
         }
 
-        // Business rule: Resource optimizer might not be beneficial for small merges
+
         if (files.size() == 1 && resourceOptimizer) {
             throw new ValidationException(
                     "Resource optimizer is not beneficial when merging only one file"
@@ -324,8 +324,8 @@ public final class PdfMergeRequestValidator {
                 .mapToLong(MultipartFile::getSize)
                 .sum();
 
-        // Business rule: Total size limit for merge operations (100MB)
-        long maxTotalSize = 100 * 1024 * 1024; // 100MB
+
+        long maxTotalSize = 100 * 1024 * 1024;
         if (totalSize > maxTotalSize) {
             throw new ValidationException(
                     "Total size of all files exceeds maximum allowed size for merging. " +
@@ -357,13 +357,13 @@ public final class PdfMergeRequestValidator {
      * @throws ValidationException if the format is invalid
      */
     private static void validateSimplePageRangeFormat(String pagesDefinition) {
-        // More lenient validation - just check for basic structure
+
         String[] tokens = pagesDefinition.trim().split("\\s+");
         for (String token : tokens) {
             if (token.trim().isEmpty()) {
                 continue;
             }
-            // Basic validation - ensure token doesn't contain obviously invalid characters
+
             if (token.contains("<") || token.contains(">") || token.contains("&")) {
                 throw new ValidationException(
                         "Invalid simple page range format. Expected format: " +
@@ -381,7 +381,7 @@ public final class PdfMergeRequestValidator {
      * @throws ValidationException if inconsistencies are found
      */
     private static void validateJsonPageRangeConsistency(String pagesDefinition, List<MultipartFile> files) {
-        // Basic validation - count braces to ensure it's not malformed
+
         long openBraces = pagesDefinition.chars().filter(ch -> ch == '{').count();
         long closeBraces = pagesDefinition.chars().filter(ch -> ch == '}').count();
         
@@ -391,7 +391,7 @@ public final class PdfMergeRequestValidator {
             );
         }
 
-        // Business rule: JSON should not reference more files than provided
+
         if (openBraces > files.size()) {
             throw new ValidationException(
                     "Page range definition references more files (" + openBraces + 
@@ -410,12 +410,12 @@ public final class PdfMergeRequestValidator {
     private static void validateSimplePageRangeConsistency(String pagesDefinition, List<MultipartFile> files) {
         String[] tokens = pagesDefinition.trim().split("\\s+");
         
-        // Filter out empty tokens
+
         long nonEmptyTokens = Arrays.stream(tokens)
                 .filter(token -> !token.trim().isEmpty())
                 .count();
         
-        // Business rule: Should not reference more files than provided
+
         if (nonEmptyTokens > files.size()) {
             throw new ValidationException(
                     "Page range definition references more files (" + nonEmptyTokens + 
@@ -431,7 +431,7 @@ public final class PdfMergeRequestValidator {
      * @return true if the filename contains invalid characters
      */
     private static boolean containsInvalidFilenameCharacters(String filename) {
-        // Allow alphanumeric characters, hyphens, underscores, dots, and spaces
+
         String allowedPattern = "^[a-zA-Z0-9._\\-\\s]+$";
         return !filename.matches(allowedPattern);
     }
@@ -443,8 +443,8 @@ public final class PdfMergeRequestValidator {
      * @return true if the password contains invalid characters
      */
     private static boolean containsInvalidPasswordCharacters(String password) {
-        // Allow alphanumeric characters and common symbols
-        // Exclude characters that might cause issues with PDF encryption
+
+
         String allowedPattern = "^[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\",./<>?|`~\\s]*$";
         return !password.matches(allowedPattern);
     }

@@ -29,7 +29,7 @@ class PdfGenerationRequestTest {
         ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
 
-        // Create mock files for testing
+
         mockHtmlFile = new MockMultipartFile("html", "test.html", "text/html", "<html><body>Test</body></html>".getBytes());
         mockCssFile = new MockMultipartFile("css", "style.css", "text/css", "body { margin: 0; }".getBytes());
         mockHeaderFile = new MockMultipartFile("header", "header.html", "text/html", "<div>Header</div>".getBytes());
@@ -81,7 +81,7 @@ class PdfGenerationRequestTest {
     void testPdfGenerationRequestGettersAndSetters() {
         PdfGenerationRequest request = new PdfGenerationRequest();
         
-        // Test setters and getters
+
         request.setHtmlFile(mockHtmlFile);
         assertEquals(mockHtmlFile, request.getHtmlFile());
         

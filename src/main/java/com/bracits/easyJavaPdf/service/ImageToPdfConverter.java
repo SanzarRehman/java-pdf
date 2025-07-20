@@ -24,12 +24,12 @@ public class ImageToPdfConverter {
 
     private static final Logger logger = LoggerFactory.getLogger(ImageToPdfConverter.class);
     
-    // Extended list of supported image formats
+
     private static final List<String> SUPPORTED_IMAGE_EXTENSIONS = Arrays.asList(
             "jpeg", "jpg", "png", "bmp", "gif", "tiff", "tif", "webp"
     );
     
-    // Page size options
+
     public enum PageSize {
         A4(PDRectangle.A4),
         LETTER(PDRectangle.LETTER),
@@ -48,12 +48,12 @@ public class ImageToPdfConverter {
         }
     }
     
-    // Scaling options
+
     public enum ScalingMode {
-        FIT_PAGE,       // Scale to fit page while maintaining aspect ratio
-        STRETCH_TO_FIT, // Stretch to fill page (may distort image)
-        ACTUAL_SIZE,    // Use actual image size (may be cropped)
-        CUSTOM_SCALE    // Use a custom scaling factor
+        FIT_PAGE,
+        STRETCH_TO_FIT,
+        ACTUAL_SIZE,
+        CUSTOM_SCALE
     }
 
     /**
@@ -89,7 +89,7 @@ public class ImageToPdfConverter {
             
             PDImageXObject image = PDImageXObject.createFromFile(imageFile.getAbsolutePath(), document);
             
-            // Calculate scaling and positioning based on selected mode
+
             ImageDimensions dimensions = calculateImageDimensions(
                 image, 
                 pageSize.getRectangle(), 
@@ -97,7 +97,7 @@ public class ImageToPdfConverter {
                 scaleFactor
             );
             
-            // Create page and add image
+
             PDPage page = new PDPage(pageSize.getRectangle());
             document.addPage(page);
             
@@ -137,7 +137,7 @@ public class ImageToPdfConverter {
                 
                 PDImageXObject image = PDImageXObject.createFromFile(new File(imageFilePath).getAbsolutePath(), document);
                 
-                // Calculate dimensions for this image
+
                 ImageDimensions dimensions = calculateImageDimensions(
                     image, 
                     pageSize.getRectangle(), 
@@ -145,7 +145,7 @@ public class ImageToPdfConverter {
                     0.9f
                 );
                 
-                // Create page and add image
+
                 PDPage page = new PDPage(pageSize.getRectangle());
                 document.addPage(page);
                 
@@ -234,54 +234,54 @@ public class ImageToPdfConverter {
         
         switch (scalingMode) {
             case FIT_PAGE:
-                // Calculate scaling to fit image within page while maintaining aspect ratio
+
                 float widthScale = pageWidth / imageWidth;
                 float heightScale = pageHeight / imageHeight;
                 float scale = Math.min(widthScale, heightScale);
                 
-                // Apply margin factor
+
                 scale *= scaleFactor;
                 
                 scaledWidth = imageWidth * scale;
                 scaledHeight = imageHeight * scale;
                 
-                // Center the image on the page
+
                 xOffset = (pageWidth - scaledWidth) / 2;
                 yOffset = (pageHeight - scaledHeight) / 2;
                 break;
                 
             case STRETCH_TO_FIT:
-                // Stretch to fill the page (with small margin)
+
                 scaledWidth = pageWidth * scaleFactor;
                 scaledHeight = pageHeight * scaleFactor;
                 
-                // Center the image
+
                 xOffset = (pageWidth - scaledWidth) / 2;
                 yOffset = (pageHeight - scaledHeight) / 2;
                 break;
                 
             case ACTUAL_SIZE:
-                // Use actual image size (may be cropped if larger than page)
+
                 scaledWidth = Math.min(imageWidth, pageWidth);
                 scaledHeight = Math.min(imageHeight, pageHeight);
                 
-                // Center the image
+
                 xOffset = (pageWidth - scaledWidth) / 2;
                 yOffset = (pageHeight - scaledHeight) / 2;
                 break;
                 
             case CUSTOM_SCALE:
-                // Apply custom scale factor directly
+
                 scaledWidth = imageWidth * scaleFactor;
                 scaledHeight = imageHeight * scaleFactor;
                 
-                // Center the image
+
                 xOffset = (pageWidth - scaledWidth) / 2;
                 yOffset = (pageHeight - scaledHeight) / 2;
                 break;
                 
             default:
-                // Default to FIT_PAGE if unknown mode
+
                 float defaultScale = Math.min(pageWidth / imageWidth, pageHeight / imageHeight) * 0.9f;
                 scaledWidth = imageWidth * defaultScale;
                 scaledHeight = imageHeight * defaultScale;

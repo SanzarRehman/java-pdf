@@ -155,7 +155,7 @@ class PdfGenerationRequestValidatorTest {
     void validate_WithLargeHeaderFile_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        long largeSize = 2 * 1024 * 1024; // 2MB (exceeds 1MB limit)
+        long largeSize = 2 * 1024 * 1024;
         when(mockHeaderFile.isEmpty()).thenReturn(false);
         when(mockHeaderFile.getSize()).thenReturn(largeSize);
         when(mockHeaderFile.getContentType()).thenReturn("text/html");
@@ -173,7 +173,7 @@ class PdfGenerationRequestValidatorTest {
     void validate_WithLargeFooterFile_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        long largeSize = 2 * 1024 * 1024; // 2MB (exceeds 1MB limit)
+        long largeSize = 2 * 1024 * 1024;
         when(mockFooterFile.isEmpty()).thenReturn(false);
         when(mockFooterFile.getSize()).thenReturn(largeSize);
         when(mockFooterFile.getContentType()).thenReturn("text/html");
@@ -191,7 +191,7 @@ class PdfGenerationRequestValidatorTest {
     void validate_WithLargeBanglaFooterFile_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        long largeSize = 2 * 1024 * 1024; // 2MB (exceeds 1MB limit)
+        long largeSize = 2 * 1024 * 1024;
         when(mockBanglaFooter.isEmpty()).thenReturn(false);
         when(mockBanglaFooter.getSize()).thenReturn(largeSize);
         when(mockBanglaFooter.getContentType()).thenReturn("text/html");
@@ -209,12 +209,12 @@ class PdfGenerationRequestValidatorTest {
     void validate_WithTooManyAssetFiles_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        // Create 51 empty asset files (exceeds limit of 50)
-        // Using empty files to avoid unnecessary stubbing issues
+
+
         List<MultipartFile> assets = IntStream.range(0, 51)
             .mapToObj(i -> {
                 MultipartFile mockFile = org.mockito.Mockito.mock(MultipartFile.class);
-                // Only stub what's needed for the count check
+
                 return mockFile;
             })
             .toList();
@@ -247,7 +247,7 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithShortPassword_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
-        request.setPassword("123"); // Too short (less than 4 characters)
+        request.setPassword("123");
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -259,7 +259,7 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithLongPassword_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
-        request.setPassword("a".repeat(129)); // Too long (exceeds 128 characters)
+        request.setPassword("a".repeat(129));
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -271,7 +271,7 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithInvalidPasswordCharacters_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
-        request.setPassword("password\u007F\u0080"); // Contains DEL and extended ASCII characters
+        request.setPassword("password\u007F\u0080");
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -291,7 +291,7 @@ class PdfGenerationRequestValidatorTest {
     void validate_WithBothFooterAndBanglaFooter_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        // Create proper mock footer files
+
         MultipartFile footerFile = createMockHtmlFile("footer.html", 512L);
         MultipartFile banglaFooter = createMockHtmlFile("bangla_footer.html", 512L);
         
@@ -309,7 +309,7 @@ class PdfGenerationRequestValidatorTest {
         PdfGenerationRequest request = createValidMinimalRequest();
         request.setJsEnabled(true);
         
-        // Create 21 asset files (exceeds limit of 20 when JS is enabled)
+
         List<MultipartFile> assets = IntStream.range(0, 21)
             .mapToObj(i -> createMockAssetFile("asset" + i + ".png", "image/png", 1024L))
             .toList();
@@ -326,8 +326,8 @@ class PdfGenerationRequestValidatorTest {
     void validate_WithTotalAssetSizeExceedsLimit_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        // Create assets with total size > 50MB but individual size < 20MB (to pass FileValidator)
-        long largeAssetSize = 18 * 1024 * 1024; // 18MB each (total 54MB > 50MB limit)
+
+        long largeAssetSize = 18 * 1024 * 1024;
         MultipartFile asset1 = createMockAssetFile("asset1.png", "image/png", largeAssetSize);
         MultipartFile asset2 = createMockAssetFile("asset2.png", "image/png", largeAssetSize);
         MultipartFile asset3 = createMockAssetFile("asset3.png", "image/png", largeAssetSize);
@@ -343,7 +343,7 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithEmptyPassword_ShouldNotThrowException() {
         PdfGenerationRequest request = createValidMinimalRequest();
-        request.setPassword("   "); // Empty after trim
+        request.setPassword("   ");
         
         assertDoesNotThrow(() -> PdfGenerationRequestValidator.validate(request));
     }
@@ -370,28 +370,28 @@ class PdfGenerationRequestValidatorTest {
     private PdfGenerationRequest createValidCompleteRequest() {
         PdfGenerationRequest request = createValidMinimalRequest();
         
-        // Add valid CSS file
+
         when(mockCssFile.isEmpty()).thenReturn(false);
         when(mockCssFile.getSize()).thenReturn(512L);
         when(mockCssFile.getContentType()).thenReturn("text/css");
         when(mockCssFile.getOriginalFilename()).thenReturn("styles.css");
         request.setCssFile(mockCssFile);
         
-        // Add valid header file
+
         when(mockHeaderFile.isEmpty()).thenReturn(false);
         when(mockHeaderFile.getSize()).thenReturn(256L);
         when(mockHeaderFile.getContentType()).thenReturn("text/html");
         when(mockHeaderFile.getOriginalFilename()).thenReturn("header.html");
         request.setHeaderFile(mockHeaderFile);
         
-        // Add valid assets
+
         MultipartFile asset = createMockAssetFile("font.ttf", "font/ttf", 1024L);
         request.setAssets(Collections.singletonList(asset));
         
-        // Add valid password
+
         request.setPassword("validPassword123");
         
-        // Enable JS
+
         request.setJsEnabled(true);
         
         return request;

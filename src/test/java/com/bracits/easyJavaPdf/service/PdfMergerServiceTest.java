@@ -34,10 +34,10 @@ class PdfMergerServiceTest {
 
     @Test
     void testMergePdfs_WithNullTempFiles_ThrowsValidationException() {
-        // Given
+
         List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 0, 1, 1));
 
-        // When & Then
+
         ValidationException exception = assertThrows(ValidationException.class, () ->
                 pdfMergerService.mergePdfs(null, pageRanges, null, tempDir, "false"));
         
@@ -46,11 +46,11 @@ class PdfMergerServiceTest {
 
     @Test
     void testMergePdfs_WithEmptyTempFiles_ThrowsValidationException() {
-        // Given
+
         List<Path> tempFiles = Collections.emptyList();
         List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 0, 1, 1));
 
-        // When & Then
+
         ValidationException exception = assertThrows(ValidationException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
@@ -59,10 +59,10 @@ class PdfMergerServiceTest {
 
     @Test
     void testMergePdfs_WithNullPageRanges_ThrowsValidationException() {
-        // Given
+
         List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
 
-        // When & Then
+
         ValidationException exception = assertThrows(ValidationException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, null, null, tempDir, "false"));
         
@@ -71,11 +71,11 @@ class PdfMergerServiceTest {
 
     @Test
     void testMergePdfs_WithEmptyPageRanges_ThrowsValidationException() {
-        // Given
+
         List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
         List<PageRange> pageRanges = Collections.emptyList();
 
-        // When & Then
+
         ValidationException exception = assertThrows(ValidationException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
@@ -84,28 +84,28 @@ class PdfMergerServiceTest {
 
     @Test
     void testMergePdfs_WithNonExistentFile_ThrowsFileProcessingException() throws IOException {
-        // Given
+
         Path nonExistentFile = tempDir.resolve("nonexistent.pdf");
         List<Path> tempFiles = Arrays.asList(nonExistentFile);
         List<PageRange> pageRanges = Arrays.asList(createPageRange("nonexistent", 0, 1, 1));
 
-        // When & Then
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // The exception should be about file not found
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testMergePdfs_WithUnsupportedFileFormat_ThrowsValidationException() throws IOException {
-        // Given
+
         Path unsupportedFile = tempDir.resolve("test.txt");
         Files.createFile(unsupportedFile);
         List<Path> tempFiles = Arrays.asList(unsupportedFile);
         List<PageRange> pageRanges = Arrays.asList(createPageRange("test.txt", 0, 1, 1));
 
-        // When & Then
+
         ValidationException exception = assertThrows(ValidationException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
@@ -114,107 +114,107 @@ class PdfMergerServiceTest {
 
     @Test
     void testMergePdfs_WithImageFile_ThrowsFileProcessingException() throws IOException {
-        // Given
+
         Path imageFile = tempDir.resolve("test.jpg");
-        // Create a minimal JPEG file (this is a simplified test - in real scenarios you'd have actual image data)
-        Files.write(imageFile, new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE0}); // JPEG header
+
+        Files.write(imageFile, new byte[]{(byte)0xFF, (byte)0xD8, (byte)0xFF, (byte)0xE0});
         
         List<Path> tempFiles = Arrays.asList(imageFile);
         List<PageRange> pageRanges = Arrays.asList(createPageRange("test.jpg", 0, 1, 1));
 
-        // When & Then
-        // This test will fail with actual image processing due to invalid image data, but validates the flow
+
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // Should fail during image processing
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testPageRangeValidation_WithValidRange() {
-        // This test validates the page range calculation logic
-        // Since the methods are private, we test through the public interface
-        
-        // Given
-        List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
-        List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 0, -1, 1)); // All pages
 
-        // When & Then
+
+        
+
+        List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
+        List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 0, -1, 1));
+
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // The exception should be a FileProcessingException (file not found or doesn't exist)
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testPageRangeValidation_WithReverseRange() {
-        // Given
-        List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
-        List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 5, 1, -1)); // Reverse range
 
-        // When & Then
+        List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
+        List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 5, 1, -1));
+
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // The exception should be a FileProcessingException (file not found or doesn't exist)
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testOptimizerConfiguration_WithTrueValue() {
-        // Given
+
         List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
         List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 0, 1, 1));
 
-        // When & Then
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "true"));
         
-        // The exception should be a FileProcessingException, indicating the optimizer was configured
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testOptimizerConfiguration_WithFalseValue() {
-        // Given
+
         List<Path> tempFiles = Arrays.asList(tempDir.resolve("test.pdf"));
         List<PageRange> pageRanges = Arrays.asList(createPageRange("test", 0, 1, 1));
 
-        // When & Then
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // The exception should be a FileProcessingException, indicating the optimizer was configured
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testFileMatching_WithPdfExtension() {
-        // Given
+
         List<Path> tempFiles = Arrays.asList(tempDir.resolve("document.pdf"));
         List<PageRange> pageRanges = Arrays.asList(createPageRange("document", 0, 1, 1));
 
-        // When & Then
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // Should find the file but fail because it doesn't exist
+
         assertNotNull(exception.getMessage());
     }
 
     @Test
     void testFileMatching_WithExactFileName() {
-        // Given
+
         List<Path> tempFiles = Arrays.asList(tempDir.resolve("document.pdf"));
         List<PageRange> pageRanges = Arrays.asList(createPageRange("document.pdf", 0, 1, 1));
 
-        // When & Then
+
         FileProcessingException exception = assertThrows(FileProcessingException.class, () ->
                 pdfMergerService.mergePdfs(tempFiles, pageRanges, null, tempDir, "false"));
         
-        // Should find the file but fail because it doesn't exist
+
         assertNotNull(exception.getMessage());
     }
 

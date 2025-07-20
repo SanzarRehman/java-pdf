@@ -13,10 +13,10 @@ import java.util.Set;
  */
 public final class FileValidator {
 
-    // Maximum file size in bytes (20MB as configured in application.properties)
-    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
-    // Supported file types for different operations
+    private static final long MAX_FILE_SIZE = 20 * 1024 * 1024;
+
+
     private static final Set<String> SUPPORTED_HTML_TYPES = Set.of(
             "text/html", "text/plain", "application/octet-stream"
     );
@@ -39,7 +39,7 @@ public final class FileValidator {
             "application/x-font-ttf", "application/x-font-otf", "application/octet-stream"
     );
 
-    // File extensions for additional validation
+
     private static final Set<String> HTML_EXTENSIONS = Set.of(".html", ".htm");
     private static final Set<String> CSS_EXTENSIONS = Set.of(".css");
     private static final Set<String> PDF_EXTENSIONS = Set.of(".pdf");
@@ -49,7 +49,7 @@ public final class FileValidator {
     private static final Set<String> FONT_EXTENSIONS = Set.of(".ttf", ".otf");
 
     private FileValidator() {
-        // Utility class - prevent instantiation
+
     }
 
     /**
@@ -93,7 +93,7 @@ public final class FileValidator {
      */
     public static void validateHtmlFile(MultipartFile file, String fieldName) {
         if (file == null || file.isEmpty()) {
-            return; // Skip validation for optional files
+            return;
         }
 
         validateFileSize(file, fieldName);
@@ -117,7 +117,7 @@ public final class FileValidator {
      */
     public static void validateCssFile(MultipartFile file, String fieldName) {
         if (file == null || file.isEmpty()) {
-            return; // Skip validation for optional files
+            return;
         }
 
         validateFileSize(file, fieldName);
@@ -141,7 +141,7 @@ public final class FileValidator {
      */
     public static void validatePdfFile(MultipartFile file, String fieldName) {
         if (file == null || file.isEmpty()) {
-            return; // Skip validation for optional files
+            return;
         }
 
         validateFileSize(file, fieldName);
@@ -165,7 +165,7 @@ public final class FileValidator {
      */
     public static void validateImageFile(MultipartFile file, String fieldName) {
         if (file == null || file.isEmpty()) {
-            return; // Skip validation for optional files
+            return;
         }
 
         validateFileSize(file, fieldName);
@@ -189,7 +189,7 @@ public final class FileValidator {
      */
     public static void validateFontFile(MultipartFile file, String fieldName) {
         if (file == null || file.isEmpty()) {
-            return; // Skip validation for optional files
+            return;
         }
 
         validateFileSize(file, fieldName);
@@ -257,7 +257,7 @@ public final class FileValidator {
      */
     public static void validateAssetFiles(List<MultipartFile> assets) {
         if (assets == null || assets.isEmpty()) {
-            return; // Assets are optional
+            return;
         }
 
         for (int i = 0; i < assets.size(); i++) {
@@ -292,12 +292,12 @@ public final class FileValidator {
      */
     private static boolean isValidFileType(String contentType, String fileName, 
                                          Set<String> supportedTypes, Set<String> supportedExtensions) {
-        // Check content type
+
         if (contentType != null && supportedTypes.contains(contentType.toLowerCase())) {
             return true;
         }
         
-        // Check file extension as fallback
+
         if (fileName != null) {
             String lowerFileName = fileName.toLowerCase();
             return supportedExtensions.stream().anyMatch(lowerFileName::endsWith);

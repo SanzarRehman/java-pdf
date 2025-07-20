@@ -62,14 +62,14 @@ public class MergeControllerTest {
 
     @Test
     public void testMergePdf_Success() throws Exception {
-        // Prepare test data
+
         byte[] pdfContent = "PDF content".getBytes();
         MockMultipartFile file1 = new MockMultipartFile(
                 "files", "test1.pdf", MediaType.APPLICATION_PDF_VALUE, "PDF content 1".getBytes());
         MockMultipartFile file2 = new MockMultipartFile(
                 "files", "test2.pdf", MediaType.APPLICATION_PDF_VALUE, "PDF content 2".getBytes());
 
-        // Mock temp directory
+
         Path mockTempDir = mock(Path.class);
         Path mockFile1Path = mock(Path.class);
         Path mockFile2Path = mock(Path.class);
@@ -79,7 +79,7 @@ public class MergeControllerTest {
         when(mockTempDir.resolve(eq("test2.pdf"))).thenReturn(mockFile2Path);
         when(mockTempDir.toString()).thenReturn("/temp/dir");
         
-        // Mock PageRangeParser
+
         List<PageRange> mockPageRanges = Arrays.asList(
                 new PageRange("test1.pdf", 0, 1, 1),
                 new PageRange("test2.pdf", 0, 2, 1)
@@ -89,11 +89,11 @@ public class MergeControllerTest {
             mockedParser.when(() -> PageRangeParser.parse(anyString(), anyString()))
                     .thenReturn(mockPageRanges);
             
-            // Mock service response
+
             when(pdfMergerService.mergePdfs(anyList(), anyList(), anyString(), any(Path.class), anyString()))
                     .thenReturn(pdfContent);
             
-            // Perform request
+
             mockMvc.perform(multipart("/api/v1.0/merge")
                     .file((MockMultipartFile) file1)
                     .file((MockMultipartFile) file2)
@@ -107,7 +107,7 @@ public class MergeControllerTest {
                     .andExpect(header().string("Content-Disposition", containsString("merged.pdf")))
                     .andExpect(content().contentType(MediaType.APPLICATION_PDF));
             
-            // Verify service was called with correct parameters
+
             verify(pdfMergerService).mergePdfs(anyList(), eq(mockPageRanges), isNull(), eq(mockTempDir), isNull());
             verify(tempFileManager).createTempDirectory(anyString());
             verify(tempFileManager).registerForCleanup(mockFile1Path);
@@ -117,12 +117,12 @@ public class MergeControllerTest {
 
     @Test
     public void testMergePdf_WithPassword() throws Exception {
-        // Prepare test data
+
         byte[] pdfContent = "PDF content".getBytes();
         MockMultipartFile file = new MockMultipartFile(
                 "files", "test.pdf", MediaType.APPLICATION_PDF_VALUE, "PDF content".getBytes());
 
-        // Mock temp directory
+
         Path mockTempDir = mock(Path.class);
         Path mockFilePath = mock(Path.class);
         
@@ -130,18 +130,18 @@ public class MergeControllerTest {
         when(mockTempDir.resolve(eq("test.pdf"))).thenReturn(mockFilePath);
         when(mockTempDir.toString()).thenReturn("/temp/dir");
         
-        // Mock PageRangeParser
+
         List<PageRange> mockPageRanges = List.of(new PageRange("test.pdf", 0, -1, 1));
         
         try (MockedStatic<PageRangeParser> mockedParser = Mockito.mockStatic(PageRangeParser.class)) {
             mockedParser.when(() -> PageRangeParser.parse(anyString(), anyString()))
                     .thenReturn(mockPageRanges);
             
-            // Mock service response
+
             when(pdfMergerService.mergePdfs(anyList(), anyList(), anyString(), any(Path.class), anyString()))
                     .thenReturn(pdfContent);
             
-            // Perform request
+
             mockMvc.perform(multipart("/api/v1.0/merge")
                     .file((MockMultipartFile) file)
                     .param("pagesDefinition", "test.pdf~0:-1")
@@ -151,7 +151,7 @@ public class MergeControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(content().bytes(pdfContent));
             
-            // Verify service was called with correct parameters
+
             verify(pdfMergerService).mergePdfs(anyList(), eq(mockPageRanges), eq("secret123"), eq(mockTempDir), eq("true"));
         }
     }

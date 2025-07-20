@@ -26,10 +26,10 @@ import java.util.Optional;
 public class BengaliPageNumberHandler extends AbstractPdfDocumentEventHandler {
   private static final Logger logger = LoggerFactory.getLogger(BengaliPageNumberHandler.class);
   
-  // Bengali Unicode digits (0-9)
+
   private static final String[] BENGALI_NUMBERS = {"০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"};
   
-  // Layout constants
+
   private static final float HEADER_FONT_SIZE = 12f;
   private static final float FOOTER_FONT_SIZE = 10f;
   private static final float HEADER_Y_OFFSET = 30f;

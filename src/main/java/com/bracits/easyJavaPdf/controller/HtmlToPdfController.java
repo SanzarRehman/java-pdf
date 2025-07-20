@@ -40,10 +40,10 @@ public class HtmlToPdfController {
         
         logger.info("Received PDF generation request");
         
-        // Validate request with business rules
+
         PdfGenerationRequestValidator.validate(request);
         
-        // Delegate to service layer
+
         CompletableFuture<PdfResponse> pdfFuture = pdfService.generatePdf(request);
         PdfResponse response = pdfFuture.get();
         

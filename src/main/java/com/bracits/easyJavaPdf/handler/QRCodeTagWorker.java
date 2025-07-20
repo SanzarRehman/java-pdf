@@ -48,7 +48,7 @@ import java.util.Map;
 
   @Override
   public boolean processContent(String content, ProcessorContext context) {
-    //Add content to the barcode
+
     qrCode.setCode(content);
     return true;
   }
@@ -62,7 +62,7 @@ import java.util.Map;
 
   @Override
   public void processEnd(IElementNode element, ProcessorContext context) {
-    //Transform barcode into image
+
     qrCodeAsImage = new Image(qrCode.createFormXObject(context.getPdfDocument()));
 
   }

@@ -43,15 +43,15 @@ public class MergeController {
     public ResponseEntity<byte[]> mergePdf(@Valid PdfMergeRequest request) {
         log.info("Received merge request with {} files", request.getFiles().size());
         
-        // Validate request with business rules
+
         PdfMergeRequestValidator.validate(request);
         
         try (TempFileManager sessionTempManager = tempFileManager) {
-            // Create temporary directory for this request
+
             Path tempDir = sessionTempManager.createTempDirectory("merge_request_");
             log.debug("Created temporary directory: {}", tempDir);
             
-            // Save uploaded files to temporary directory
+
             List<Path> tempFiles = new ArrayList<>();
             for (var file : request.getFiles()) {
                 Path tempFile = tempDir.resolve(file.getOriginalFilename());
@@ -60,12 +60,12 @@ public class MergeController {
                 sessionTempManager.registerForCleanup(tempFile);
             }
             
-            // Parse page ranges
+
             List<PageRange> pageRanges = request.getPagesDefinition() != null
                 ? PageRangeParser.parse(request.getPagesDefinition(), tempDir.toString())
                 : Collections.emptyList();
             
-            // Delegate to service for merging
+
             byte[] mergedPdfBytes = pdfMergerService.mergePdfs(
                 tempFiles, 
                 pageRanges, 
@@ -74,7 +74,7 @@ public class MergeController {
                 request.isResourceOptimizer() ? "true" : null
             );
             
-            // Build response using PdfResponse
+
             PdfResponse response = PdfResponse.builder()
                 .content(mergedPdfBytes)
                 .fileName(request.getFileName())
@@ -83,7 +83,7 @@ public class MergeController {
                 .contentLength((long) mergedPdfBytes.length)
                 .build();
             
-            // Return HTTP response
+
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, response.getContentDispositionHeader())
                 .contentType(MediaType.APPLICATION_PDF)

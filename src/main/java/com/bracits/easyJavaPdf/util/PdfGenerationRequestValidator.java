@@ -12,15 +12,15 @@ import java.util.List;
  */
 public final class PdfGenerationRequestValidator {
 
-    // Password constraints
+
     private static final int MIN_PASSWORD_LENGTH = 4;
     private static final int MAX_PASSWORD_LENGTH = 128;
     
-    // Asset file limits
+
     private static final int MAX_ASSET_FILES = 50;
 
     private PdfGenerationRequestValidator() {
-        // Utility class - prevent instantiation
+
     }
 
     /**
@@ -34,8 +34,8 @@ public final class PdfGenerationRequestValidator {
             throw new ValidationException("PDF generation request cannot be null");
         }
 
-        validateHtmlFile(request.getHtmlFile());
-        validateOptionalCssFile(request.getCssFile());
+        validateHtmlInput(request);
+        validateCssInput(request);
         validateOptionalHeaderFile(request.getHeaderFile());
         validateOptionalFooterFile(request.getFooterFile());
         validateOptionalBanglaFooterFile(request.getBanglaFooter());
@@ -43,9 +43,65 @@ public final class PdfGenerationRequestValidator {
         validatePassword(request.getPassword());
         validateJsEnabledFlag(request.isJsEnabled());
         
-        // Cross-field validations
+
         validateHeaderFooterConsistency(request);
         validateAssetFilesWithHtmlContent(request);
+    }
+
+    /**
+     * Validates HTML input (either file or content string).
+     *
+     * @param request the PDF generation request
+     * @throws ValidationException if HTML input is invalid
+     */
+    private static void validateHtmlInput(PdfGenerationRequest request) {
+        MultipartFile htmlFile = request.getHtmlFile();
+        String htmlContent = request.getHtmlContent();
+        
+        // Either htmlFile or htmlContent must be provided, but not both
+        if ((htmlFile == null || htmlFile.isEmpty()) && (htmlContent == null || htmlContent.trim().isEmpty())) {
+            throw new ValidationException("Either HTML file or HTML content must be provided");
+        }
+        
+        if (htmlFile != null && !htmlFile.isEmpty() && htmlContent != null && !htmlContent.trim().isEmpty()) {
+            throw new ValidationException("Cannot provide both HTML file and HTML content. Please choose one");
+        }
+        
+        // Validate HTML file if provided
+        if (htmlFile != null && !htmlFile.isEmpty()) {
+            validateHtmlFile(htmlFile);
+        }
+        
+        // Validate HTML content if provided
+        if (htmlContent != null && !htmlContent.trim().isEmpty()) {
+            validateHtmlContent(htmlContent);
+        }
+    }
+
+    /**
+     * Validates CSS input (either file or content string).
+     *
+     * @param request the PDF generation request
+     * @throws ValidationException if CSS input is invalid
+     */
+    private static void validateCssInput(PdfGenerationRequest request) {
+        MultipartFile cssFile = request.getCssFile();
+        String cssContent = request.getCssContent();
+        
+        // Both cssFile and cssContent are optional, but if both are provided, that's an error
+        if (cssFile != null && !cssFile.isEmpty() && cssContent != null && !cssContent.trim().isEmpty()) {
+            throw new ValidationException("Cannot provide both CSS file and CSS content. Please choose one");
+        }
+        
+        // Validate CSS file if provided
+        if (cssFile != null && !cssFile.isEmpty()) {
+            validateOptionalCssFile(cssFile);
+        }
+        
+        // Validate CSS content if provided
+        if (cssContent != null && !cssContent.trim().isEmpty()) {
+            validateCssContent(cssContent);
+        }
     }
 
     /**
@@ -58,10 +114,58 @@ public final class PdfGenerationRequestValidator {
         FileValidator.validateFileNotEmpty(htmlFile, "HTML file");
         FileValidator.validateHtmlFile(htmlFile, "HTML file");
         
-        // Additional business logic validation for HTML files
+
         String filename = htmlFile.getOriginalFilename();
         if (filename != null && filename.length() > 255) {
             throw new ValidationException("HTML filename is too long (maximum 255 characters)");
+        }
+    }
+
+    /**
+     * Validates HTML content string.
+     *
+     * @param htmlContent the HTML content to validate
+     * @throws ValidationException if the HTML content is invalid
+     */
+    private static void validateHtmlContent(String htmlContent) {
+        if (htmlContent == null || htmlContent.trim().isEmpty()) {
+            throw new ValidationException("HTML content cannot be empty");
+        }
+        
+        String trimmed = htmlContent.trim();
+        
+        // Check content length (reasonable limit for HTML content)
+        if (trimmed.length() > 10 * 1024 * 1024) { // 10MB limit
+            throw new ValidationException("HTML content is too large (maximum 10MB)");
+        }
+        
+        // Basic HTML validation - should contain some HTML-like content
+        if (!trimmed.toLowerCase().contains("<") || !trimmed.toLowerCase().contains(">")) {
+            throw new ValidationException("HTML content does not appear to contain valid HTML markup");
+        }
+    }
+
+    /**
+     * Validates CSS content string.
+     *
+     * @param cssContent the CSS content to validate
+     * @throws ValidationException if the CSS content is invalid
+     */
+    private static void validateCssContent(String cssContent) {
+        if (cssContent == null || cssContent.trim().isEmpty()) {
+            return; // CSS content is optional
+        }
+        
+        String trimmed = cssContent.trim();
+        
+        // Check content length (reasonable limit for CSS content)
+        if (trimmed.length() > 5 * 1024 * 1024) { // 5MB limit
+            throw new ValidationException("CSS content is too large (maximum 5MB)");
+        }
+        
+        // Basic CSS validation - check for suspicious content
+        if (trimmed.toLowerCase().contains("<script") || trimmed.toLowerCase().contains("javascript:")) {
+            throw new ValidationException("CSS content contains potentially unsafe content");
         }
     }
 
@@ -75,7 +179,7 @@ public final class PdfGenerationRequestValidator {
         if (cssFile != null && !cssFile.isEmpty()) {
             FileValidator.validateCssFile(cssFile, "CSS file");
             
-            // Additional business logic validation
+
             String filename = cssFile.getOriginalFilename();
             if (filename != null && filename.length() > 255) {
                 throw new ValidationException("CSS filename is too long (maximum 255 characters)");
@@ -93,8 +197,8 @@ public final class PdfGenerationRequestValidator {
         if (headerFile != null && !headerFile.isEmpty()) {
             FileValidator.validateHtmlFile(headerFile, "Header file");
             
-            // Business rule: Header files should be relatively small
-            if (headerFile.getSize() > 1024 * 1024) { // 1MB limit for headers
+
+            if (headerFile.getSize() > 1024 * 1024) {
                 throw new ValidationException("Header file size should not exceed 1MB");
             }
         }
@@ -110,8 +214,8 @@ public final class PdfGenerationRequestValidator {
         if (footerFile != null && !footerFile.isEmpty()) {
             FileValidator.validateHtmlFile(footerFile, "Footer file");
             
-            // Business rule: Footer files should be relatively small
-            if (footerFile.getSize() > 1024 * 1024) { // 1MB limit for footers
+
+            if (footerFile.getSize() > 1024 * 1024) {
                 throw new ValidationException("Footer file size should not exceed 1MB");
             }
         }
@@ -127,8 +231,8 @@ public final class PdfGenerationRequestValidator {
         if (banglaFooter != null && !banglaFooter.isEmpty()) {
             FileValidator.validateHtmlFile(banglaFooter, "Bengali footer file");
             
-            // Business rule: Bengali footer files should be relatively small
-            if (banglaFooter.getSize() > 1024 * 1024) { // 1MB limit for Bengali footers
+
+            if (banglaFooter.getSize() > 1024 * 1024) {
                 throw new ValidationException("Bengali footer file size should not exceed 1MB");
             }
         }
@@ -142,10 +246,10 @@ public final class PdfGenerationRequestValidator {
      */
     private static void validateAssetFiles(List<MultipartFile> assets) {
         if (assets == null || assets.isEmpty()) {
-            return; // Assets are optional
+            return;
         }
 
-        // Business rule: Limit the number of asset files
+
         if (assets.size() > MAX_ASSET_FILES) {
             throw new ValidationException(
                     "Too many asset files. Maximum allowed: " + MAX_ASSET_FILES + 
@@ -153,10 +257,10 @@ public final class PdfGenerationRequestValidator {
             );
         }
 
-        // Validate each asset file
+
         FileValidator.validateAssetFiles(assets);
 
-        // Additional business logic: Check for duplicate filenames
+
         validateNoDuplicateAssetFilenames(assets);
     }
 
@@ -168,12 +272,12 @@ public final class PdfGenerationRequestValidator {
      */
     private static void validatePassword(String password) {
         if (password == null || password.trim().isEmpty()) {
-            return; // Password is optional
+            return;
         }
 
         String trimmedPassword = password.trim();
         
-        // Business rules for password
+
         if (trimmedPassword.length() < MIN_PASSWORD_LENGTH) {
             throw new ValidationException(
                     "Password is too short. Minimum length: " + MIN_PASSWORD_LENGTH + " characters"
@@ -186,7 +290,7 @@ public final class PdfGenerationRequestValidator {
             );
         }
 
-        // Check for invalid characters that might cause issues with PDF encryption
+
         if (containsInvalidPasswordCharacters(trimmedPassword)) {
             throw new ValidationException(
                     "Password contains invalid characters. Use only alphanumeric characters and common symbols"
@@ -201,9 +305,9 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if the flag configuration is invalid
      */
     private static void validateJsEnabledFlag(boolean jsEnabled) {
-        // Currently no specific validation needed for boolean flag
-        // This method is here for future business rules if needed
-        // For example, we might want to restrict JS execution based on file size or other factors
+
+
+
     }
 
     /**
@@ -216,7 +320,7 @@ public final class PdfGenerationRequestValidator {
         MultipartFile footerFile = request.getFooterFile();
         MultipartFile banglaFooter = request.getBanglaFooter();
         
-        // Business rule: Cannot have both regular footer and Bengali footer
+
         if (footerFile != null && !footerFile.isEmpty() && 
             banglaFooter != null && !banglaFooter.isEmpty()) {
             throw new ValidationException(
@@ -235,11 +339,11 @@ public final class PdfGenerationRequestValidator {
         List<MultipartFile> assets = request.getAssets();
         
         if (assets == null || assets.isEmpty()) {
-            return; // No assets to validate
+            return;
         }
 
-        // Business rule: If JavaScript is enabled and we have many assets, 
-        // it might cause performance issues
+
+
         if (request.isJsEnabled() && assets.size() > 20) {
             throw new ValidationException(
                     "When JavaScript is enabled, maximum 20 asset files are allowed for performance reasons. " +
@@ -247,14 +351,14 @@ public final class PdfGenerationRequestValidator {
             );
         }
 
-        // Calculate total asset size for performance validation
+
         long totalAssetSize = assets.stream()
                 .filter(asset -> asset != null && !asset.isEmpty())
                 .mapToLong(MultipartFile::getSize)
                 .sum();
 
-        // Business rule: Total asset size should not exceed 50MB
-        long maxTotalAssetSize = 50 * 1024 * 1024; // 50MB
+
+        long maxTotalAssetSize = 50 * 1024 * 1024;
         if (totalAssetSize > maxTotalAssetSize) {
             throw new ValidationException(
                     "Total size of all asset files exceeds maximum allowed size. " +
@@ -297,8 +401,8 @@ public final class PdfGenerationRequestValidator {
      * @return true if the password contains invalid characters
      */
     private static boolean containsInvalidPasswordCharacters(String password) {
-        // Allow alphanumeric characters and common symbols
-        // Exclude characters that might cause issues with PDF encryption
+
+
         String allowedPattern = "^[a-zA-Z0-9!@#$%^&*()_+\\-=\\[\\]{};':\",./<>?|`~\\s]*$";
         return !password.matches(allowedPattern);
     }
