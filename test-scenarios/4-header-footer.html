@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Header and Footer Test</title>
+    <style>
+        
+        body {
+            font-family: 'Georgia', serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            background-color: #fafafa;
+        }
+        
+        .document {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .title-page {
+            text-align: center;
+            padding: 60px 0;
+            border-bottom: 3px solid #2c3e50;
+            margin-bottom: 40px;
+        }
+        
+        .main-title {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            font-size: 1.3em;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .document-info {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .info-label {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .info-value {
+            color: #6c757d;
+        }
+        
+        .chapter {
+            margin: 40px 0;
+            page-break-before: always;
+        }
+        
+        .chapter-title {
+            font-size: 2em;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .section {
+            margin: 30px 0;
+        }
+        
+        .section-title {
+            font-size: 1.4em;
+            color: #34495e;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        
+        .content-block {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        
+        .highlight-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .warning-box {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .success-box {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .data-table th,
+        .data-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .no-break {
+            page-break-inside: avoid;
+        }
+        
+        .footer-note {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            font-size: 0.9em;
+            color: #6c757d;
+            text-align: center;
+        }
+
+
+        @media print {
+    @page {
+        @top-left {
+            content: "HEADER";
+        }
+        @top-center {
+            content: "READ THE TUTORIAL";
+        }
+        @top-right {
+            content: "kmcnet";
+        }
+        @bottom-left {
+            content: "FOOTER";
+        }
+        @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+        }
+        @bottom-right {
+            content: "The end";
+        }
+    }
+}
+        
+       
+    </style>
+</head>
+<body>
+    <div class="document">
+        <!-- Title Page -->
+        <div class="title-page">
+            <h1 class="main-title">Technical Documentation</h1>
+            <p class="subtitle">Header and Footer Testing Suite</p>
+            
+            <div class="document-info">
+                <div class="info-grid">
+                    <div>
+                        <div class="info-item">
+                            <span class="info-label">Document Type:</span>
+                            <span class="info-value">Technical Report</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Version:</span>
+                            <span class="info-value">1.0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">Draft</span>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="info-item">
+                            <span class="info-label">Author:</span>
+                            <span class="info-value">EasyJavaPDF Team</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Date:</span>
+                            <span class="info-value" id="current-date">Loading...</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Pages:</span>
+                            <span class="info-value">Multiple</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chapter 1 -->
+        <div class="chapter">
+            <h2 class="chapter-title">Chapter 1: Introduction</h2>
+            
+            <div class="section">
+                <h3 class="section-title">1.1 Purpose</h3>
+                <p>This document serves as a comprehensive test for header and footer functionality in PDF generation. It demonstrates various scenarios including:</p>
+                <ul>
+                    <li>Multi-page document structure</li>
+                    <li>Consistent header and footer placement</li>
+                    <li>Page numbering systems</li>
+                    <li>Document metadata display</li>
+                    <li>Professional document formatting</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">1.2 Scope</h3>
+                <div class="content-block">
+                    <p>The testing scope includes verification of header and footer elements across multiple pages, ensuring consistent formatting and proper page break handling. This document intentionally spans multiple pages to test pagination features.</p>
+                </div>
+            </div>
+            
+            <div class="highlight-box">
+                <h4>Important Note</h4>
+                <p>When testing this document, use the headerFile and footerFile parameters in your API request to include custom header and footer HTML files. The headers and footers will appear on every page of the generated PDF.</p>
+            </div>
+        </div>
+        
+        <!-- Chapter 2 -->
+        <div class="chapter">
+            <h2 class="chapter-title">Chapter 2: Technical Specifications</h2>
+            
+            <div class="section">
+                <h3 class="section-title">2.1 System Requirements</h3>
+                
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Component</th>
+                            <th>Minimum Requirement</th>
+                            <th>Recommended</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Java Version</td>
+                            <td>Java 21</td>
+                            <td>Java 21+</td>
+                            <td>Required for Spring Boot 3.x</td>
+                        </tr>
+                        <tr>
+                            <td>Memory</td>
+                            <td>512 MB</td>
+                            <td>2 GB</td>
+                            <td>For optimal PDF processing</td>
+                        </tr>
+                        <tr>
+                            <td>Storage</td>
+                            <td>100 MB</td>
+                            <td>1 GB</td>
+                            <td>Temporary file storage</td>
+                        </tr>
+                        <tr>
+                            <td>CPU</td>
+                            <td>1 Core</td>
+                            <td>4+ Cores</td>
+                            <td>Multi-threaded processing</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">2.2 Configuration Parameters</h3>
+                
+                <div class="success-box">
+                    <h4>Header Configuration</h4>
+                    <p>Headers can include dynamic content such as document title, chapter names, page numbers, and timestamps. The header HTML is processed and applied to every page.</p>
+                </div>
+                
+                <div class="warning-box">
+                    <h4>Footer Configuration</h4>
+                    <p>Footers typically contain page numbers, copyright information, and document metadata. Ensure footer content is concise to avoid layout issues.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chapter 3 -->
+        <div class="chapter">
+            <h2 class="chapter-title">Chapter 3: Implementation Details</h2>
+            
+            <div class="section">
+                <h3 class="section-title">3.1 API Usage</h3>
+                <div class="content-block">
+                    <p>To test headers and footers, create separate HTML files for header and footer content, then include them in your API request:</p>
+                    
+                    <pre style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 14px;">
+curl -X POST http://localhost:8081/api/v1.0/print \
+  -F 'htmlFile=@4-header-footer.html' \
+  -F 'headerFile=@header.html' \
+  -F 'footerFile=@footer.html' \
+  -F 'jsEnable=false' \
+  --output header-footer-test.pdf</pre>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">3.2 Sample Content</h3>
+                <p>This section contains sample content to demonstrate how headers and footers appear across multiple pages. The content is designed to span several pages to test pagination.</p>
+                
+                <div class="content-block">
+                    <h4>Lorem Ipsum Content</h4>
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.</p>
+                    
+                    <p>Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.</p>
+                    
+                    <p>Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chapter 4 -->
+        <div class="chapter">
+            <h2 class="chapter-title">Chapter 4: Testing Scenarios</h2>
+            
+            <div class="section">
+                <h3 class="section-title">4.1 Basic Header/Footer Test</h3>
+                <div class="content-block">
+                    <p>The most basic test involves simple text headers and footers. This ensures that the header and footer positioning works correctly across all pages.</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">4.2 Dynamic Content Test</h3>
+                <div class="content-block">
+                    <p>Advanced testing includes dynamic content such as page numbers, timestamps, and document metadata. This requires proper integration between the header/footer system and the PDF generation engine.</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">4.3 Styling Test</h3>
+                <div class="content-block">
+                    <p>Headers and footers should support CSS styling including fonts, colors, borders, and background colors. This test verifies that styling is preserved across all pages.</p>
+                </div>
+            </div>
+            
+            <!-- Additional content to force more pages -->
+            <div class="section">
+                <h3 class="section-title">4.4 Extended Content for Pagination</h3>
+                
+                <p>This section contains extended content to ensure the document spans multiple pages, allowing for comprehensive header and footer testing.</p>
+                
+                <div class="data-table">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Test Case</th>
+                                <th>Description</th>
+                                <th>Expected Result</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Header Positioning</td>
+                                <td>Header appears at top of every page</td>
+                                <td>Consistent placement</td>
+                                <td>✓ Pass</td>
+                            </tr>
+                            <tr>
+                                <td>Footer Positioning</td>
+                                <td>Footer appears at bottom of every page</td>
+                                <td>Consistent placement</td>
+                                <td>✓ Pass</td>
+                            </tr>
+                            <tr>
+                                <td>Page Numbering</td>
+                                <td>Sequential page numbers</td>
+                                <td>1, 2, 3, 4...</td>
+                                <td>✓ Pass</td>
+                            </tr>
+                            <tr>
+                                <td>Content Separation</td>
+                                <td>Main content doesn't overlap headers/footers</td>
+                                <td>Clear separation</td>
+                                <td>✓ Pass</td>
+                            </tr>
+                            <tr>
+                                <td>Styling Consistency</td>
+                                <td>Header/footer styling preserved</td>
+                                <td>Consistent appearance</td>
+                                <td>✓ Pass</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chapter 5 -->
+        <div class="chapter">
+            <h2 class="chapter-title">Chapter 5: Conclusion</h2>
+            
+            <div class="section">
+                <h3 class="section-title">5.1 Summary</h3>
+                <div class="success-box">
+                    <p>This document has successfully demonstrated the header and footer functionality across multiple pages. The consistent placement and styling of headers and footers ensures professional document presentation.</p>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h3 class="section-title">5.2 Next Steps</h3>
+                <ul>
+                    <li>Test with different header/footer designs</li>
+                    <li>Verify page numbering in various formats</li>
+                    <li>Test with multilingual content</li>
+                    <li>Validate with complex layouts</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-note">
+            <p>End of Document - Generated on <span id="footer-date"></span></p>
+            <p>This document is designed to test header and footer functionality in PDF generation.</p>
+        </div>
+    </div>
+    
+    <script>
+        const now = new Date();
+        document.getElementById('current-date').textContent = now.toLocaleDateString();
+        document.getElementById('footer-date').textContent = now.toLocaleDateString();
+    </script>
+</body>
+</html>

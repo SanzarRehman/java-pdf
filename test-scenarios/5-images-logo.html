@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Images and Logo Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+        }
+        
+        .document {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        
+        /* Header with logo */
+        .document-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-bottom: 30px;
+            border-bottom: 3px solid #007bff;
+            margin-bottom: 40px;
+        }
+        
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 24px;
+        }
+        
+        .company-info h1 {
+            margin: 0;
+            color: #2c3e50;
+            font-size: 2.2em;
+        }
+        
+        .company-info p {
+            margin: 5px 0 0 0;
+            color: #6c757d;
+            font-size: 1.1em;
+        }
+        
+        .document-meta {
+            text-align: right;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        /* Image showcase sections */
+        .section {
+            margin: 40px 0;
+        }
+        
+        .section-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .image-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+        
+        .image-placeholder {
+            width: 100%;
+            height: 150px;
+            background: linear-gradient(45deg, #e9ecef, #f8f9fa);
+            border: 2px dashed #adb5bd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+            color: #6c757d;
+            font-size: 14px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .image-placeholder img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 6px;
+        }
+        
+        .image-card h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+            font-size: 1.1em;
+        }
+        
+        .image-card p {
+            margin: 0;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        /* Chart and diagram section */
+        .chart-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+        
+        .chart-placeholder {
+            width: 100%;
+            height: 300px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 16px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-placeholder img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        /* Product showcase */
+        .product-showcase {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin: 40px 0;
+            padding: 30px;
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 250px;
+            background: white;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .product-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .product-details h3 {
+            color: #2c3e50;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        
+        /* Gallery section */
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 30px 0;
+        }
+        
+        .gallery-item {
+            aspect-ratio: 1;
+            background: #f8f9fa;
+            border: 2px dashed #adb5bd;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .gallery-item:nth-child(1) { background: linear-gradient(45deg, #ff6b6b, #ee5a52); color: white; }
+        .gallery-item:nth-child(2) { background: linear-gradient(45deg, #4ecdc4, #44a08d); color: white; }
+        .gallery-item:nth-child(3) { background: linear-gradient(45deg, #45b7d1, #96c93d); color: white; }
+        .gallery-item:nth-child(4) { background: linear-gradient(45deg, #f9ca24, #f0932b); color: white; }
+        .gallery-item:nth-child(5) { background: linear-gradient(45deg, #eb4d4b, #6639a6); color: white; }
+        .gallery-item:nth-child(6) { background: linear-gradient(45deg, #6c5ce7, #a29bfe); color: white; }
+        
+        /* Infographic section */
+        .infographic {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin: 40px 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .stat-icon {
+            width: 60px;
+            height: 60px;
+            background: #007bff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            color: white;
+            font-size: 24px;
+        }
+        
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        
+        /* Instructions box */
+        .instructions {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+        
+        .instructions h3 {
+            color: #0056b3;
+            margin-top: 0;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        
+        /* Footer */
+        .document-footer {
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid #e9ecef;
+            text-align: center;
+            color: #6c757d;
+        }
+        
+        .footer-logos {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        
+        .footer-logo {
+            width: 50px;
+            height: 50px;
+            background: #6c757d;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="document">
+        <!-- Document Header with Logo -->
+        <header class="document-header">
+            <div class="logo-section">
+                <div class="logo-placeholder">
+                    <img src="logo.png" alt="TechCorp Solutions logo">
+                </div>
+                <div class="company-info">
+                    <h1>TechCorp Solutions</h1>
+                    <p>Innovation Through Technology</p>
+                </div>
+            </div>
+            <div class="document-meta">
+                <p><strong>Document:</strong> Image Testing Suite</p>
+                <p><strong>Date:</strong> <span id="current-date"></span></p>
+                <p><strong>Version:</strong> 1.0</p>
+            </div>
+        </header>
+        
+        <!-- Introduction -->
+        <section class="section">
+            <h2 class="section-title">Image and Logo Testing Overview</h2>
+            <p>This document demonstrates various image and logo placement scenarios in PDF generation. It includes placeholders for different types of visual content that would typically be included in business documents.</p>
+            
+            <div class="instructions">
+                <h3>Testing Instructions</h3>
+                <p>To test with actual images, place image files in the <code>test-scenarios/images/</code> directory and upload them as assets when making the API request:</p>
+                
+                <div class="code-block">
+curl -X POST http://localhost:8081/api/v1.0/print \
+  -F 'htmlFile=@5-images-logo.html' \
+  -F 'assets=@images/logo.png' \
+  -F 'assets=@images/chart.jpg' \
+  -F 'assets=@images/product.png' \
+  -F 'jsEnable=false' \
+  --output images-test.pdf
+                </div>
+                
+                <p><strong>Note:</strong> The CSS processor will remove any <code>background-image: url()</code> references to prevent FileNotFoundException. Images should be embedded directly in HTML or handled through the assets system.</p>
+            </div>
+        </section>
+        
+        <!-- Logo Variations -->
+        <section class="section">
+            <h2 class="section-title">Logo Placement Examples</h2>
+            
+            <div class="image-grid">
+                <div class="image-card">
+                    <div class="image-placeholder">
+                        <img src="logo.png" alt="Primary brand logo">
+                    </div>
+                    <h3>Primary Logo</h3>
+                    <p>Main company logo for headers and official documents</p>
+                </div>
+                
+                <div class="image-card">
+                    <div class="image-placeholder">
+                        <div>
+                            <strong>Icon Logo</strong><br>
+                            Square Format<br>
+                            80x80px
+                        </div>
+                    </div>
+                    <h3>Icon Version</h3>
+                    <p>Compact logo for small spaces and favicons</p>
+                </div>
+                
+                <div class="image-card">
+                    <div class="image-placeholder">
+                        <div>
+                            <strong>Horizontal Logo</strong><br>
+                            Wide Format<br>
+                            300x100px
+                        </div>
+                    </div>
+                    <h3>Horizontal Layout</h3>
+                    <p>Extended logo for letterheads and banners</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Charts and Diagrams -->
+        <section class="section">
+            <h2 class="section-title">Charts and Diagrams</h2>
+            
+            <div class="chart-section">
+                <h3>Sales Performance Chart</h3>
+                <div class="chart-placeholder">
+                    <img src="chart.jpg" alt="Quarterly sales bar chart">
+                </div>
+                <p>This chart would typically display quarterly sales performance with comparative data from previous years.</p>
+            </div>
+            
+            <div class="chart-section">
+                <h3>Process Flow Diagram</h3>
+                <div class="chart-placeholder">
+                    <img src="chart.jpg" alt="Process workflow graphic">
+                </div>
+                <p>Process diagrams help visualize complex workflows and decision trees in business operations.</p>
+            </div>
+        </section>
+        
+        <!-- Product Showcase -->
+        <section class="section">
+            <h2 class="section-title">Product Showcase</h2>
+            
+            <div class="product-showcase">
+                <div class="product-image">
+                    <img src="cproduct.png" alt="Premium software product image">
+                </div>
+                <div class="product-details">
+                    <h3>Premium Software Solution</h3>
+                    <p>Our flagship product combines cutting-edge technology with user-friendly design to deliver exceptional results for businesses of all sizes.</p>
+                    
+                    <ul class="feature-list">
+                        <li><span>Cloud Integration</span><span>✓ Included</span></li>
+                        <li><span>Mobile Support</span><span>✓ iOS & Android</span></li>
+                        <li><span>24/7 Support</span><span>✓ Premium</span></li>
+                        <li><span>API Access</span><span>✓ Full REST API</span></li>
+                        <li><span>Custom Branding</span><span>✓ White Label</span></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Image Gallery -->
+        <section class="section">
+            <h2 class="section-title">Image Gallery</h2>
+            <p>A collection of images demonstrating various visual content types commonly used in business documents.</p>
+            
+            <div class="gallery">
+                <div class="gallery-item">
+                    <div>Office<br>Environment</div>
+                </div>
+                <div class="gallery-item">
+                    <div>Team<br>Meeting</div>
+                </div>
+                <div class="gallery-item">
+                    <div>Technology<br>Setup</div>
+                </div>
+                <div class="gallery-item">
+                    <div>Customer<br>Success</div>
+                </div>
+                <div class="gallery-item">
+                    <div>Innovation<br>Lab</div>
+                </div>
+                <div class="gallery-item">
+                    <div>Global<br>Presence</div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Infographic Section -->
+        <section class="section">
+            <h2 class="section-title">Business Metrics Infographic</h2>
+            
+            <div class="infographic">
+                <h3 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">Company Performance 2024</h3>
+                
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-number">1,247</div>
+                        <div class="stat-label">Active Customers</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-number">$2.4M</div>
+                        <div class="stat-label">Annual Revenue</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">🚀</div>
+                        <div class="stat-number">156%</div>
+                        <div class="stat-label">Growth Rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">⭐</div>
+                        <div class="stat-number">4.8/5</div>
+                        <div class="stat-label">Customer Rating</div>
+                    </div>
+                </div>
+                
+                <p style="text-align: center; color: #6c757d; margin-top: 20px;">
+                    These metrics represent our commitment to excellence and continuous improvement in serving our customers.
+                </p>
+            </div>
+        </section>
+        
+        <!-- Technical Specifications -->
+        <section class="section">
+            <h2 class="section-title">Image Format Support</h2>
+            
+            <div class="image-grid">
+                <div class="image-card">
+                    <div class="image-placeholder" style="background: linear-gradient(45deg, #ff9a9e, #fecfef);">
+                        <div>
+                            <strong>PNG</strong><br>
+                            Lossless compression<br>
+                            Transparency support
+                        </div>
+                    </div>
+                    <h3>PNG Format</h3>
+                    <p>Best for logos, icons, and images requiring transparency</p>
+                </div>
+                
+                <div class="image-card">
+                    <div class="image-placeholder" style="background: linear-gradient(45deg, #a8edea, #fed6e3);">
+                        <div>
+                            <strong>JPEG</strong><br>
+                            Lossy compression<br>
+                            Smaller file sizes
+                        </div>
+                    </div>
+                    <h3>JPEG Format</h3>
+                    <p>Ideal for photographs and complex images</p>
+                </div>
+                
+                <div class="image-card">
+                    <div class="image-placeholder" style="background: linear-gradient(45deg, #ffecd2, #fcb69f);">
+                        <div>
+                            <strong>SVG</strong><br>
+                            Vector graphics<br>
+                            Scalable format
+                        </div>
+                    </div>
+                    <h3>SVG Format</h3>
+                    <p>Perfect for icons and simple graphics that need to scale</p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Footer -->
+        <footer class="document-footer">
+            <div class="footer-logos">
+                <div class="footer-logo">ISO</div>
+                <div class="footer-logo">SSL</div>
+                <div class="footer-logo">GDPR</div>
+                <div class="footer-logo">SOC2</div>
+            </div>
+            <p>© 2025 TechCorp Solutions. All rights reserved.</p>
+            <p>This document demonstrates image and logo placement in PDF generation.</p>
+            <p>Generated on: <span id="footer-date"></span></p>
+        </footer>
+    </div>
+    
+    <script>
+        const now = new Date();
+        document.getElementById('current-date').textContent = now.toLocaleDateString();
+        document.getElementById('footer-date').textContent = now.toLocaleDateString();
+    </script>
+</body>
+</html>

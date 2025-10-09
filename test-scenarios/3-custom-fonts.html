@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Fonts Test</title>
+    <style>
+        /* Note: These @font-face declarations will be sanitized by the CSS processor */
+        /* The actual fonts should be uploaded as assets when testing */
+        
+        body {
+            margin: 20px;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        /* Different font families for testing */
+        .roboto {
+            font-family: 'Roboto', Arial, sans-serif;
+        }
+        
+        .opensans {
+            font-family: 'Open Sans', Arial, sans-serif;
+        }
+        
+        .lato {
+            font-family: 'Lato', Arial, sans-serif;
+        }
+        
+        .montserrat {
+            font-family: 'Montserrat', Arial, sans-serif;
+        }
+        
+        .source-sans {
+            font-family: 'Source Sans Pro', Arial, sans-serif;
+        }
+        
+        /* Font weight variations */
+        .font-light { font-weight: 300; }
+        .font-regular { font-weight: 400; }
+        .font-medium { font-weight: 500; }
+        .font-bold { font-weight: 700; }
+        .font-black { font-weight: 900; }
+        
+        /* Font size variations */
+        .text-xs { font-size: 12px; }
+        .text-sm { font-size: 14px; }
+        .text-base { font-size: 16px; }
+        .text-lg { font-size: 18px; }
+        .text-xl { font-size: 20px; }
+        .text-2xl { font-size: 24px; }
+        .text-3xl { font-size: 30px; }
+        .text-4xl { font-size: 36px; }
+        
+        /* Styling */
+        .section {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #e5e5e5;
+        }
+        
+        .section:last-child {
+            border-bottom: none;
+        }
+        
+        .font-showcase {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #007bff;
+        }
+        
+        .font-name {
+            color: #007bff;
+            font-weight: bold;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .sample-text {
+            margin-bottom: 10px;
+        }
+        
+        .character-set {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #dee2e6;
+            margin: 10px 0;
+        }
+        
+        .multilingual {
+            background-color: #fff3cd;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+        }
+        
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+        }
+        
+        .comparison-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        .comparison-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-4xl font-bold" style="text-align: center; color: #2c3e50; margin-bottom: 40px;">
+            Custom Fonts Testing Suite
+        </h1>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Font Family Showcase</h2>
+            <p class="text-base" style="color: #7f8c8d; margin-bottom: 30px;">
+                This section demonstrates different font families. When testing, upload the corresponding font files as assets.
+            </p>
+            
+            <div class="font-showcase roboto">
+                <div class="font-name">Roboto (Google Font)</div>
+                <div class="sample-text text-2xl font-regular">The quick brown fox jumps over the lazy dog</div>
+                <div class="sample-text text-lg font-bold">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+                <div class="sample-text text-base font-regular">abcdefghijklmnopqrstuvwxyz 1234567890</div>
+                <div class="sample-text text-sm font-light">Modern, friendly, and approachable typeface</div>
+            </div>
+            
+            <div class="font-showcase opensans">
+                <div class="font-name">Open Sans (Google Font)</div>
+                <div class="sample-text text-2xl font-regular">The quick brown fox jumps over the lazy dog</div>
+                <div class="sample-text text-lg font-bold">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+                <div class="sample-text text-base font-regular">abcdefghijklmnopqrstuvwxyz 1234567890</div>
+                <div class="sample-text text-sm font-light">Optimized for print, web, and mobile interfaces</div>
+            </div>
+            
+            <div class="font-showcase lato">
+                <div class="font-name">Lato (Google Font)</div>
+                <div class="sample-text text-2xl font-regular">The quick brown fox jumps over the lazy dog</div>
+                <div class="sample-text text-lg font-bold">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+                <div class="sample-text text-base font-regular">abcdefghijklmnopqrstuvwxyz 1234567890</div>
+                <div class="sample-text text-sm font-light">Semi-rounded details give warmth and stability</div>
+            </div>
+            
+            <div class="font-showcase montserrat">
+                <div class="font-name">Montserrat (Google Font)</div>
+                <div class="sample-text text-2xl font-regular">The quick brown fox jumps over the lazy dog</div>
+                <div class="sample-text text-lg font-bold">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+                <div class="sample-text text-base font-regular">abcdefghijklmnopqrstuvwxyz 1234567890</div>
+                <div class="sample-text text-sm font-light">Inspired by urban typography from Buenos Aires</div>
+            </div>
+            
+            <div class="font-showcase source-sans">
+                <div class="font-name">Source Sans Pro (Adobe Font)</div>
+                <div class="sample-text text-2xl font-regular">The quick brown fox jumps over the lazy dog</div>
+                <div class="sample-text text-lg font-bold">ABCDEFGHIJKLMNOPQRSTUVWXYZ</div>
+                <div class="sample-text text-base font-regular">abcdefghijklmnopqrstuvwxyz 1234567890</div>
+                <div class="sample-text text-sm font-light">Adobe's first open source typeface family</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Font Weight Variations</h2>
+            
+            <div class="font-showcase roboto">
+                <div class="font-name">Roboto Weight Variations</div>
+                <div class="sample-text text-xl font-light">Light (300) - Elegant and refined appearance</div>
+                <div class="sample-text text-xl font-regular">Regular (400) - Standard reading weight</div>
+                <div class="sample-text text-xl font-medium">Medium (500) - Slightly bolder than regular</div>
+                <div class="sample-text text-xl font-bold">Bold (700) - Strong emphasis and headings</div>
+                <div class="sample-text text-xl font-black">Black (900) - Maximum impact and attention</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Font Size Scale</h2>
+            
+            <div class="font-showcase opensans">
+                <div class="font-name">Open Sans Size Scale</div>
+                <div class="sample-text text-xs">Extra Small (12px) - Fine print and captions</div>
+                <div class="sample-text text-sm">Small (14px) - Secondary information</div>
+                <div class="sample-text text-base">Base (16px) - Body text and paragraphs</div>
+                <div class="sample-text text-lg">Large (18px) - Emphasized content</div>
+                <div class="sample-text text-xl">Extra Large (20px) - Subheadings</div>
+                <div class="sample-text text-2xl">2X Large (24px) - Section headers</div>
+                <div class="sample-text text-3xl">3X Large (30px) - Page titles</div>
+                <div class="sample-text text-4xl">4X Large (36px) - Main headings</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Character Set Testing</h2>
+            
+            <div class="character-set">
+                <strong>Basic Latin:</strong><br>
+                ABCDEFGHIJKLMNOPQRSTUVWXYZ<br>
+                abcdefghijklmnopqrstuvwxyz<br>
+                0123456789
+            </div>
+            
+            <div class="character-set">
+                <strong>Special Characters:</strong><br>
+                !@#$%^&*()_+-=[]{}|;':\",./<>?<br>
+                ©®™€£¥§¶†‡•…‰‹›""''–—
+            </div>
+            
+            <div class="character-set">
+                <strong>Accented Characters:</strong><br>
+                ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞß<br>
+                àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Multilingual Support</h2>
+            
+            <div class="multilingual">
+                <h3 style="margin-bottom: 15px;">Sample Text in Different Languages</h3>
+                
+                <p><strong>English:</strong> The quick brown fox jumps over the lazy dog.</p>
+                <p><strong>Spanish:</strong> El rápido zorro marrón salta sobre el perro perezoso.</p>
+                <p><strong>French:</strong> Le renard brun et rapide saute par-dessus le chien paresseux.</p>
+                <p><strong>German:</strong> Der schnelle braune Fuchs springt über den faulen Hund.</p>
+                <p><strong>Italian:</strong> La volpe marrone veloce salta sopra il cane pigro.</p>
+                <p><strong>Portuguese:</strong> A raposa marrom rápida pula sobre o cão preguiçoso.</p>
+                
+                <p style="margin-top: 20px;"><em>Note: For proper multilingual support, ensure appropriate fonts are uploaded as assets.</em></p>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Font Comparison Table</h2>
+            
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Font Family</th>
+                        <th>Style</th>
+                        <th>Best Use Case</th>
+                        <th>Sample Text</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="roboto">
+                        <td><strong>Roboto</strong></td>
+                        <td>Modern Sans-serif</td>
+                        <td>UI, Mobile Apps</td>
+                        <td>Clean and friendly</td>
+                    </tr>
+                    <tr class="opensans">
+                        <td><strong>Open Sans</strong></td>
+                        <td>Humanist Sans-serif</td>
+                        <td>Body Text, Web</td>
+                        <td>Highly readable</td>
+                    </tr>
+                    <tr class="lato">
+                        <td><strong>Lato</strong></td>
+                        <td>Semi-rounded Sans-serif</td>
+                        <td>Corporate, Professional</td>
+                        <td>Warm and stable</td>
+                    </tr>
+                    <tr class="montserrat">
+                        <td><strong>Montserrat</strong></td>
+                        <td>Geometric Sans-serif</td>
+                        <td>Headlines, Branding</td>
+                        <td>Urban and stylish</td>
+                    </tr>
+                    <tr class="source-sans">
+                        <td><strong>Source Sans Pro</strong></td>
+                        <td>Gothic Sans-serif</td>
+                        <td>Technical, Documentation</td>
+                        <td>Clear and neutral</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section">
+            <h2 class="text-2xl font-bold" style="color: #34495e; margin-bottom: 20px;">Testing Instructions</h2>
+            
+            <div style="background-color: #e7f3ff; padding: 20px; border-radius: 8px; border-left: 4px solid #007bff;">
+                <h3 style="color: #0056b3; margin-bottom: 15px;">How to Test Custom Fonts</h3>
+                <ol style="line-height: 1.8;">
+                    <li>Download fonts from Google Fonts or other sources (see fonts/README.md)</li>
+                    <li>When making the API request, include font files as assets:
+                        <div class="character-set" style="margin: 10px 0;">
+curl -X POST http://localhost:8081/api/v1.0/print \<br>
+  -F 'htmlFile=@3-custom-fonts.html' \<br>
+  -F 'assets=@fonts/Roboto-Regular.ttf' \<br>
+  -F 'assets=@fonts/Roboto-Bold.ttf' \<br>
+  -F 'assets=@fonts/OpenSans-Regular.ttf' \<br>
+  -F 'jsEnable=false' \<br>
+  --output custom-fonts-test.pdf
+                        </div>
+                    </li>
+                    <li>The CSS processor will sanitize font references while preserving font-family declarations</li>
+                    <li>Font files will be available in the temporary directory for PDF generation</li>
+                </ol>
+            </div>
+        </div>
+        
+        <footer style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 2px solid #e5e5e5; color: #7f8c8d;">
+            <p>Custom Fonts Test Suite - Generated on <span id="date"></span></p>
+        </footer>
+    </div>
+    
+    <script>
+        document.getElementById('date').textContent = new Date().toLocaleDateString();
+    </script>
+</body>
+</html>

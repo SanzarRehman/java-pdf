@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table of Contents Test Document</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 20px;
+            background-color: #fff;
+        }
+        
+        .document {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+        }
+
+        .table-of-contents {
+            background-color: #f1f3f5;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 40px 0;
+        }
+
+        .table-of-contents h2 {
+            margin-top: 0;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 1.5em;
+        }
+
+        .table-of-contents ol {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            counter-reset: toc-level-1;
+        }
+
+        .table-of-contents li {
+            margin: 6px 0;
+        }
+
+        .table-of-contents > ol > li {
+            counter-increment: toc-level-1;
+        }
+
+        .table-of-contents > ol > li > a::before {
+            content: counter(toc-level-1) ". ";
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .table-of-contents ol ol {
+            margin-left: 24px;
+            counter-reset: toc-level-2;
+        }
+
+        .table-of-contents ol ol > li {
+            counter-increment: toc-level-2;
+        }
+
+        .table-of-contents ol ol > li > a::before {
+            content: counter(toc-level-1) "." counter(toc-level-2) " ";
+            font-weight: 600;
+            color: #5dade2;
+        }
+
+        .table-of-contents a {
+            text-decoration: none;
+            color: #34495e;
+        }
+
+        .table-of-contents a:hover {
+            color: #1f618d;
+            text-decoration: underline;
+        }
+        
+        /* Title Page Styles */
+        .title-page {
+            text-align: center;
+            padding: 60px 0;
+            border-bottom: 3px solid #2c3e50;
+            margin-bottom: 40px;
+        }
+        
+        .main-title {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        
+        .subtitle {
+            font-size: 1.3em;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+            font-style: italic;
+        }
+        
+        .document-meta {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: left;
+        }
+        
+        /* Heading Styles for Bookmarks */
+        h1 {
+            font-size: 2.2em;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+            margin: 40px 0 30px 0;
+        }
+        
+        h2 {
+            font-size: 1.8em;
+            color: #34495e;
+            margin: 30px 0 20px 0;
+            font-weight: bold;
+        }
+        
+        h3 {
+            font-size: 1.4em;
+            color: #34495e;
+            margin: 25px 0 15px 0;
+            font-weight: bold;
+        }
+        
+        h4 {
+            font-size: 1.2em;
+            color: #34495e;
+            margin: 20px 0 10px 0;
+            font-weight: bold;
+        }
+        
+        /* Content Styles */
+        .content-block {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-left: 4px solid #3498db;
+            margin: 20px 0;
+        }
+        
+        .highlight-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .info-box {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        
+        .data-table th,
+        .data-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        /* Page break utilities */
+        .page-break {
+            page-break-before: always;
+        }
+        
+        .no-break {
+            page-break-inside: avoid;
+        }
+        
+        /* Print Styles */
+        @media print {
+            .document {
+                margin: 0;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="document">
+        <!-- Title Page -->
+        <div class="title-page">
+            <h1 class="main-title">Technical Manual</h1>
+            <p class="subtitle">Comprehensive Guide to System Architecture and Implementation</p>
+            
+            <div class="document-meta">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <strong>Document Type:</strong> Technical Manual<br>
+                        <strong>Version:</strong> 2.1<br>
+                        <strong>Status:</strong> Final<br>
+                        <strong>Classification:</strong> Internal Use
+                    </div>
+                    <div>
+                        <strong>Author:</strong> Technical Team<br>
+                        <strong>Date:</strong> July 2025<br>
+                        <strong>Pages:</strong> 25+<br>
+                        <strong>Review Date:</strong> January 2026
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Visible Table of Contents -->
+        <div class="page-break">
+            <nav class="table-of-contents">
+                <h2>Table of Contents</h2>
+                <ol>
+                    <li><a href="#introduction-overview">Introduction and Overview</a>
+                        <ol>
+                            <li><a href="#purpose-and-scope">Purpose and Scope</a></li>
+                            <li><a href="#document-structure">Document Structure</a></li>
+                            <li><a href="#navigation-guidelines">Navigation Guidelines</a></li>
+                            <li><a href="#reference-materials">Reference Materials</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="#system-architecture">System Architecture</a>
+                        <ol>
+                            <li><a href="#core-components">Core Components</a></li>
+                            <li><a href="#data-flow-architecture">Data Flow Architecture</a></li>
+                            <li><a href="#input-processing">Input Processing</a></li>
+                            <li><a href="#output-generation">Output Generation</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="#implementation-details">Implementation Details</a>
+                        <ol>
+                            <li><a href="#configuration-management">Configuration Management</a></li>
+                            <li><a href="#security-protocols">Security Protocols</a></li>
+                            <li><a href="#authentication-methods">Authentication Methods</a></li>
+                            <li><a href="#data-encryption">Data Encryption</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="#api-reference">API Reference</a>
+                        <ol>
+                            <li><a href="#endpoint-documentation">Endpoint Documentation</a></li>
+                            <li><a href="#request-response-examples">Request &amp; Response Examples</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="#troubleshooting-guide">Troubleshooting Guide</a>
+                        <ol>
+                            <li><a href="#common-issues">Common Issues</a></li>
+                            <li><a href="#performance-optimization">Performance Optimization</a></li>
+                        </ol>
+                    </li>
+                    <li><a href="#appendix-a">Appendix A: Configuration Files</a></li>
+                    <li><a href="#appendix-b">Appendix B: Error Codes</a></li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Navigation Note -->
+        <div class="page-break">
+            <div style="text-align: center; padding: 40px; background-color: #f8f9fa; border-radius: 8px; margin: 40px 0;">
+                <h2 style="color: #2c3e50; margin-bottom: 20px;">📖 Navigation Guide</h2>
+                <p style="font-size: 1.1em; color: #34495e; margin-bottom: 15px;">
+                    <strong>This document includes automatic bookmarks for easy navigation!</strong>
+                </p>
+                <p style="color: #7f8c8d;">
+                    Look for the <strong>bookmark panel</strong> in your PDF viewer (usually on the left side) to see the table of contents with clickable navigation links.
+                </p>
+                <div style="background-color: #d1ecf1; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                    <p style="margin: 0; font-size: 0.9em; color: #0c5460;">
+                        💡 <strong>Tip:</strong> In most PDF viewers, press <kbd>Ctrl+Shift+F5</kbd> (Windows) or <kbd>Cmd+Shift+F5</kbd> (Mac) to toggle the bookmark panel.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Chapter 1: Introduction and Overview -->
+        <div class="page-break">
+            <h1 id="introduction-overview">Introduction and Overview</h1>
+            
+            <h2 id="purpose-and-scope">Purpose and Scope</h2>
+            <p>This technical manual provides comprehensive documentation for the system architecture, implementation details, and operational procedures. It serves as the primary reference for developers, system administrators, and technical stakeholders.</p>
+            
+            <div class="highlight-box">
+                <h4>Key Objectives</h4>
+                <ul>
+                    <li>Provide detailed system architecture overview</li>
+                    <li>Document implementation best practices</li>
+                    <li>Establish troubleshooting procedures</li>
+                    <li>Define security protocols and guidelines</li>
+                </ul>
+            </div>
+            
+            <p>The scope of this document covers all aspects of the system from initial setup through advanced configuration and maintenance procedures.</p>
+            
+            <h2 id="document-structure">Document Structure</h2>
+            <p>This manual is organized into logical sections that build upon each other, starting with fundamental concepts and progressing to advanced topics.</p>
+            
+            <h3 id="navigation-guidelines">Navigation Guidelines</h3>
+            <div class="content-block">
+                <p>Each chapter is designed to be self-contained while referencing related sections when necessary. Cross-references are provided throughout the document to help readers navigate between related topics.</p>
+                <p>The table of contents provides direct links to all major sections and subsections for quick access to specific information.</p>
+            </div>
+            
+            <h3 id="reference-materials">Reference Materials</h3>
+            <div class="info-box">
+                <p>Additional reference materials, including configuration files and error code definitions, are provided in the appendices. These materials supplement the main content and provide quick reference information.</p>
+            </div>
+        </div>
+        
+        <!-- Chapter 2: System Architecture -->
+        <div class="page-break">
+            <h1 id="system-architecture">System Architecture</h1>
+            
+            <h2 id="core-components">Core Components</h2>
+            <p>The system architecture is built on a modular design that promotes scalability, maintainability, and performance. The core components work together to provide a robust and reliable platform.</p>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Function</th>
+                        <th>Technology</th>
+                        <th>Dependencies</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>API Gateway</td>
+                        <td>Request routing and authentication</td>
+                        <td>Spring Boot</td>
+                        <td>Security Module</td>
+                    </tr>
+                    <tr>
+                        <td>Processing Engine</td>
+                        <td>Core business logic execution</td>
+                        <td>Java 21</td>
+                        <td>Database Layer</td>
+                    </tr>
+                    <tr>
+                        <td>Data Layer</td>
+                        <td>Data persistence and retrieval</td>
+                        <td>PostgreSQL</td>
+                        <td>Connection Pool</td>
+                    </tr>
+                    <tr>
+                        <td>Cache Layer</td>
+                        <td>Performance optimization</td>
+                        <td>Redis</td>
+                        <td>Memory Management</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h2 id="data-flow-architecture">Data Flow Architecture</h2>
+            <p>The data flow architecture ensures efficient processing and minimal latency while maintaining data integrity and security throughout the system.</p>
+            
+            <h3 id="input-processing">Input Processing</h3>
+            <div class="content-block">
+                <p>Input processing follows a standardized pipeline that validates, transforms, and routes incoming requests to the appropriate processing components.</p>
+                <ol>
+                    <li>Request validation and sanitization</li>
+                    <li>Authentication and authorization checks</li>
+                    <li>Data transformation and normalization</li>
+                    <li>Routing to processing engine</li>
+                </ol>
+            </div>
+            
+            <h3 id="output-generation">Output Generation</h3>
+            <div class="content-block">
+                <p>Output generation processes ensure consistent formatting and proper error handling across all system responses.</p>
+                <ul>
+                    <li>Response formatting and serialization</li>
+                    <li>Error handling and logging</li>
+                    <li>Performance metrics collection</li>
+                    <li>Cache management and optimization</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Chapter 3: Implementation Details -->
+        <div class="page-break">
+            <h1 id="implementation-details">Implementation Details</h1>
+            
+            <h2 id="configuration-management">Configuration Management</h2>
+            <p>Configuration management is handled through a centralized system that supports environment-specific settings and runtime configuration updates.</p>
+            
+            <div class="highlight-box">
+                <h4>Configuration Hierarchy</h4>
+                <p>Configuration settings follow a hierarchical structure where environment-specific settings override default values, and runtime settings take precedence over static configuration.</p>
+            </div>
+            
+            <h2 id="security-protocols">Security Protocols</h2>
+            <p>Security is implemented at multiple layers to ensure comprehensive protection of data and system resources.</p>
+            
+            <h3 id="authentication-methods">Authentication Methods</h3>
+            <div class="info-box">
+                <p>The system supports multiple authentication methods including OAuth 2.0, JWT tokens, and API key authentication. Each method is designed for specific use cases and security requirements.</p>
+            </div>
+            
+            <h3 id="data-encryption">Data Encryption</h3>
+            <div class="content-block">
+                <p>All sensitive data is encrypted both at rest and in transit using industry-standard encryption algorithms. Key management follows best practices for security and compliance.</p>
+            </div>
+        </div>
+        
+        <!-- Chapter 4: API Reference -->
+        <div class="page-break">
+            <h1 id="api-reference">API Reference</h1>
+            
+            <h2 id="endpoint-documentation">Endpoint Documentation</h2>
+            <p>The API provides RESTful endpoints for all system operations. Each endpoint is documented with request/response formats, authentication requirements, and usage examples.</p>
+            
+            <div class="content-block">
+                <h4>Main Endpoints</h4>
+                <ul>
+                    <li><strong>POST /api/v1.0/print</strong> - HTML to PDF conversion</li>
+                    <li><strong>POST /api/v1.0/merge</strong> - PDF merging operations</li>
+                    <li><strong>GET /api/v1.0/health</strong> - System health check</li>
+                </ul>
+            </div>
+            
+            <h2 id="request-response-examples">Request/Response Examples</h2>
+            <p>Comprehensive examples are provided for all API endpoints, including common use cases and error scenarios.</p>
+            
+            <div class="highlight-box">
+                <h4>Sample Request</h4>
+                <p>Example of HTML to PDF conversion request with proper parameters and expected response format.</p>
+            </div>
+        </div>
+        
+        <!-- Chapter 5: Troubleshooting Guide -->
+        <div class="page-break">
+            <h1 id="troubleshooting-guide">Troubleshooting Guide</h1>
+            
+            <h2 id="common-issues">Common Issues</h2>
+            <p>This section covers the most frequently encountered issues and their solutions, organized by category and severity.</p>
+            
+            <div class="content-block">
+                <h4>PDF Generation Issues</h4>
+                <ul>
+                    <li>Memory allocation problems</li>
+                    <li>Font loading failures</li>
+                    <li>CSS rendering issues</li>
+                    <li>JavaScript execution errors</li>
+                </ul>
+            </div>
+            
+            <h2 id="performance-optimization">Performance Optimization</h2>
+            <p>Performance optimization techniques and best practices for maintaining optimal system performance under various load conditions.</p>
+            
+            <div class="info-box">
+                <h4>Optimization Strategies</h4>
+                <ul>
+                    <li>Memory management and garbage collection tuning</li>
+                    <li>Thread pool configuration</li>
+                    <li>Caching strategies</li>
+                    <li>Resource cleanup procedures</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Appendices -->
+        <div class="page-break">
+            <h1 id="appendix-a">Appendix A: Configuration Files</h1>
+            <p>Sample configuration files and templates for various deployment scenarios.</p>
+            
+            <div class="content-block">
+                <h4>Application Properties</h4>
+                <p>Key configuration settings for Spring Boot application including server port, file upload limits, and thread pool settings.</p>
+            </div>
+        </div>
+        
+        <div class="page-break">
+            <h1 id="appendix-b">Appendix B: Error Codes</h1>
+            <p>Complete reference of system error codes, their meanings, and recommended actions.</p>
+            
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Error Code</th>
+                        <th>Description</th>
+                        <th>Recommended Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>PDF_001</td>
+                        <td>HTML parsing error</td>
+                        <td>Validate HTML structure</td>
+                    </tr>
+                    <tr>
+                        <td>PDF_002</td>
+                        <td>CSS processing failure</td>
+                        <td>Check CSS syntax</td>
+                    </tr>
+                    <tr>
+                        <td>PDF_003</td>
+                        <td>Font loading error</td>
+                        <td>Verify font file paths</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
