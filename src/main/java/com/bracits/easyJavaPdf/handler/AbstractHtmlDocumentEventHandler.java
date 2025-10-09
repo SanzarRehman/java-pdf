@@ -21,10 +21,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Base class for HTML-based document event handlers like headers and footers.
- * Provides common functionality for rendering HTML content in PDF documents.
- */
+
 public abstract class AbstractHtmlDocumentEventHandler extends AbstractPdfDocumentEventHandler {
     private static final Logger logger = LoggerFactory.getLogger(AbstractHtmlDocumentEventHandler.class);
     

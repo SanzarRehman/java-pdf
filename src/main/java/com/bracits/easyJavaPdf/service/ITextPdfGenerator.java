@@ -7,12 +7,28 @@ import com.bracits.easyJavaPdf.handler.Footer;
 import com.bracits.easyJavaPdf.handler.Header;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
+import com.itextpdf.html2pdf.attach.impl.OutlineHandler;
 import com.itextpdf.kernel.pdf.EncryptionConstants;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
+import com.itextpdf.kernel.pdf.navigation.PdfDestination;
+import com.itextpdf.kernel.pdf.navigation.PdfExplicitDestination;
 import com.itextpdf.layout.font.FontProvider;
+import com.itextpdf.kernel.pdf.PdfOutline;
+import com.itextpdf.kernel.pdf.action.PdfAction;
+import com.itextpdf.html2pdf.attach.ITagWorker;
+import com.itextpdf.html2pdf.attach.ProcessorContext;
+import com.itextpdf.html2pdf.attach.ITagWorkerFactory;
+import com.itextpdf.html2pdf.attach.impl.DefaultTagWorkerFactory;
+import com.itextpdf.html2pdf.attach.impl.tags.BodyTagWorker;
+import com.itextpdf.html2pdf.attach.impl.tags.DivTagWorker;
+import com.itextpdf.html2pdf.attach.impl.tags.HTagWorker;
+import com.itextpdf.styledxmlparser.node.IElementNode;
+import com.itextpdf.layout.IPropertyContainer;
+import com.itextpdf.layout.element.IElement;
+import com.itextpdf.layout.properties.Property;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -25,7 +41,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * iText-based implementation of the PdfGenerator interface.
@@ -35,13 +55,12 @@ import java.util.List;
 public class ITextPdfGenerator implements PdfGenerator {
 
     private static final Logger logger = LoggerFactory.getLogger(ITextPdfGenerator.class);
-    private static final String DEFAULT_PAGE_CSS = 
-        "@page { size: A4 portrait; margin: 1cm; } " +
-        "* { box-sizing: border-box; margin: 0; padding: 0; } " +
-        "body { margin: 0 !important; padding: 0 !important; line-height: 1.4; } " +
-        "html { margin: 0 !important; padding: 0 !important; } " +
-        "p, div, h1, h2, h3, h4, h5, h6 { margin-top: 0; margin-bottom: 0.5em; } " +
-        "p:last-child, div:last-child { margin-bottom: 0; }";
+    
+    private final CssProcessor cssProcessor;
+
+    public ITextPdfGenerator(CssProcessor cssProcessor) {
+        this.cssProcessor = cssProcessor;
+    }
 
     @Override
     public byte[] generatePdf(Path htmlFile, Path cssFile, String headerHtml, 
@@ -53,9 +72,10 @@ public class ITextPdfGenerator implements PdfGenerator {
         try {
             String htmlContent = readFileContent(htmlFile);
             String cssContent = cssFile != null ? readFileContent(cssFile) : "";
+            Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
             return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml, 
-                banglaFooterHtml, fontFiles, password, jsEnable, cssFile);
+                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot);
                 
         } catch (IOException e) {
             throw new FileProcessingException("Failed to read HTML or CSS file", e);
@@ -84,8 +104,10 @@ public class ITextPdfGenerator implements PdfGenerator {
             }
         }
         
+        Path resourceRoot = cssFile != null ? cssFile.getParent() : (fontFiles != null && !fontFiles.isEmpty() ? fontFiles.get(0).getParent() : null);
+
         return generatePdfInternal(htmlContent, cssContent != null ? cssContent : "", 
-            null, null, null, fontFiles, password, "false", cssFile);
+            null, null, null, fontFiles, password, "false", resourceRoot);
     }
 
     /**
@@ -104,74 +126,111 @@ public class ITextPdfGenerator implements PdfGenerator {
      */
     private byte[] generatePdfInternal(String htmlContent, String cssContent, 
             String headerHtml, String footerHtml, String banglaFooterHtml, 
-            List<Path> fontFiles, String password, String jsEnable, Path cssFile) {
+            List<Path> fontFiles, String password, String jsEnable, Path resourceRoot) {
         
-        try {
+        HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable);
 
-            String processedHtml = processHtmlContent(htmlContent, cssContent, jsEnable);
-            
+        Exception lastException = null;
+        for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
+            try {
+                ConverterProperties converterProperties = setupConverterProperties(fontFiles, resourceRoot);
+                converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
 
-            ConverterProperties converterProperties = setupConverterProperties(fontFiles, cssFile);
-            
+                byte[] pdfBytes = convertHtmlToPdf(
+                        variant.getHtml(),
+                        converterProperties,
+                        headerHtml,
+                        footerHtml,
+                        banglaFooterHtml,
+                        password
+                );
 
-            try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-                PdfWriter writer = createPdfWriter(outputStream, password);
-                PdfDocument pdfDocument = new PdfDocument(writer);
-                
-                configureEventHandlers(pdfDocument, headerHtml, footerHtml, banglaFooterHtml);
-                
-                logger.debug("Converting HTML to PDF");
-                HtmlConverter.convertToPdf(processedHtml, pdfDocument, converterProperties);
-                pdfDocument.close();
-                
-                byte[] pdfBytes = outputStream.toByteArray();
-                logger.debug("PDF generation completed, size: {} bytes", pdfBytes.length);
-                
+                logger.debug("PDF generation completed using {} HTML variant, size: {} bytes",
+                        variant.getDescription(), pdfBytes.length);
                 return pdfBytes;
+            } catch (Exception e) {
+                lastException = e;
+                logger.warn("PDF generation failed using {} HTML variant: {}",
+                        variant.getDescription(), e.getMessage(), e);
             }
-        } catch (Exception e) {
-            throw new PdfGenerationException("Failed to generate PDF", e);
         }
+
+    Throwable cause = lastException != null
+        ? lastException
+        : new IllegalStateException("No HTML variants were available for PDF generation");
+    throw new PdfGenerationException("Failed to generate PDF", cause);
     }
 
     /**
      * Processes HTML content by applying CSS and optionally executing JavaScript.
      */
-    private String processHtmlContent(String htmlContent, String cssContent, String jsEnable) {
-        String sanitizedCss = sanitizeCssForIText(cssContent);
-        String fullCssContent = sanitizedCss + DEFAULT_PAGE_CSS;
-        String wrappedHtml = wrapHtmlWithCss(htmlContent, fullCssContent);
-        
+    private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable) {
+        String processedCss = cssProcessor.processCss(cssContent);
+        String sanitizedHtml = wrapHtmlWithCss(htmlContent, processedCss, true);
+        String rawHtml = wrapHtmlWithCss(htmlContent, processedCss, false);
+
         if (isJavaScriptEnabled(jsEnable)) {
             logger.debug("JavaScript execution enabled, processing with Chrome driver");
-            return executeJavaScript(wrappedHtml);
+            sanitizedHtml = executeJavaScript(sanitizedHtml);
+            rawHtml = executeJavaScript(rawHtml);
         }
-        
-        return wrappedHtml;
+
+        sanitizedHtml = stripUnsupportedTags(sanitizedHtml);
+        rawHtml = stripUnsupportedTags(rawHtml);
+        String marginSafeHtml = stripUnsupportedTags(createMarginSafeVariant(sanitizedHtml));
+
+        List<HtmlVariant> variants = new ArrayList<>();
+        variants.add(new HtmlVariant(sanitizedHtml, "sanitized"));
+        variants.add(new HtmlVariant(rawHtml, "raw fallback"));
+        variants.add(new HtmlVariant(marginSafeHtml, "margin-safe fallback"));
+
+        return new HtmlProcessingResult(variants);
+    }
+
+    private byte[] convertHtmlToPdf(String html,
+            ConverterProperties converterProperties,
+            String headerHtml,
+            String footerHtml,
+            String banglaFooterHtml,
+            String password) throws Exception {
+
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            PdfWriter writer = createPdfWriter(outputStream, password);
+            try (PdfDocument pdfDocument = new PdfDocument(writer)) {
+                configureEventHandlers(pdfDocument, headerHtml, footerHtml, banglaFooterHtml);
+
+                logger.debug("Converting HTML to PDF with bookmark support");
+                HtmlConverter.convertToPdf(html, pdfDocument, converterProperties);
+            }
+
+            return outputStream.toByteArray();
+        }
     }
 
     /**
      * Sets up converter properties including font providers.
      */
-    private ConverterProperties setupConverterProperties(List<Path> fontFiles, Path cssFile) {
+    private ConverterProperties setupConverterProperties(List<Path> fontFiles, Path resourceRoot) {
         ConverterProperties converterProperties = new ConverterProperties();
         
-        // Set base URI to the directory containing the CSS file (if available)
-        if (cssFile != null && cssFile.getParent() != null) {
-            String baseUri = cssFile.getParent().toUri().toString();
+        if (resourceRoot != null) {
+            String baseUri = resourceRoot.toUri().toString();
             converterProperties.setBaseUri(baseUri);
             logger.debug("Set base URI to: {}", baseUri);
         } else {
-            // Fallback to system temp directory
             String tempDir = System.getProperty("java.io.tmpdir");
             if (tempDir != null) {
-                converterProperties.setBaseUri("file://" + tempDir + "/");
-                logger.debug("Set base URI to temp directory: {}", tempDir);
+                String baseUri = "file://" + (tempDir.endsWith("/") ? tempDir : tempDir + "/");
+                converterProperties.setBaseUri(baseUri);
+                logger.debug("Set base URI to temp directory fallback: {}", baseUri);
             }
         }
         
-        // Configure charset
+
         converterProperties.setCharset(StandardCharsets.UTF_8.name());
+
+        // Enable automatic bookmark generation based on heading hierarchy
+        converterProperties.setOutlineHandler(OutlineHandler.createStandardHandler());
         
         if (fontFiles != null && !fontFiles.isEmpty()) {
             logger.debug("Setting up font provider with {} fonts", fontFiles.size());
@@ -237,33 +296,52 @@ public class ITextPdfGenerator implements PdfGenerator {
         }
     }
 
-    /**
-     * Executes JavaScript in the HTML content using Chrome WebDriver.
-     */
+
     private String executeJavaScript(String htmlContent) {
         ChromeDriver driver = null;
+        Path tempHtmlFile = null;
+        
         try {
             logger.debug("Setting up Chrome WebDriver for JavaScript execution");
             WebDriverManager.chromedriver().setup();
+            
+
+            tempHtmlFile = java.nio.file.Files.createTempFile("js-execution", ".html");
+            java.nio.file.Files.write(tempHtmlFile, htmlContent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
             
             ChromeOptions options = new ChromeOptions();
             options.addArguments("--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu");
             
             driver = new ChromeDriver(options);
-            driver.navigate().to("data:text/html;charset=utf-8," + htmlContent);
-            
-            String processedHtml = (String) driver.executeScript("return document.documentElement.innerHTML;");
-            logger.debug("JavaScript execution completed successfully");
+
+            String fileUrl = tempHtmlFile.toUri().toString();
+            logger.debug("Loading HTML file for JavaScript execution: {}", fileUrl);
+            driver.navigate().to(fileUrl);
+
+            String processedHtml = (String) driver.executeScript("return document.documentElement.outerHTML;");
+            logger.debug("JavaScript execution completed successfully, processed HTML length: {}", 
+                        processedHtml != null ? processedHtml.length() : 0);
             
             return processedHtml;
         } catch (Exception e) {
+            logger.error("Failed to execute JavaScript in HTML content", e);
             throw new PdfGenerationException("Failed to execute JavaScript in HTML content", e);
         } finally {
+            // Clean up resources
             if (driver != null) {
                 try {
                     driver.quit();
                 } catch (Exception e) {
                     logger.warn("Failed to close Chrome driver", e);
+                }
+            }
+            
+            // Clean up temporary file
+            if (tempHtmlFile != null) {
+                try {
+                    java.nio.file.Files.deleteIfExists(tempHtmlFile);
+                } catch (Exception e) {
+                    logger.warn("Failed to delete temporary HTML file: {}", tempHtmlFile, e);
                 }
             }
         }
@@ -277,11 +355,16 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     /**
-     * Wraps HTML content with CSS styling.
+     * Wraps HTML content with CSS styling and applies defensive measures against margin collapse.
      */
-    private String wrapHtmlWithCss(String htmlContent, String cssContent) {
+    private String wrapHtmlWithCss(String htmlContent, String cssContent, boolean sanitize) {
         // Clean and normalize the HTML content
         String cleanHtmlContent = htmlContent != null ? htmlContent.trim() : "";
+
+        if (sanitize) {
+            // Apply defensive HTML processing to prevent margin collapse issues
+            cleanHtmlContent = sanitizeHtmlForMarginCollapse(cleanHtmlContent);
+        }
         
         // If the content is already a complete HTML document, return it with CSS injected
         if (cleanHtmlContent.toLowerCase().contains("<html") && cleanHtmlContent.toLowerCase().contains("</html>")) {
@@ -293,8 +376,144 @@ public class ITextPdfGenerator implements PdfGenerator {
             }
         }
         
-        // Wrap partial HTML content
-        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>" + cssContent + "</style></head><body>" + cleanHtmlContent + "</body></html>";
+        // Wrap partial HTML content with defensive structure
+        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>" + cssContent + "</style></head><body><div class=\"pdf-content-wrapper\">" + cleanHtmlContent + "</div></body></html>";
+    }
+
+    private static final String MARGIN_SAFE_STYLE_BLOCK = """
+        <style id=\"margin-collapse-fallback\">
+            .pdf-content-wrapper.margin-safe,
+            .pdf-content-wrapper.margin-safe * {
+                margin-top: 0 !important;
+                margin-bottom: 0 !important;
+            }
+
+            .pdf-content-wrapper.margin-safe section,
+            .pdf-content-wrapper.margin-safe header,
+            .pdf-content-wrapper.margin-safe footer,
+            .pdf-content-wrapper.margin-safe article,
+            .pdf-content-wrapper.margin-safe .section {
+                padding-top: 1.25rem !important;
+                padding-bottom: 1.25rem !important;
+                border-top: 0.1pt solid transparent !important;
+                border-bottom: 0.1pt solid transparent !important;
+            }
+
+            .pdf-content-wrapper.margin-safe h1,
+            .pdf-content-wrapper.margin-safe h2,
+            .pdf-content-wrapper.margin-safe h3,
+            .pdf-content-wrapper.margin-safe h4,
+            .pdf-content-wrapper.margin-safe h5,
+            .pdf-content-wrapper.margin-safe h6,
+            .pdf-content-wrapper.margin-safe p {
+                padding-top: 0.35rem !important;
+                padding-bottom: 0.35rem !important;
+            }
+        </style>
+        """;
+
+    private String createMarginSafeVariant(String htmlContent) {
+        if (htmlContent == null || htmlContent.isBlank()) {
+            return htmlContent;
+        }
+
+        String result = htmlContent;
+
+        if (!result.contains("pdf-content-wrapper margin-safe")) {
+            result = result.replaceFirst("<div\\s+class=\"pdf-content-wrapper", "<div class=\"pdf-content-wrapper margin-safe");
+        }
+
+        if (result.toLowerCase().contains("margin-collapse-fallback")) {
+            return result;
+        }
+
+        if (result.toLowerCase().contains("</head>")) {
+            return result.replaceFirst("(?i)</head>", MARGIN_SAFE_STYLE_BLOCK + "</head>");
+        }
+
+        return MARGIN_SAFE_STYLE_BLOCK + result;
+    }
+
+    private String stripUnsupportedTags(String htmlContent) {
+        if (htmlContent == null || htmlContent.isBlank()) {
+            return htmlContent;
+        }
+
+        return htmlContent.replaceAll("(?is)<script[^>]*>.*?</script>", "");
+    }
+
+    private static class HtmlProcessingResult {
+        private final List<HtmlVariant> variants;
+
+        HtmlProcessingResult(List<HtmlVariant> variants) {
+            this.variants = variants != null ? variants : new ArrayList<>();
+        }
+
+        List<HtmlVariant> getHtmlVariants() {
+            List<HtmlVariant> orderedVariants = new ArrayList<>();
+            Set<String> seenHtml = new HashSet<>();
+
+            for (HtmlVariant variant : variants) {
+                if (variant != null && variant.isValid() && seenHtml.add(variant.getHtml())) {
+                    orderedVariants.add(variant);
+                }
+            }
+
+            return orderedVariants;
+        }
+    }
+
+    private static class HtmlVariant {
+        private final String html;
+        private final String description;
+
+        HtmlVariant(String html, String description) {
+            this.html = html;
+            this.description = description;
+        }
+
+        boolean isValid() {
+            return html != null && !html.trim().isEmpty();
+        }
+
+        String getHtml() {
+            return html;
+        }
+
+        String getDescription() {
+            return description != null ? description : "html variant";
+        }
+    }
+
+    /**
+     * Sanitizes HTML content to prevent margin collapse issues in iText.
+     */
+    private String sanitizeHtmlForMarginCollapse(String htmlContent) {
+        if (htmlContent == null || htmlContent.trim().isEmpty()) {
+            return htmlContent;
+        }
+        
+        logger.debug("Applying HTML sanitization to prevent margin collapse issues");
+        
+        String sanitized = htmlContent;
+        
+        // Replace problematic list structures that can cause margin collapse
+        sanitized = sanitized
+            // Wrap list items in divs to prevent margin collapse
+            .replaceAll("(<li[^>]*>)", "$1<div class=\"li-wrapper\">")
+            .replaceAll("(</li>)", "</div>$1")
+            // Add wrapper divs around complex nested structures
+            .replaceAll("(<(?:section|article|aside|nav)[^>]*>)", "$1<div class=\"section-wrapper\">")
+            .replaceAll("(</(?:section|article|aside|nav)>)", "</div>$1")
+            // Simplify complex margin-causing elements
+            .replaceAll("(<(?:blockquote|figure|figcaption)[^>]*>)", "<div class=\"block-wrapper\">")
+            .replaceAll("(</(?:blockquote|figure|figcaption)>)", "</div>")
+            // Remove problematic attributes that can cause layout issues
+            .replaceAll("\\s+style\\s*=\\s*[\"'][^\"']*(?:margin|padding|height|position|transform|animation)[^\"']*[\"']", "")
+            // Remove class attributes that might reference problematic CSS
+            .replaceAll("\\s+class\\s*=\\s*[\"'][^\"']*(?:animation|transition|transform|flex|grid)[^\"']*[\"']", "");
+        
+        return sanitized;
     }
 
     /**
@@ -305,90 +524,131 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     /**
-     * Sanitizes CSS content to remove problematic rules that cause iText issues.
+     * Custom tag worker factory combining bookmark support with margin collapse protection.
      */
-    private String sanitizeCssForIText(String cssContent) {
-        if (cssContent == null || cssContent.trim().isEmpty()) {
-            return "";
+    private static class MarginSafeBookmarkTagWorkerFactory extends DefaultTagWorkerFactory {
+        private static final Set<String> MARGIN_SAFE_BLOCK_TAGS = Set.of(
+            "div", "section", "article", "main", "header", "footer", "nav", "aside"
+        );
+
+        @Override
+        public ITagWorker getCustomTagWorker(IElementNode tag, ProcessorContext context) {
+            String tagName = tag.name();
+            String normalized = tagName != null ? tagName.toLowerCase(Locale.ROOT) : "";
+
+            if (normalized.matches("h[1-6]")) {
+                return new BookmarkTagWorker(tag, context);
+            }
+
+            if ("body".equals(normalized)) {
+                return new MarginSafeBodyTagWorker(tag, context);
+            }
+
+            if (MARGIN_SAFE_BLOCK_TAGS.contains(normalized)) {
+                return new MarginSafeDivTagWorker(tag, context);
+            }
+
+            return super.getCustomTagWorker(tag, context);
+        }
+    }
+
+    /**
+     * Prevent margin collapsing on common block-level containers.
+     */
+    private static class MarginSafeDivTagWorker extends DivTagWorker {
+        public MarginSafeDivTagWorker(IElementNode element, ProcessorContext context) {
+            super(element, context);
         }
 
-        logger.debug("Sanitizing CSS content for iText compatibility");
-        
-        // Step 1: Remove all @page rules completely (they cause the margin collapse issue)
-        String sanitized = cssContent.replaceAll("@page[^{]*\\{(?:[^{}]*\\{[^{}]*\\}[^{}]*|[^{}])*\\}", "");
-        
-        // Step 2: Remove problematic pseudo-elements and selectors
-        sanitized = sanitized
-            // Remove ::before and ::after pseudo-elements
-            .replaceAll("[^{}]*::?(?:before|after)[^{]*\\{(?:[^{}]*\\{[^{}]*\\}[^{}]*|[^{}])*\\}", "")
-            // Remove complex selectors with multiple pseudo-classes
-            .replaceAll("[^{}]*:(?:first-of-type|last-of-type|not\\([^)]*\\))[^{]*\\{(?:[^{}]*\\{[^{}]*\\}[^{}]*|[^{}])*\\}", "");
-        
-        // Step 3: Remove ALL url() references that could cause file resolution issues
-        sanitized = sanitized
-            // Remove ANY property containing url() - this is the most aggressive approach
-            .replaceAll("[^;{}]*url\\([^)]*\\)[^;]*;", "")
-            // Remove @import statements that might reference external files
-            .replaceAll("@import[^;]*;", "")
-            // Remove advanced layout properties
-            .replaceAll("(?:display\\s*:\\s*(?:flex|grid)|align-(?:items|content)|justify-content|flex(?:-wrap|-direction)?|grid-[^:]*|columns?)\\s*:[^;]*;", "")
-            // Remove page break properties
-            .replaceAll("(?:break-(?:before|after|inside)|page-break-[^:]*|orphans|widows)\\s*:[^;]*;", "")
-            // Remove advanced font properties
-            .replaceAll("font-variant-(?:ligatures|numeric|position|caps)\\s*:[^;]*;", "")
-            // Remove content property (causes issues with generated content)
-            .replaceAll("content\\s*:[^;]*;", "")
-            // Remove string-set and counter properties
-            .replaceAll("(?:string-set|counter-[^:]*|target-[^:]*)\\s*:[^;]*;", "")
-            // Remove transform and animation properties
-            .replaceAll("(?:transform|animation|transition)[^:]*:[^;]*;", "")
-            // Remove float property (can cause layout issues)
-            .replaceAll("float\\s*:[^;]*;", "")
-            // Remove position absolute/fixed (not well supported)
-            .replaceAll("position\\s*:\\s*(?:absolute|fixed)[^;]*;", "");
-        
-        // Step 4: Clean up empty rules and normalize whitespace
-        sanitized = sanitized
-            .replaceAll("\\s*\\{\\s*\\}", "") // Remove empty rules
-            .replaceAll("\\s+", " ") // Normalize whitespace
-            .replaceAll(";\\s*;", ";") // Remove duplicate semicolons
-            .trim();
-        
-        // Step 5: Extract and preserve @font-face rules (they're usually safe)
-        StringBuilder fontFaces = new StringBuilder();
-        java.util.regex.Pattern fontFacePattern = java.util.regex.Pattern.compile(
-            "@font-face\\s*\\{[^{}]*\\}", java.util.regex.Pattern.CASE_INSENSITIVE);
-        java.util.regex.Matcher matcher = fontFacePattern.matcher(cssContent);
-        while (matcher.find()) {
-            String fontFace = matcher.group();
-            // Clean the font-face rule of problematic properties
-            fontFace = fontFace.replaceAll("src\\s*:\\s*url\\([^)]*\\)[^;]*;", ""); // Remove font URLs that might not resolve
-            if (fontFace.contains("font-family")) { // Only keep if it has font-family
-                fontFaces.append(fontFace).append(" ");
+        @Override
+        public void processEnd(IElementNode element, ProcessorContext context) {
+            super.processEnd(element, context);
+            disableMarginCollapse(getElementResult());
+        }
+    }
+
+    private static class MarginSafeBodyTagWorker extends BodyTagWorker {
+        public MarginSafeBodyTagWorker(IElementNode element, ProcessorContext context) {
+            super(element, context);
+        }
+
+        @Override
+        public void processEnd(IElementNode element, ProcessorContext context) {
+            super.processEnd(element, context);
+            disableMarginCollapse(getElementResult());
+        }
+    }
+
+    /**
+     * Custom tag worker for creating bookmarks from heading elements.
+     */
+    private static class BookmarkTagWorker extends HTagWorker {
+        private PdfOutline outline;
+
+        public BookmarkTagWorker(IElementNode element, ProcessorContext context) {
+            super(element, context);
+        }
+
+        @Override
+        public void processEnd(IElementNode element, ProcessorContext context) {
+            super.processEnd(element, context);
+            disableMarginCollapse(getElementResult());
+
+            String headingText = getHeadingText(element);
+            if (headingText != null && !headingText.trim().isEmpty()) {
+                createBookmark(headingText, context);
             }
         }
-        
-        // Step 6: Build safe CSS with basic styling
-        StringBuilder safeCss = new StringBuilder();
-        
-        // Add safe @page rule
-        safeCss.append("@page { size: A4; margin: 2cm; } ");
-        
-        // Add preserved font faces
-        safeCss.append(fontFaces);
-        
-        // Add sanitized CSS
-        safeCss.append(sanitized);
-        
-        // Add some basic safe styles to prevent common issues
-        safeCss.append(" body { margin: 0; padding: 1em; line-height: 1.4; } ");
-        safeCss.append(" * { box-sizing: border-box; } ");
-        safeCss.append(" p, div, h1, h2, h3, h4, h5, h6 { margin-bottom: 0.5em; } ");
-        
-        String result = safeCss.toString().trim();
-        logger.debug("CSS sanitization completed, original length: {}, sanitized length: {}", 
-                    cssContent.length(), result.length());
-        
-        return result;
+
+        private String getHeadingText(IElementNode element) {
+            StringBuilder text = new StringBuilder();
+            extractText(element, text);
+            return text.toString().trim();
+        }
+
+        private void extractText(IElementNode node, StringBuilder text) {
+            if (node.childNodes() != null) {
+                for (com.itextpdf.styledxmlparser.node.INode child : node.childNodes()) {
+                    if (child instanceof com.itextpdf.styledxmlparser.node.ITextNode) {
+                        text.append(((com.itextpdf.styledxmlparser.node.ITextNode) child).wholeText());
+                    } else if (child instanceof IElementNode) {
+                        extractText((IElementNode) child, text);
+                    }
+                }
+            }
+        }
+
+        private void createBookmark(String title, ProcessorContext context) {
+            try {
+                PdfDocument pdfDocument = context.getPdfDocument();
+                if (pdfDocument != null && pdfDocument.getNumberOfPages() > 0) {
+                    PdfOutline rootOutline = pdfDocument.getOutlines(false);
+                    if (rootOutline == null) {
+                        rootOutline = pdfDocument.getOutlines(true);
+                    }
+
+                    PdfDestination destination = PdfExplicitDestination.createFitH(
+                        pdfDocument.getLastPage(),
+                        pdfDocument.getLastPage().getPageSize().getTop()
+                    );
+
+                    outline = rootOutline.addOutline(title);
+                    outline.addDestination(destination);
+
+                    logger.debug("Created bookmark: {}", title);
+                } else {
+                    logger.debug("Skipping bookmark creation for '{}' because no pages are available yet", title);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to create bookmark for: {}", title, e);
+            }
+        }
     }
+
+    private static void disableMarginCollapse(Object element) {
+        if (element instanceof IPropertyContainer) {
+            ((IPropertyContainer) element).setProperty(Property.COLLAPSING_MARGINS, Boolean.FALSE);
+        }
+    }
+
 }

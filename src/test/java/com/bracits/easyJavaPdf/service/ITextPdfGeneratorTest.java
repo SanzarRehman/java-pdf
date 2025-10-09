@@ -6,6 +6,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.io.IOException;
@@ -15,9 +16,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ITextPdfGeneratorTest {
+
+    @Mock
+    private CssProcessor mockCssProcessor;
 
     private ITextPdfGenerator pdfGenerator;
 
@@ -26,7 +32,12 @@ class ITextPdfGeneratorTest {
 
     @BeforeEach
     void setUp() {
-        pdfGenerator = new ITextPdfGenerator();
+        // Mock the CSS processor to return safe CSS
+        when(mockCssProcessor.processCss(any())).thenReturn(
+            "@page { size: A4; margin: 2cm; } body { margin: 0; padding: 1em; }"
+        );
+        
+        pdfGenerator = new ITextPdfGenerator(mockCssProcessor);
     }
 
     @Test

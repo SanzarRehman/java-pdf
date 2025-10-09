@@ -112,7 +112,9 @@ public class PdfService {
           String originalName = assetFile.getOriginalFilename();
           String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "asset_" + System.currentTimeMillis();
           Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
-          fontFiles.add(assetPath);
+          if (isFontFile(assetFileName)) {
+            fontFiles.add(assetPath);
+          }
         }
       }
       
@@ -160,7 +162,7 @@ public class PdfService {
     logger.debug("Created request temp directory: {}", requestTempDir);
     
     try {
-      List<Path> fontFiles = new ArrayList<>();
+  List<Path> fontFiles = new ArrayList<>();
       Path htmlFile = null;
       Path cssFile = null;
       
@@ -185,6 +187,14 @@ public class PdfService {
         Files.write(cssFile, request.getCssContent().getBytes());
         tempFileManager.registerForCleanup(cssFile);
       }
+
+      if (cssFile == null) {
+        cssFile = requestTempDir.resolve("styles.css");
+        if (!Files.exists(cssFile)) {
+          Files.writeString(cssFile, "");
+        }
+        tempFileManager.registerForCleanup(cssFile);
+      }
       
       // Handle asset files (fonts, images, etc.) - save them in the same directory
       if (request.getAssets() != null) {
@@ -192,7 +202,9 @@ public class PdfService {
           String originalName = assetFile.getOriginalFilename();
           String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "asset_" + System.currentTimeMillis();
           Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
-          fontFiles.add(assetPath);
+          if (isFontFile(assetFileName)) {
+            fontFiles.add(assetPath);
+          }
         }
       }
       
@@ -286,6 +298,19 @@ public class PdfService {
       return "";
     }
     return filename.substring(filename.lastIndexOf("."));
+  }
+
+  private boolean isFontFile(String filename) {
+    if (filename == null) {
+      return false;
+    }
+
+    String lowerName = filename.toLowerCase();
+    return lowerName.endsWith(".ttf")
+        || lowerName.endsWith(".otf")
+        || lowerName.endsWith(".woff")
+        || lowerName.endsWith(".woff2")
+        || lowerName.endsWith(".ttc");
   }
 
   /**

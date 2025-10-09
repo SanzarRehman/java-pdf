@@ -44,7 +44,7 @@ public final class FileValidator {
     private static final Set<String> CSS_EXTENSIONS = Set.of(".css");
     private static final Set<String> PDF_EXTENSIONS = Set.of(".pdf");
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(
-            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp"
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp",".html"
     );
     private static final Set<String> FONT_EXTENSIONS = Set.of(".ttf", ".otf");
 

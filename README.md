@@ -120,16 +120,23 @@ Convert HTML files into PDF documents, supporting additional styles, fonts, and 
 
 #### Parameters
 
-| Parameter         | Type             | Required          | Description                                                                                                                                                                                                               |
-|:------------------|:-----------------|:------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `html`            | `file or string` | __Semi-Required__ | HTML file to convert. html or url or report one is required. Only either url or html, report should be used.                                                                                                              |
-| `url`             | `file or string` | __Semi-Required__ | URL to convert. html or url or report one is required. Only either url or html, report should be used.                                                                                                                    |
-| `optimize_images` | `boolean`        | __Optional__      | Whether size of embedded images should be optimized, with no quality loss.                                                                                                                                                |
-| `file_name`       | `string`         | __Optional__      | Set response `disposition file_name`. default is `document.pdf`.                                                                                                                                                          |
-| `password`        | `string`         | __Optional__      | Password protected PDF                                                                                                                                                                                                    |
-| `options`         | `json`           | __Optional__      | Only with driver=`wk` all supported `wkhtmltopdf` options are supported                                                                                                                                                   |
-| `style`           | `file or string` | __Optional__      | Style to apply to the `html`. This should only be used if the CSS is not referenced in the html. If it is included via HTML link, it should be passed as `asset`. Only either `style` or `style[]` can be used.           |
-| `asset[]`         | `file or file[]` | __Optional__      | Assets which are referenced in the html. This can be images, CSS or fonts. The name must be 1:1 the same as used in the files. 
+| Parameter      | Type             | Required       | Description |
+|:---------------|:-----------------|:---------------|:------------|
+| `html`         | file or string   | Semi-Required  | HTML file to convert. `html`, `url`, or `report` must be provided—pick exactly one. |
+| `url`          | file or string   | Semi-Required  | URL to convert. `html`, `url`, or `report` must be provided—pick exactly one. |
+| `report`       | string           | Semi-Required  | Report template name to render into HTML. `html`, `url`, or `report` must be provided—pick exactly one. |
+| `data`         | dict             | Semi-Required  | Variables for rendering a report template. Use when `report` is supplied. Choose either `data` or `data_set`. |
+| `data_set`     | dict[]           | Semi-Required  | List of variable dictionaries for rendering multiple reports. Use when `report` is supplied. Choose either `data` or `data_set`. |
+| `optimize_images` | boolean       | Optional       | Optimize embedded images without quality loss. |
+| `disposition`  | string           | Optional       | Response disposition type (`attachment` or `inline`). Defaults to `inline`. |
+| `file_name`    | string           | Optional       | Response filename when `disposition` is set. Defaults to `document.pdf`. |
+| `password`     | string           | Optional       | Apply password protection to the generated PDF. |
+| `template`     | string           | Optional       | Name of a predefined template to apply. |
+| `driver`       | string           | Optional       | Rendering engine (`wk` for wkhtmltopdf, `weasy` default for WeasyPrint). |
+| `options`      | json             | Optional       | Additional options; only used when `driver=wk` (passed through to wkhtmltopdf). |
+| `style`        | file or string   | Optional       | Inline CSS to apply when not already linked in the HTML. Use either `style` or `style[]`. |
+| `style[]`      | file or file[]   | Optional       | Multiple CSS files to apply when not referenced in the HTML. Use either `style` or `style[]`. |
+| `asset[]`      | file or file[]   | Optional       | Assets referenced by the HTML (images, CSS, fonts). Filenames must match the references exactly. |
 
 #### **Example Request**
 ```bash
@@ -140,6 +147,25 @@ curl --location 'http://localhost:8081/api/v1.0/print' \
 --form 'asset[]=@"/path/to/font2.ttf"' \
 --form 'jsEnable="false"'
 ```
+
+#### 📑 Working with Table of Contents
+
+- **Headings drive bookmarks**: Any `<h1>`–`<h6>` elements in your HTML automatically become PDF outline entries. Give each heading an `id` to create stable anchors, e.g. `<h2 id="chapter-1">Chapter 1</h2>`.
+- **Optional visible TOC**: Add a `<nav>` section with in-document links that point to those heading `id`s so readers can also navigate inside the first pages of the PDF.
+- **Bundle all assets**: Upload the HTML file plus the CSS, fonts, and images it references. Use the same filenames that appear in the markup so the converter can resolve them.
+- **Disable JS unless required**: Set `jsEnable=false` for faster, deterministic conversions. Only enable it if your HTML relies on runtime scripts to build the headings or links.
+
+Example request that generates a bookmark-enabled table of contents:
+
+```bash
+curl --location 'http://localhost:8081/api/v1.0/print' \
+--form 'htmlFile=@"test-scenarios/5-table-of-contents.html"' \
+--form 'asset[]=@"test-scenarios/2-complex-layout.css"' \
+--form 'jsEnable="false"' \
+--output table-of-contents.pdf
+```
+
+The resulting PDF will render the `<nav>` section as a visible contents page while the bookmarks panel mirrors the heading hierarchy.
 
 ---
 
