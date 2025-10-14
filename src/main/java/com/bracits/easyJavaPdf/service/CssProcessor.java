@@ -1,5 +1,6 @@
 package com.bracits.easyJavaPdf.service;
 
+import com.bracits.easyJavaPdf.model.PageOrientation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -50,16 +51,22 @@ public class CssProcessor {
      * @param cssContent the raw CSS content to process
      * @return sanitized CSS content safe for PDF generation
      */
-    public String processCss(String cssContent) {
+    public String processCss(String cssContent, PageOrientation orientation) {
+        boolean hasPageRule = containsPageRule(cssContent);
         if (cssContent == null || cssContent.trim().isEmpty()) {
-            return getDefaultPageCss();
+            return getDefaultPageCss(orientation, hasPageRule);
         }
 
         logger.debug("Processing CSS content for PDF generation safety");
 
         try {
             String sanitized = sanitizeCss(cssContent);
-            String result = getDefaultPageCss() + " " + sanitized;
+            String orientationRule = buildOrientationCss(orientation);
+            StringBuilder resultBuilder = new StringBuilder();
+            appendCssChunk(resultBuilder, getDefaultPageCss(orientation, hasPageRule));
+            appendCssChunk(resultBuilder, orientationRule);
+            appendCssChunk(resultBuilder, sanitized);
+            String result = resultBuilder.toString().trim();
 
             logger.debug("CSS processing completed, original length: {}, processed length: {}", 
                         cssContent.length(), result.length());
@@ -68,8 +75,12 @@ public class CssProcessor {
 
         } catch (Exception e) {
             logger.warn("Error during CSS processing, returning safe defaults", e);
-            return getDefaultPageCss();
+            return getDefaultPageCss(orientation, hasPageRule);
         }
+    }
+
+    public String processCss(String cssContent) {
+        return processCss(cssContent, null);
     }
 
     /**
@@ -214,19 +225,61 @@ public class CssProcessor {
     /**
      * Returns safe default CSS for PDF generation with defensive styles.
      */
-    private String getDefaultPageCss() {
-        return "@page { size: A4; margin: 2cm; } " +
-               "* { box-sizing: border-box; margin: 0 !important; padding: 0; } " +
-               "body { margin: 0 !important; padding: 1em !important; line-height: 1.4 !important; } " +
-               "html { margin: 0 !important; padding: 0 !important; } " +
-               "p, div, h1, h2, h3, h4, h5, h6 { margin-top: 0 !important; margin-bottom: 0.5em !important; } " +
-               "p:last-child, div:last-child { margin-bottom: 0 !important; } " +
-               "ul, ol { margin: 0 !important; padding-left: 1.5em !important; } " +
-               "li { margin: 0 !important; padding: 0.2em 0 !important; } " +
-               ".pdf-content-wrapper { margin: 0 !important; padding: 0 !important; } " +
-               ".li-wrapper { margin: 0 !important; padding: 0 !important; display: block !important; } " +
-               ".section-wrapper { margin: 0 !important; padding: 0 !important; display: block !important; } " +
-               ".block-wrapper { margin: 0.5em 0 !important; padding: 0.5em !important; display: block !important; }";
+    private String getDefaultPageCss(PageOrientation orientation, boolean hasPageRule) {
+        StringBuilder builder = new StringBuilder();
+
+        if (!hasPageRule) {
+            if (orientation == PageOrientation.LANDSCAPE || orientation == PageOrientation.SEASCAPE) {
+                builder.append("@page { size: A4 landscape; margin: 1cm; } ");
+            } else {
+                builder.append("@page { size: A4; margin: 1cm; } ");
+            }
+        }
+
+        builder.append("* { box-sizing: border-box; margin: 0 !important; padding: 0; } ")
+               .append("body { margin: 0 !important; padding: 0 !important; line-height: 1.4 !important; } ")
+               .append("html { margin: 0 !important; padding: 0 !important; } ")
+               .append("p, div, h1, h2, h3, h4, h5, h6 { margin-top: 0 !important; margin-bottom: 0.5em !important; } ")
+               .append("p:last-child, div:last-child { margin-bottom: 0 !important; } ")
+               .append("ul, ol { margin: 0 !important; padding-left: 1.5em !important; } ")
+               .append("li { margin: 0 !important; padding: 0.2em 0 !important; } ")
+               .append(".pdf-content-wrapper { margin: 0 !important; padding: 0 !important; } ")
+               .append(".li-wrapper { margin: 0 !important; padding: 0 !important; display: block !important; } ")
+               .append(".section-wrapper { margin: 0 !important; padding: 0 !important; display: block !important; } ")
+               .append(".block-wrapper { margin: 0.5em 0 !important; padding: 0.5em !important; display: block !important; }");
+
+        return builder.toString();
+    }
+
+    private boolean containsPageRule(String cssContent) {
+        if (cssContent == null) {
+            return false;
+        }
+        return cssContent.toLowerCase().contains("@page");
+    }
+
+    private String buildOrientationCss(PageOrientation orientation) {
+        if (orientation == null) {
+            return "";
+        }
+
+        return switch (orientation) {
+            case LANDSCAPE -> "@media print { @page { size: A4 landscape; } }";
+            case SEASCAPE -> "@media print { @page { size: A4 landscape; } }";
+            default -> "";
+        };
+    }
+
+    private void appendCssChunk(StringBuilder builder, String chunk) {
+        if (chunk == null || chunk.isBlank()) {
+            return;
+        }
+
+        if (builder.length() > 0) {
+            builder.append(' ');
+        }
+
+        builder.append(chunk.trim());
     }
 
     private String stripCssVariables(String cssContent) {

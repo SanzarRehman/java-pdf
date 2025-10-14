@@ -11,6 +11,7 @@ import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.html2pdf.attach.impl.OutlineHandler;
 import com.itextpdf.kernel.pdf.EncryptionConstants;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
@@ -131,7 +132,7 @@ public class ITextPdfGenerator implements PdfGenerator {
         List<Path> fontFiles, String password, String jsEnable, Path resourceRoot,
         PageOrientation orientation) {
         
-        HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable);
+    HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation);
 
         Exception lastException = null;
         for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
@@ -168,8 +169,8 @@ public class ITextPdfGenerator implements PdfGenerator {
     /**
      * Processes HTML content by applying CSS and optionally executing JavaScript.
      */
-    private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable) {
-        String processedCss = cssProcessor.processCss(cssContent);
+    private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable, PageOrientation orientation) {
+        String processedCss = cssProcessor.processCss(cssContent, orientation);
         String sanitizedHtml = wrapHtmlWithCss(htmlContent, processedCss, true);
         String rawHtml = wrapHtmlWithCss(htmlContent, processedCss, false);
 
@@ -202,6 +203,7 @@ public class ITextPdfGenerator implements PdfGenerator {
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             PdfWriter writer = createPdfWriter(outputStream, password);
             try (PdfDocument pdfDocument = new PdfDocument(writer)) {
+                configureDefaultPageSize(pdfDocument, orientation);
                 configureEventHandlers(pdfDocument, headerHtml, footerHtml, banglaFooterHtml);
 
                 logger.debug("Converting HTML to PDF with bookmark support");
@@ -224,12 +226,34 @@ public class ITextPdfGenerator implements PdfGenerator {
             return;
         }
 
+        if (orientation == PageOrientation.LANDSCAPE) {
+            logger.debug("LANDSCAPE orientation handled via page size; skipping page rotation");
+            return;
+        }
+
         int rotation = orientation.getRotationDegrees();
         int totalPages = pdfDocument.getNumberOfPages();
         for (int i = 1; i <= totalPages; i++) {
             pdfDocument.getPage(i).setRotation(rotation);
         }
         logger.debug("Applied {} orientation ({}°) to {} pages", orientation.name(), rotation, totalPages);
+    }
+
+    private void configureDefaultPageSize(PdfDocument pdfDocument, PageOrientation orientation) {
+        if (pdfDocument == null || pdfDocument.isClosed() || orientation == null) {
+            return;
+        }
+
+        PageSize targetSize = switch (orientation) {
+            case LANDSCAPE, SEASCAPE -> PageSize.A4.rotate();
+            default -> PageSize.A4;
+        };
+
+        PageSize currentDefault = pdfDocument.getDefaultPageSize();
+        if (currentDefault == null || !currentDefault.equals(targetSize)) {
+            pdfDocument.setDefaultPageSize(targetSize);
+            logger.debug("Set default page size to {} for orientation {}", targetSize, orientation);
+        }
     }
 
     /**
