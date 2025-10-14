@@ -22,6 +22,7 @@ public interface PdfGenerator {
      * @param fontFiles List of font files to embed (optional)
      * @param password Password for PDF encryption (optional)
      * @param jsEnable Enable JavaScript execution during conversion
+     * @param forceBrowserMode Forces raw browser rendering without sanitization
      * @return Generated PDF as byte array
      * @throws com.bracits.easyJavaPdf.exception.PdfGenerationException if PDF generation fails
      */
@@ -34,7 +35,8 @@ public interface PdfGenerator {
         List<Path> fontFiles,
         String password,
         String jsEnable,
-        PageOrientation orientation
+        PageOrientation orientation,
+        boolean forceBrowserMode
     );
 
     /**
@@ -44,6 +46,7 @@ public interface PdfGenerator {
      * @param cssContent CSS content as string (optional)
      * @param fontFiles List of font files to embed (optional)
      * @param password Password for PDF encryption (optional)
+     * @param forceBrowserMode Forces raw browser rendering without sanitization
      * @return Generated PDF as byte array
      * @throws com.bracits.easyJavaPdf.exception.PdfGenerationException if PDF generation fails
      */
@@ -52,6 +55,7 @@ public interface PdfGenerator {
         String cssContent,
         List<Path> fontFiles,
         String password,
-        PageOrientation orientation
+        PageOrientation orientation,
+        boolean forceBrowserMode
     );
 }

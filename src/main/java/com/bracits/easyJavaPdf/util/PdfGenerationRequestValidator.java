@@ -385,7 +385,7 @@ public final class PdfGenerationRequestValidator {
 
 
 
-        if (request.isJsEnabled() && assets.size() > 20) {
+    if ((request.isJsEnabled() || request.isForceBrowserMode()) && assets.size() > 20) {
             throw new ValidationException(
                     "When JavaScript is enabled, maximum 20 asset files are allowed for performance reasons. " +
                     "Current count: " + assets.size()

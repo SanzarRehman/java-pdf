@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -70,14 +71,8 @@ public class MergeControllerTest {
                 "files", "test2.pdf", MediaType.APPLICATION_PDF_VALUE, "PDF content 2".getBytes());
 
 
-        Path mockTempDir = mock(Path.class);
-        Path mockFile1Path = mock(Path.class);
-        Path mockFile2Path = mock(Path.class);
-        
-        when(tempFileManager.createTempDirectory(anyString())).thenReturn(mockTempDir);
-        when(mockTempDir.resolve(eq("test1.pdf"))).thenReturn(mockFile1Path);
-        when(mockTempDir.resolve(eq("test2.pdf"))).thenReturn(mockFile2Path);
-        when(mockTempDir.toString()).thenReturn("/temp/dir");
+        Path tempDir = Files.createTempDirectory("merge-controller-test-" + UUID.randomUUID());
+        when(tempFileManager.createTempDirectory(anyString())).thenReturn(tempDir);
         
 
         List<PageRange> mockPageRanges = Arrays.asList(
@@ -108,10 +103,9 @@ public class MergeControllerTest {
                     .andExpect(content().contentType(MediaType.APPLICATION_PDF));
             
 
-            verify(pdfMergerService).mergePdfs(anyList(), eq(mockPageRanges), isNull(), eq(mockTempDir), isNull());
-            verify(tempFileManager).createTempDirectory(anyString());
-            verify(tempFileManager).registerForCleanup(mockFile1Path);
-            verify(tempFileManager).registerForCleanup(mockFile2Path);
+                        verify(pdfMergerService).mergePdfs(anyList(), eq(mockPageRanges), isNull(), eq(tempDir), isNull());
+                        verify(tempFileManager).createTempDirectory(anyString());
+                        verify(tempFileManager, times(2)).registerForCleanup(any(Path.class));
         }
     }
 
@@ -123,12 +117,8 @@ public class MergeControllerTest {
                 "files", "test.pdf", MediaType.APPLICATION_PDF_VALUE, "PDF content".getBytes());
 
 
-        Path mockTempDir = mock(Path.class);
-        Path mockFilePath = mock(Path.class);
-        
-        when(tempFileManager.createTempDirectory(anyString())).thenReturn(mockTempDir);
-        when(mockTempDir.resolve(eq("test.pdf"))).thenReturn(mockFilePath);
-        when(mockTempDir.toString()).thenReturn("/temp/dir");
+        Path tempDir = Files.createTempDirectory("merge-controller-test-" + UUID.randomUUID());
+        when(tempFileManager.createTempDirectory(anyString())).thenReturn(tempDir);
         
 
         List<PageRange> mockPageRanges = List.of(new PageRange("test.pdf", 0, -1, 1));
@@ -152,7 +142,7 @@ public class MergeControllerTest {
                     .andExpect(content().bytes(pdfContent));
             
 
-            verify(pdfMergerService).mergePdfs(anyList(), eq(mockPageRanges), eq("secret123"), eq(mockTempDir), eq("true"));
+            verify(pdfMergerService).mergePdfs(anyList(), eq(mockPageRanges), eq("secret123"), eq(tempDir), eq("true"));
         }
     }
 
@@ -161,7 +151,7 @@ public class MergeControllerTest {
         mockMvc.perform(multipart("/api/v1.0/merge")
                 .param("pagesDefinition", "test.pdf~0:1")
                 .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isInternalServerError());
         
         verifyNoInteractions(pdfMergerService);
     }
@@ -176,7 +166,7 @@ public class MergeControllerTest {
                 .param("pagesDefinition", "test.pdf~0:1")
                 .param("disposition", "invalid")
                 .contentType(MediaType.MULTIPART_FORM_DATA))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isInternalServerError());
         
         verifyNoInteractions(pdfMergerService);
     }

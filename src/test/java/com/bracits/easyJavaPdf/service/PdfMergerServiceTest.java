@@ -2,13 +2,10 @@ package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.dto.PageRange;
 import com.bracits.easyJavaPdf.exception.FileProcessingException;
-import com.bracits.easyJavaPdf.exception.PdfMergeException;
 import com.bracits.easyJavaPdf.exception.ValidationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
-import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,15 +18,17 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class PdfMergerServiceTest {
 
-    @InjectMocks
     private PdfMergerService pdfMergerService;
+
+    private ImageToPdfConverter imageToPdfConverter;
 
     @TempDir
     Path tempDir;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+        imageToPdfConverter = new ImageToPdfConverter();
+        pdfMergerService = new PdfMergerService(imageToPdfConverter);
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.exception.FileProcessingException;
 import com.bracits.easyJavaPdf.exception.PdfGenerationException;
+import com.bracits.easyJavaPdf.model.PageOrientation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +18,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,7 +35,7 @@ class ITextPdfGeneratorTest {
     @BeforeEach
     void setUp() {
         // Mock the CSS processor to return safe CSS
-        when(mockCssProcessor.processCss(any())).thenReturn(
+        when(mockCssProcessor.processCss(anyString(), any(PageOrientation.class))).thenReturn(
             "@page { size: A4; margin: 2cm; } body { margin: 0; padding: 1em; }"
         );
         
@@ -48,7 +50,7 @@ class ITextPdfGeneratorTest {
 
 
         byte[] result = pdfGenerator.generatePdf(
-            htmlFile, cssFile, null, null, null, null, null, "false"
+            htmlFile, cssFile, null, null, null, null, null, "false", PageOrientation.PORTRAIT, false
         );
 
 
@@ -65,7 +67,7 @@ class ITextPdfGeneratorTest {
 
 
         byte[] result = pdfGenerator.generatePdf(
-            htmlFile, null, null, null, null, null, null, "false"
+            htmlFile, null, null, null, null, null, null, "false", PageOrientation.PORTRAIT, false
         );
 
 
@@ -83,7 +85,7 @@ class ITextPdfGeneratorTest {
 
 
         byte[] result = pdfGenerator.generatePdf(
-            htmlFile, null, null, null, null, null, password, "false"
+            htmlFile, null, null, null, null, null, password, "false", PageOrientation.PORTRAIT, false
         );
 
 
@@ -102,7 +104,7 @@ class ITextPdfGeneratorTest {
 
 
         byte[] result = pdfGenerator.generatePdf(
-            htmlFile, null, headerHtml, footerHtml, null, null, null, "false"
+            htmlFile, null, headerHtml, footerHtml, null, null, null, "false", PageOrientation.PORTRAIT, false
         );
 
 
@@ -120,7 +122,7 @@ class ITextPdfGeneratorTest {
 
 
         byte[] result = pdfGenerator.generatePdf(
-            htmlFile, null, null, null, banglaFooterHtml, null, null, "false"
+            htmlFile, null, null, null, banglaFooterHtml, null, null, "false", PageOrientation.PORTRAIT, false
         );
 
 
@@ -139,7 +141,7 @@ class ITextPdfGeneratorTest {
 
 
         byte[] result = pdfGenerator.generatePdf(
-            htmlFile, null, null, null, null, fontFiles, null, "false"
+            htmlFile, null, null, null, null, fontFiles, null, "false", PageOrientation.PORTRAIT, false
         );
 
 
@@ -156,7 +158,7 @@ class ITextPdfGeneratorTest {
 
 
         assertThrows(FileProcessingException.class, () -> 
-            pdfGenerator.generatePdf(nonExistentFile, null, null, null, null, null, null, "false"));
+            pdfGenerator.generatePdf(nonExistentFile, null, null, null, null, null, null, "false", PageOrientation.PORTRAIT, false));
     }
 
     @Test
@@ -167,7 +169,7 @@ class ITextPdfGeneratorTest {
 
 
         assertThrows(FileProcessingException.class, () -> 
-            pdfGenerator.generatePdf(htmlFile, nonExistentCssFile, null, null, null, null, null, "false"));
+            pdfGenerator.generatePdf(htmlFile, nonExistentCssFile, null, null, null, null, null, "false", PageOrientation.PORTRAIT, false));
     }
 
     @Test
@@ -177,7 +179,7 @@ class ITextPdfGeneratorTest {
         String cssContent = "h1 { color: red; }";
 
 
-        byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, cssContent, null, null);
+    byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, cssContent, null, null, PageOrientation.PORTRAIT, false);
 
 
         assertNotNull(result);
@@ -192,7 +194,7 @@ class ITextPdfGeneratorTest {
         String htmlContent = "<html><body><p>Simple content</p></body></html>";
 
 
-        byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, null, null, null);
+    byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, null, null, null, PageOrientation.PORTRAIT, false);
 
 
         assertNotNull(result);
@@ -208,7 +210,7 @@ class ITextPdfGeneratorTest {
         String password = "testPassword123";
 
 
-        byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, null, null, password);
+    byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, null, null, password, PageOrientation.PORTRAIT, false);
 
 
         assertNotNull(result);
@@ -225,7 +227,7 @@ class ITextPdfGeneratorTest {
         List<Path> fontFiles = Arrays.asList(fontFile);
 
 
-        byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, null, fontFiles, null);
+    byte[] result = pdfGenerator.generatePdfFromContent(htmlContent, null, fontFiles, null, PageOrientation.PORTRAIT, false);
 
 
         assertNotNull(result);
@@ -240,7 +242,7 @@ class ITextPdfGeneratorTest {
         String invalidHtmlContent = "<html><body><unclosed-tag>Invalid HTML";
 
 
-        byte[] result = pdfGenerator.generatePdfFromContent(invalidHtmlContent, null, null, null);
+    byte[] result = pdfGenerator.generatePdfFromContent(invalidHtmlContent, null, null, null, PageOrientation.PORTRAIT, false);
 
 
 
@@ -256,7 +258,7 @@ class ITextPdfGeneratorTest {
         String emptyContent = "";
 
 
-        byte[] result = pdfGenerator.generatePdfFromContent(emptyContent, null, null, null);
+    byte[] result = pdfGenerator.generatePdfFromContent(emptyContent, null, null, null, PageOrientation.PORTRAIT, false);
 
 
         assertNotNull(result);

@@ -230,9 +230,9 @@ public class CssProcessor {
 
         if (!hasPageRule) {
             if (orientation == PageOrientation.LANDSCAPE || orientation == PageOrientation.SEASCAPE) {
-                builder.append("@page { size: A4 landscape; margin: 1cm; } ");
+                builder.append("@page { size: A4 landscape; margin: 2cm; } ");
             } else {
-                builder.append("@page { size: A4; margin: 1cm; } ");
+                builder.append("@page { size: A4; margin: 2cm; } ");
             }
         }
 

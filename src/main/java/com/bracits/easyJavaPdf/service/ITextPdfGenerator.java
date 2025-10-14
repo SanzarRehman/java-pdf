@@ -68,7 +68,7 @@ public class ITextPdfGenerator implements PdfGenerator {
     @Override
     public byte[] generatePdf(Path htmlFile, Path cssFile, String headerHtml,
         String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
-        String password, String jsEnable, PageOrientation orientation) {
+        String password, String jsEnable, PageOrientation orientation, boolean forceBrowserMode) {
         
         logger.debug("Starting PDF generation from files - HTML: {}, CSS: {}", htmlFile, cssFile);
         
@@ -78,7 +78,7 @@ public class ITextPdfGenerator implements PdfGenerator {
             Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
             return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
-                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation);
+                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation, forceBrowserMode);
                 
         } catch (IOException e) {
             throw new FileProcessingException("Failed to read HTML or CSS file", e);
@@ -87,7 +87,7 @@ public class ITextPdfGenerator implements PdfGenerator {
 
     @Override
     public byte[] generatePdfFromContent(String htmlContent, String cssContent,
-        List<Path> fontFiles, String password, PageOrientation orientation) {
+        List<Path> fontFiles, String password, PageOrientation orientation, boolean forceBrowserMode) {
         
         logger.debug("Starting PDF generation from content strings");
         
@@ -110,7 +110,7 @@ public class ITextPdfGenerator implements PdfGenerator {
         Path resourceRoot = cssFile != null ? cssFile.getParent() : (fontFiles != null && !fontFiles.isEmpty() ? fontFiles.get(0).getParent() : null);
 
         return generatePdfInternal(htmlContent, cssContent != null ? cssContent : "",
-            null, null, null, fontFiles, password, "false", resourceRoot, orientation);
+            null, null, null, fontFiles, password, "false", resourceRoot, orientation, forceBrowserMode);
     }
 
     /**
@@ -118,10 +118,11 @@ public class ITextPdfGenerator implements PdfGenerator {
      */
     private byte[] generatePdfInternal(String htmlContent, String cssContent,
             String headerHtml, String footerHtml, String banglaFooterHtml,
-            List<Path> fontFiles, String password, String jsEnable, PageOrientation orientation) {
+            List<Path> fontFiles, String password, String jsEnable, PageOrientation orientation,
+            boolean forceBrowserMode) {
 
         return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
-            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation);
+            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation, forceBrowserMode);
     }
 
     /**
@@ -130,9 +131,9 @@ public class ITextPdfGenerator implements PdfGenerator {
     private byte[] generatePdfInternal(String htmlContent, String cssContent,
         String headerHtml, String footerHtml, String banglaFooterHtml,
         List<Path> fontFiles, String password, String jsEnable, Path resourceRoot,
-        PageOrientation orientation) {
+        PageOrientation orientation, boolean forceBrowserMode) {
         
-    HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation);
+        HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation, forceBrowserMode);
 
         Exception lastException = null;
         for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
@@ -169,7 +170,30 @@ public class ITextPdfGenerator implements PdfGenerator {
     /**
      * Processes HTML content by applying CSS and optionally executing JavaScript.
      */
-    private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable, PageOrientation orientation) {
+    private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable,
+            PageOrientation orientation, boolean forceBrowserMode) {
+        if (forceBrowserMode) {
+            logger.debug("Force browser mode enabled; bypassing CSS sanitization and margin-safe variants");
+            String cssToApply = cssContent != null ? cssContent : "";
+            String htmlWithCss = wrapHtmlWithCss(htmlContent, cssToApply, false);
+            String browserRenderedHtml = htmlWithCss;
+
+            try {
+                browserRenderedHtml = executeJavaScript(htmlWithCss);
+            } catch (Exception e) {
+                logger.warn("Force browser mode JavaScript execution failed, using raw HTML", e);
+            }
+
+            if (browserRenderedHtml == null || browserRenderedHtml.trim().isEmpty()) {
+                browserRenderedHtml = htmlWithCss;
+            }
+
+            List<HtmlVariant> variants = new ArrayList<>();
+            variants.add(new HtmlVariant(browserRenderedHtml, "force-browser rendered"));
+            variants.add(new HtmlVariant(htmlWithCss, "force-browser raw fallback"));
+            return new HtmlProcessingResult(variants);
+        }
+
         String processedCss = cssProcessor.processCss(cssContent, orientation);
         String sanitizedHtml = wrapHtmlWithCss(htmlContent, processedCss, true);
         String rawHtml = wrapHtmlWithCss(htmlContent, processedCss, false);

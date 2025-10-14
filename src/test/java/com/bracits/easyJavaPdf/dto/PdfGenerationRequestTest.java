@@ -1,5 +1,7 @@
 package com.bracits.easyJavaPdf.dto;
 
+import com.bracits.easyJavaPdf.util.PdfGenerationRequestValidator;
+import com.bracits.easyJavaPdf.exception.ValidationException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -37,7 +39,7 @@ class PdfGenerationRequestTest {
         mockFooterFile = new MockMultipartFile("footer", "footer.html", "text/html", "<div>Footer</div>".getBytes());
         mockBanglaFooter = new MockMultipartFile("bangla", "bangla.html", "text/html", "<div>বাংলা</div>".getBytes());
         mockAssetFile = new MockMultipartFile("asset", "font.ttf", "font/ttf", "font data".getBytes());
-    mockDataModelFile = new MockMultipartFile("data", "data.json", "application/json", "{\"name\":\"Test\"}".getBytes());
+        mockDataModelFile = new MockMultipartFile("data", "data.json", "application/json", "{\"name\":\"Test\"}".getBytes());
     }
 
     @Test
@@ -51,6 +53,7 @@ class PdfGenerationRequestTest {
         request.setAssets(Arrays.asList(mockAssetFile));
         request.setPassword("testPassword");
         request.setJsEnabled(true);
+        request.setForceBrowserMode(true);
 
         Set<ConstraintViolation<PdfGenerationRequest>> violations = validator.validate(request);
         assertTrue(violations.isEmpty(), "Valid request should have no validation violations");
@@ -62,12 +65,10 @@ class PdfGenerationRequestTest {
         request.setHtmlFile(null);
         request.setCssFile(mockCssFile);
 
-        Set<ConstraintViolation<PdfGenerationRequest>> violations = validator.validate(request);
-        assertEquals(1, violations.size(), "Should have one validation violation for null HTML file");
-        
-        ConstraintViolation<PdfGenerationRequest> violation = violations.iterator().next();
-        assertEquals("HTML file is required", violation.getMessage());
-        assertEquals("htmlFile", violation.getPropertyPath().toString());
+    Set<ConstraintViolation<PdfGenerationRequest>> violations = validator.validate(request);
+    assertTrue(violations.isEmpty(), "Bean validation allows missing htmlFile when htmlContent may be supplied");
+
+    assertThrows(ValidationException.class, () -> PdfGenerationRequestValidator.validate(request));
     }
 
     @Test
@@ -109,6 +110,9 @@ class PdfGenerationRequestTest {
         request.setJsEnabled(true);
         assertTrue(request.isJsEnabled());
 
+        request.setForceBrowserMode(true);
+        assertTrue(request.isForceBrowserMode());
+
         request.setThymeleafTemplate(true);
         assertTrue(request.isThymeleafTemplate());
 
@@ -133,8 +137,10 @@ class PdfGenerationRequestTest {
             "testPassword",
             true,
             true,
+            true,
             "{\"foo\":\"bar\"}",
-            mockDataModelFile
+            mockDataModelFile,
+            "LANDSCAPE"
         );
 
         assertEquals(mockHtmlFile, request.getHtmlFile());
@@ -147,9 +153,11 @@ class PdfGenerationRequestTest {
         assertEquals(1, request.getAssets().size());
         assertEquals("testPassword", request.getPassword());
         assertTrue(request.isJsEnabled());
+        assertTrue(request.isForceBrowserMode());
         assertTrue(request.isThymeleafTemplate());
         assertEquals("{\"foo\":\"bar\"}", request.getDataModel());
         assertEquals(mockDataModelFile, request.getDataModelFile());
+        assertEquals("LANDSCAPE", request.getPageOrientation());
     }
 
     @Test
@@ -164,6 +172,7 @@ class PdfGenerationRequestTest {
         assertNull(request.getAssets());
         assertNull(request.getPassword());
         assertFalse(request.isJsEnabled());
+        assertFalse(request.isForceBrowserMode());
         assertFalse(request.isThymeleafTemplate());
         assertNull(request.getDataModel());
         assertNull(request.getDataModelFile());

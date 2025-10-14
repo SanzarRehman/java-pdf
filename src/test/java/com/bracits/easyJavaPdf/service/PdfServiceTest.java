@@ -1,6 +1,7 @@
 package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.exception.PdfGenerationException;
+import com.bracits.easyJavaPdf.model.PageOrientation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import java.util.concurrent.Executor;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,12 +57,13 @@ class PdfServiceTest {
         Path cssFile = createTempFile("test.css", "body { font-family: Arial; }");
         byte[] expectedPdfBytes = new byte[]{1, 2, 3, 4};
         
-        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
             .thenReturn(expectedPdfBytes);
 
 
         CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, cssFile, "header", "footer", null, null, "password", "false"
+            htmlFile, cssFile, "header", "footer", null, null, "password", "false",
+            PageOrientation.PORTRAIT, false
         );
 
 
@@ -71,7 +74,7 @@ class PdfServiceTest {
 
         verify(mockPdfGenerator).generatePdf(
             eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
-            eq(null), eq(null), eq("password"), eq("false")
+            eq(null), eq(null), eq("password"), eq("false"), eq(PageOrientation.PORTRAIT), eq(false)
         );
     }
 
@@ -80,12 +83,13 @@ class PdfServiceTest {
 
         Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
         
-        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
             .thenThrow(new PdfGenerationException("PDF generation failed"));
 
 
         CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, null, null, null, null, null, null, "false"
+            htmlFile, null, null, null, null, null, null, "false",
+            PageOrientation.PORTRAIT, false
         );
         
         Exception exception = assertThrows(Exception.class, result::join);
@@ -102,12 +106,13 @@ class PdfServiceTest {
         List<Path> fontFiles = Arrays.asList(fontFile);
         byte[] expectedPdfBytes = new byte[]{5, 6, 7, 8};
         
-        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
             .thenReturn(expectedPdfBytes);
 
 
         CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, cssFile, "header", "footer", "bangla", fontFiles, "pass", "true"
+            htmlFile, cssFile, "header", "footer", "bangla", fontFiles, "pass", "true",
+            PageOrientation.LANDSCAPE, true
         );
 
 
@@ -118,7 +123,8 @@ class PdfServiceTest {
 
         verify(mockPdfGenerator).generatePdf(
             eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
-            eq("bangla"), eq(fontFiles), eq("pass"), eq("true")
+            eq("bangla"), eq(fontFiles), eq("pass"), eq("true"),
+            eq(PageOrientation.LANDSCAPE), eq(true)
         );
     }
 
@@ -128,12 +134,13 @@ class PdfServiceTest {
         Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
         byte[] expectedPdfBytes = new byte[]{1, 2, 3};
         
-        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any()))
+    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
             .thenReturn(expectedPdfBytes);
 
 
         CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, null, null, null, null, null, null, "false"
+            htmlFile, null, null, null, null, null, null, "false",
+            PageOrientation.PORTRAIT, false
         );
 
 
@@ -142,7 +149,7 @@ class PdfServiceTest {
         assertArrayEquals(expectedPdfBytes, actualBytes);
         
 
-        verify(mockPdfGenerator).generatePdf(any(), any(), any(), any(), any(), any(), any(), any());
+    verify(mockPdfGenerator).generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean());
     }
 
 

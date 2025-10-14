@@ -70,6 +70,11 @@ public class PdfGenerationRequest {
     private boolean jsEnabled;
 
     /**
+     * Forces browser-based rendering pipeline with no HTML/CSS sanitization
+     */
+    private boolean forceBrowserMode;
+
+    /**
      * Flag indicating whether the provided HTML should be processed as a Thymeleaf template
      */
     private boolean thymeleafTemplate;

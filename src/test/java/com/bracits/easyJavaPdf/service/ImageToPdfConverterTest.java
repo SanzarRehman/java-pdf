@@ -2,13 +2,14 @@ package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.exception.FileProcessingException;
 import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
-import org.mockito.MockitoAnnotations;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,7 +20,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ImageToPdfConverterTest {
 
-    @InjectMocks
     private ImageToPdfConverter imageToPdfConverter;
 
     @TempDir
@@ -27,7 +27,7 @@ class ImageToPdfConverterTest {
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
+    imageToPdfConverter = new ImageToPdfConverter();
     }
 
     @Test
@@ -122,24 +122,21 @@ class ImageToPdfConverterTest {
 
     @Test
     void testConvertImageToPdf_WithValidJpegImage() throws IOException {
-
         Path jpegFile = tempDir.resolve("test.jpg");
-        byte[] jpegHeader = {
-            (byte)0xFF, (byte)0xD8,
-            (byte)0xFF, (byte)0xE0,
-            0x00, 0x10,
-            'J', 'F', 'I', 'F', 0x00,
-            0x01, 0x01,
-            0x00,
-            0x00, 0x01,
-            0x00, 0x01,
-            0x00, 0x00,
-            (byte)0xFF, (byte)0xD9
-        };
-        Files.write(jpegFile, jpegHeader);
-        
 
-        assertThrows(IOException.class, () -> 
-                imageToPdfConverter.convertImageToPdf(jpegFile.toString()));
+        BufferedImage bufferedImage = new BufferedImage(10, 10, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = bufferedImage.createGraphics();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, 10, 10);
+        graphics.setColor(Color.BLACK);
+        graphics.drawLine(0, 0, 9, 9);
+        graphics.dispose();
+
+        ImageIO.write(bufferedImage, "jpg", jpegFile.toFile());
+
+        try (PDDocument document = imageToPdfConverter.convertImageToPdf(jpegFile.toString())) {
+            assertNotNull(document);
+            assertEquals(1, document.getNumberOfPages());
+        }
     }
 }
