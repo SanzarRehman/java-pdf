@@ -23,6 +23,7 @@ class PdfGenerationRequestTest {
     private MultipartFile mockFooterFile;
     private MultipartFile mockBanglaFooter;
     private MultipartFile mockAssetFile;
+    private MultipartFile mockDataModelFile;
 
     @BeforeEach
     void setUp() {
@@ -36,6 +37,7 @@ class PdfGenerationRequestTest {
         mockFooterFile = new MockMultipartFile("footer", "footer.html", "text/html", "<div>Footer</div>".getBytes());
         mockBanglaFooter = new MockMultipartFile("bangla", "bangla.html", "text/html", "<div>বাংলা</div>".getBytes());
         mockAssetFile = new MockMultipartFile("asset", "font.ttf", "font/ttf", "font data".getBytes());
+    mockDataModelFile = new MockMultipartFile("data", "data.json", "application/json", "{\"name\":\"Test\"}".getBytes());
     }
 
     @Test
@@ -106,6 +108,15 @@ class PdfGenerationRequestTest {
         
         request.setJsEnabled(true);
         assertTrue(request.isJsEnabled());
+
+        request.setThymeleafTemplate(true);
+        assertTrue(request.isThymeleafTemplate());
+
+        request.setDataModel("{\"foo\":\"bar\"}");
+        assertEquals("{\"foo\":\"bar\"}", request.getDataModel());
+
+        request.setDataModelFile(mockDataModelFile);
+        assertEquals(mockDataModelFile, request.getDataModelFile());
     }
 
     @Test
@@ -113,22 +124,32 @@ class PdfGenerationRequestTest {
         PdfGenerationRequest request = new PdfGenerationRequest(
             mockHtmlFile,
             mockCssFile,
+            "body { margin: 0; }",
+            "<html><body>Content</body></html>",
             mockHeaderFile,
             mockFooterFile,
             mockBanglaFooter,
             Arrays.asList(mockAssetFile),
             "testPassword",
-            true
+            true,
+            true,
+            "{\"foo\":\"bar\"}",
+            mockDataModelFile
         );
 
         assertEquals(mockHtmlFile, request.getHtmlFile());
         assertEquals(mockCssFile, request.getCssFile());
+        assertEquals("body { margin: 0; }", request.getCssContent());
+        assertEquals("<html><body>Content</body></html>", request.getHtmlContent());
         assertEquals(mockHeaderFile, request.getHeaderFile());
         assertEquals(mockFooterFile, request.getFooterFile());
         assertEquals(mockBanglaFooter, request.getBanglaFooter());
         assertEquals(1, request.getAssets().size());
         assertEquals("testPassword", request.getPassword());
         assertTrue(request.isJsEnabled());
+        assertTrue(request.isThymeleafTemplate());
+        assertEquals("{\"foo\":\"bar\"}", request.getDataModel());
+        assertEquals(mockDataModelFile, request.getDataModelFile());
     }
 
     @Test
@@ -143,5 +164,8 @@ class PdfGenerationRequestTest {
         assertNull(request.getAssets());
         assertNull(request.getPassword());
         assertFalse(request.isJsEnabled());
+        assertFalse(request.isThymeleafTemplate());
+        assertNull(request.getDataModel());
+        assertNull(request.getDataModelFile());
     }
 }

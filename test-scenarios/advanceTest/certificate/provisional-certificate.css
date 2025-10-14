@@ -1,0 +1,269 @@
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 10mm 10mm 10mm 10mm;
+    }
+}
+
+@font-face {
+    font-family: 'English111PrestoBTRegular';
+    src: url(English111PrestoBTRegular.ttf);
+}
+
+@font-face {
+    font-family: 'EngrvrsOldEng Bd BT';
+    src: url(EngrvrsOldEng-Bd-BT-Bold.ttf);
+}
+
+@font-face {
+    font-family: 'Courier New';
+    src: url(courier-new.ttf);
+}
+
+@font-face {
+    font-family: 'Times New Roman';
+    src: url(times.ttf);
+}
+
+
+body {
+    font-family: Times New Roman, Arial, sans-serif;
+    background: transparent;
+    font-size: 14pt;
+}
+
+.container {
+    text-align: center;
+    width: 98%;
+    margin: 0 auto;
+}
+
+.header {
+    width: 100%;
+}
+
+.content {
+    width: 100%;
+    padding: 5px;
+}
+
+.body-content {
+    width: 92%;
+    margin: 0 auto;
+}
+
+.footer{
+    width: 100%;
+}
+
+.box-sizing-border-box{
+    box-sizing: border-box;
+}
+.clearfix {
+    clear: both;
+}
+
+.page-break-always {
+    page-break-before: always;
+}
+
+.width-25 {
+    width: 25%;
+}
+
+.width-15 {
+    width: 15%;
+}
+
+.width-30 {
+    width: 30%;
+}
+
+.width-40 {
+    width: 40%;
+}
+
+.width-50 {
+    width: 50%;
+}
+
+.float-left {
+    float: left;
+}
+
+.float-right {
+    float: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.font-times-new {
+    font-family: "Times New Roman";
+}
+
+.font-courier-new {
+    font-family: "Courier New";
+}
+
+.font-engravrsold {
+    font-family: "EngrvrsOldEng Bd BT";
+}
+
+.font-prestobt {
+    font-family: "English111PrestoBTRegular";
+}
+
+.pl-35{
+    padding-left: 35px;
+}
+
+.mt-30 {
+    margin-top: 30px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-20 {
+    margin-top: 20px;
+}
+
+.mt-120 {
+    margin-top: 120px;
+}
+
+.mt-150 {
+    margin-top: 165px;
+}
+
+.mt-100 {
+    margin-top: 100px;
+}
+
+.mt-80 {
+    margin-top: 80px;
+}
+
+.mt-125 {
+    margin-top: 125px;
+}
+
+.mt-0 {
+    margin-top: 0;
+}
+
+.mt-5 {
+    margin-top: 5px;
+}
+
+.mt-320 {
+    margin-top: 315px;
+}
+
+.mb-0 {
+    margin-bottom: 0;
+}
+
+.mr--15 {
+    margin-right: -15px;
+}
+
+.font-size-16 {
+    font-size: 16pt;
+}
+
+.font-size-18 {
+    font-size: 18pt;
+}
+
+.font-size-22 {
+    font-size: 22pt;
+}
+
+.font-size-14 {
+    font-size: 14pt;
+}
+
+.font-size-24 {
+    font-size: 24pt;
+}
+
+.font-size-26 {
+    font-size: 26pt;
+}
+
+.mt-25 {
+    margin-top: 25px;
+}
+
+.mt-28 {
+    margin-top: 28px;
+}
+
+.line-height-44 {
+    line-height: 44px;
+}
+
+.mt--10 {
+    margin-top: -15px;
+}
+
+.mt--20 {
+    margin-top: -20px;
+}
+
+.mt-140 {
+    margin-top: 140px;
+}
+
+.mt-90 {
+    margin-top: 90px;
+}
+
+.ml-75 {
+    margin-left: 75px;
+}
+
+.font-bold {
+    font-weight: bold;
+}
+
+.border-dashed-top {
+    border-top: dashed 1px #000000;
+}
+
+.px-10 {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.mt-17 {
+    margin-top: 17px;
+}
+
+.mt-70 {
+    margin-top: 70px;
+}
+
+.mt-60 {
+    margin-top: 60px;
+}
+
+.ml-65 {
+    margin-left: 65px;
+}
+
+.mt-315 {
+    margin-top: 325px;
+}
+
+.mt-55 {
+    margin-top: 55px;
+}

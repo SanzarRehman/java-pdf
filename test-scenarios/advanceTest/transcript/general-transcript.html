@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <link href="./style.css" rel="stylesheet" th:href="@{style.css}">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> General Transcript</title>
+</head>
+<body>
+<header>
+    <div class="w-100 ">
+        <div class="w-40 text-right float-left">
+            <img class="logo" src="./logo.png" alt="QR" th:src="@{logo.png}">
+        </div>
+        <div class="w-40 float-left text-center fs-10">
+            <p class="uni-name fs-16 font-bold m-0 p-0">BRAC University</p>
+            <p class="uni-address m-0 p-0 mt-10">Kha 224, Bir Uttam Rafiqul Islam Avenue <br> Merul Badda, Dhaka 1212.</p>
+            <p class="font-bold m-0 p-0 mb-10 mt-10">ACADEMIC TRANSCRIPT</p>
+        </div>
+    </div>
+    <!-- Your header content goes here -->
+    <div class="header-container w-100">
+        <div class="student-basic-info float-left w-44 text-left fs-10">
+            <table>
+                <tr>
+                    <td class="font-italic font-bold" style="width: 70px;">Student ID</td>
+                    <td class="font-italic font-bold" style="width: 15px">:</td>
+                    <td class="font-italic font-bold" th:text="${portfolioInfo['studentId'] ?: '2025001'}">2025001</td>
+                </tr>
+                <tr>
+                    <td class="font-italic font-bold" style="width: 70px;">Name</td>
+                    <td class="font-italic font-bold" style="width: 15px">:</td>
+                    <td class="font-italic font-bold text-upper" th:text="${portfolioInfo['name'] ?: 'Student Name'}">Student Name</td>
+                </tr>
+            </table>
+        </div>
+        <div class="student-other-info float-left w-55">
+            <div class="program-info float-left w-95 text-left">
+                <table>
+                    <tbody>
+                        <tr>
+                            <td class="font-bold fs-10 mt-5" colspan="2" th:text="${portfolioInfo['academicType'] ?: 'Undergraduate Program'}">Undergraduate Program</td>
+                        </tr>
+                        <tr>
+                            <td class="font-bold fs-10 mt-5" style="vertical-align: top">Program :</td>
+                            <td class="fs-9 text-upper font-bold" th:text="${portfolioInfo['program'] ?: 'Program Name'}">Program Name</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</header>
+<div class="container m-0 p-0 w-100 fs-8" id="container-content">
+    <div class="content m-0 p-0 w-100" >
+        <table class="w-100 m-0 p-0" style="page-break-inside: auto; border-collapse: collapse;">
+            <thead>
+            <tr class="font-bold">
+                <td class="w-15 text-left pl-10">Course No</td>
+                <td class="w-47 text-left">Course Title</td>
+                <td class="w-14 text-center">Credit Earned</td>
+                <td class="w-10 text-left">Grade</td>
+                <td class="w-14 text-center">Grade Points</td>
+            </tr>
+            </thead>
+            <tbody th:if="${transcriptData != null}" th:each="session : ${transcriptData}">
+            <tr class="bg-light font-bold">
+                <td class="w-14 text-left font-italic pl-10">SEMESTER:</td>
+                <td class="w-86 text-left" colspan="4">
+                    <span th:text="${session['semesterStanding']['semester'] ?: 'Semester'}">Fall</span>
+                    <span th:text="${session['semesterStanding']['year'] ?: 'Year'}">2025</span>
+                </td>
+            </tr>
+
+            <tr th:each="course : ${session['courseResults']}">
+                <td class="w-15 text-left text-upper" style="text-indent: 10px;" th:text="${course['courseCode'] ?: ''}">CSE101</td>
+                <td class="w-47 text-left text-upper" th:text="${course['name'] ?: ''}">INTRODUCTION TO PROGRAMMING</td>
+                <td class="w-14 text-center" th:text="${course['courseCredit'] ?: '0.0'}">3.0</td>
+                <td class="w-10 text-left" th:text="${course['grade'] ?: '--'}">A</td>
+                <td class="w-14 text-center" th:text="${course['gpa'] ?: '0.00'}">12.00</td>
+            </tr>
+            <tr class="bg-lighter">
+                <td colspan="5" class="w-100 m-0 p-0">
+                    <table class="w-100 m-0 p-0 semester-standing-tbl">
+                        <tr>
+                            <td class="w-14 text-left pl-10">SEMESTER</td>
+                            <td class="w-18 text-left pl-8">Credits Attempted</td>
+                            <td class="w-12 text-center" th:text="${session['semesterStanding']['semesterCreditAttempt'] ?: '0.0'}">15.0</td>
+                            <td class="w-18 text-left">Credits Earned</td>
+                            <td class="w-14 text-center" th:text="${session['semesterStanding']['semesterCreditEarned'] ?: '0.0'}">15.0</td>
+                            <td class="w-10 text-right">GPA</td>
+                            <td class="w-14 text-center" th:text="${session['semesterStanding']['semesterGpa'] ?: '0.00'}">3.75</td>
+                        </tr>
+                        <tr>
+                            <td class="w-14 text-left pl-10">CUMULATIVE</td>
+                            <td class="w-18 text-left pl-8">Credits Attempted</td>
+                            <td class="w-12 text-center" th:text="${session['semesterStanding']['cumulativeCreditAttempt'] ?: '0.0'}">30.0</td>
+                            <td class="w-18 text-left">Credits Earned</td>
+                            <td class="w-14 text-center" th:text="${session['semesterStanding']['cumulativeCreditEarned'] ?: '0.0'}">30.0</td>
+                            <td class="w-10 text-right">CGPA</td>
+                            <td class="w-14 text-center" th:text="${session['semesterStanding']['cumulativeCgpa'] ?: '0.00'}">3.80</td>
+                        </tr>
+                        <tr th:if="${#strings.isEmpty(session['semesterStanding']['recognitionType']) == false}">
+                            <td colspan="7" class="text-right">
+                                <span th:text="${session['semesterStanding']['recognitionType']}">Dean's List</span>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+            </tbody>
+            <tbody th:if="${transcriptData == null || #lists.isEmpty(transcriptData)}">
+            <tr>
+                <td colspan="5" class="text-center py-3">No transcript data available.</td>
+            </tr>
+            </tbody>
+            <tr>
+                <td colspan="5" class="font-bold fs-9 pb-10">
+                    <span class="font-bold font-italic"> Academic Standing :
+                        <span th:text="${portfolioInfo['academicStanding'] == 'Probation' ? 'Probation' : (portfolioInfo['academicStanding'] ?: 'Satisfactory')}">Satisfactory</span>
+                    </span>
+                </td>
+            </tr>
+
+            <tr th:if="${transferredCredits != null && !#lists.isEmpty(transferredCredits)}">
+                <td colspan="5" class="w-100 m-0 pt-30">
+                    <div class="w-100 pb-10">
+                        <div class="w-35 float-left" style="border-bottom: dotted 1px #000000;"></div>
+                        <div class="w-30 float-left text-center mt--7">CREDIT TRANSFER/WAIVER</div>
+                        <div class="w-33 float-right" style="border-bottom: dotted 1px #000000;"></div>
+                    </div>
+                    <div class="w-100" style="border-bottom: dotted 1px #000000;">
+                        <div th:each="transfer : ${transferredCredits}">
+                            <p>INSTITUTION: <span th:text="${transfer['preUniName'] ?: 'Unknown Institution'}">Previous University</span></p>
+                            <p class="mb-20">CREDIT: <span th:text="${transfer['totalTransferredCredit'] ?: '0.0'}">12.0</span></p>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<footer>
+    <div class="float-left footer-left w-33">
+        <p class="text-left issue-date"> &nbsp; </p>
+        <p class="issue-date-text text-left border-top font-bold">Prepared By</p>
+    </div>
+    <div class="float-left footer-left w-33 text-center">
+        <p class="generated-date" th:text="${generateDate ?: ''}">The 1 January 2025</p>
+        <p class="border-top font-bold" style="padding: 2px 30px"> Date</p>
+    </div>
+    <div class="float-right w-33">
+        <p class="text-left issue-date m-0"> &nbsp; </p>
+        <p class="text-center w-80 signatory border-top float-right mt-0 font-bold ">
+            Controller of Examinations
+        </p>
+    </div>
+</footer>
+</body>
+</html>

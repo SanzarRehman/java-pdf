@@ -1,6 +1,7 @@
 package com.bracits.easyJavaPdf.util;
 
 import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
+import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.bracits.easyJavaPdf.exception.ValidationException;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -18,6 +19,7 @@ public final class PdfGenerationRequestValidator {
     
 
     private static final int MAX_ASSET_FILES = 50;
+    private static final int MAX_DATA_MODEL_LENGTH = 5 * 1024 * 1024;
 
     private PdfGenerationRequestValidator() {
 
@@ -41,7 +43,9 @@ public final class PdfGenerationRequestValidator {
         validateOptionalBanglaFooterFile(request.getBanglaFooter());
         validateAssetFiles(request.getAssets());
         validatePassword(request.getPassword());
-        validateJsEnabledFlag(request.isJsEnabled());
+    validateJsEnabledFlag(request.isJsEnabled());
+    validateOrientation(request.getPageOrientation());
+        validateThymeleafConfiguration(request);
         
 
         validateHeaderFooterConsistency(request);
@@ -264,6 +268,17 @@ public final class PdfGenerationRequestValidator {
         validateNoDuplicateAssetFilenames(assets);
     }
 
+    private static void validateOrientation(String orientation) {
+        if (orientation == null || orientation.trim().isEmpty()) {
+            return;
+        }
+
+        if (PageOrientation.parse(orientation).isEmpty()) {
+            throw new ValidationException("Invalid pageOrientation value. Supported values: " +
+                    String.join(", ", PageOrientation.supportedNames()));
+        }
+    }
+
     /**
      * Validates the optional password parameter.
      *
@@ -326,6 +341,32 @@ public final class PdfGenerationRequestValidator {
             throw new ValidationException(
                     "Cannot specify both regular footer and Bengali footer. Please choose one"
             );
+        }
+    }
+
+    private static void validateThymeleafConfiguration(PdfGenerationRequest request) {
+        MultipartFile dataModelFile = request.getDataModelFile();
+        String dataModel = request.getDataModel();
+
+        boolean hasDataModel = dataModel != null && !dataModel.trim().isEmpty();
+        boolean hasDataModelFile = dataModelFile != null && !dataModelFile.isEmpty();
+
+        if (hasDataModel && hasDataModelFile) {
+            throw new ValidationException("Provide either dataModel or dataModelFile, not both");
+        }
+
+        if (hasDataModel) {
+            if (dataModel.length() > MAX_DATA_MODEL_LENGTH) {
+                throw new ValidationException("Data model content is too large (maximum 5MB)");
+            }
+        }
+
+        if (hasDataModelFile) {
+            FileValidator.validateJsonFile(dataModelFile, "Data model file");
+        }
+
+        if ((hasDataModel || hasDataModelFile) && !request.isThymeleafTemplate()) {
+            throw new ValidationException("Enable thymeleafTemplate when providing a data model");
         }
     }
 

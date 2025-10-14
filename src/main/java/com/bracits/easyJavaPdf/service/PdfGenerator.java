@@ -1,5 +1,7 @@
 package com.bracits.easyJavaPdf.service;
 
+import com.bracits.easyJavaPdf.model.PageOrientation;
+
 import java.nio.file.Path;
 import java.util.List;
 
@@ -31,7 +33,8 @@ public interface PdfGenerator {
         String banglaFooterHtml,
         List<Path> fontFiles,
         String password,
-        String jsEnable
+        String jsEnable,
+        PageOrientation orientation
     );
 
     /**
@@ -48,6 +51,7 @@ public interface PdfGenerator {
         String htmlContent,
         String cssContent,
         List<Path> fontFiles,
-        String password
+        String password,
+        PageOrientation orientation
     );
 }

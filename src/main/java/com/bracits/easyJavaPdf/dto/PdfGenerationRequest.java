@@ -68,4 +68,24 @@ public class PdfGenerationRequest {
      * Flag to enable JavaScript execution during HTML conversion
      */
     private boolean jsEnabled;
+
+    /**
+     * Flag indicating whether the provided HTML should be processed as a Thymeleaf template
+     */
+    private boolean thymeleafTemplate;
+
+    /**
+     * Optional JSON payload describing the data model for rendering Thymeleaf templates
+     */
+    private String dataModel;
+
+    /**
+     * Optional JSON file containing the data model for rendering Thymeleaf templates
+     */
+    private MultipartFile dataModelFile;
+
+    /**
+     * Optional page orientation hint (PORTRAIT, LANDSCAPE, INVERTED_PORTRAIT, SEASCAPE)
+     */
+    private String pageOrientation;
 }

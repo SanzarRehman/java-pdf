@@ -5,6 +5,7 @@ import com.bracits.easyJavaPdf.exception.PdfGenerationException;
 import com.bracits.easyJavaPdf.handler.BengaliPageNumberHandler;
 import com.bracits.easyJavaPdf.handler.Footer;
 import com.bracits.easyJavaPdf.handler.Header;
+import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.html2pdf.attach.impl.OutlineHandler;
@@ -15,6 +16,7 @@ import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
 import com.itextpdf.kernel.pdf.navigation.PdfDestination;
 import com.itextpdf.kernel.pdf.navigation.PdfExplicitDestination;
+import com.itextpdf.layout.Document;
 import com.itextpdf.layout.font.FontProvider;
 import com.itextpdf.kernel.pdf.PdfOutline;
 import com.itextpdf.kernel.pdf.action.PdfAction;
@@ -63,9 +65,9 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     @Override
-    public byte[] generatePdf(Path htmlFile, Path cssFile, String headerHtml, 
-            String footerHtml, String banglaFooterHtml, List<Path> fontFiles, 
-            String password, String jsEnable) {
+    public byte[] generatePdf(Path htmlFile, Path cssFile, String headerHtml,
+        String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
+        String password, String jsEnable, PageOrientation orientation) {
         
         logger.debug("Starting PDF generation from files - HTML: {}, CSS: {}", htmlFile, cssFile);
         
@@ -74,8 +76,8 @@ public class ITextPdfGenerator implements PdfGenerator {
             String cssContent = cssFile != null ? readFileContent(cssFile) : "";
             Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
-            return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml, 
-                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot);
+            return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
+                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation);
                 
         } catch (IOException e) {
             throw new FileProcessingException("Failed to read HTML or CSS file", e);
@@ -83,8 +85,8 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     @Override
-    public byte[] generatePdfFromContent(String htmlContent, String cssContent, 
-            List<Path> fontFiles, String password) {
+    public byte[] generatePdfFromContent(String htmlContent, String cssContent,
+        List<Path> fontFiles, String password, PageOrientation orientation) {
         
         logger.debug("Starting PDF generation from content strings");
         
@@ -106,27 +108,28 @@ public class ITextPdfGenerator implements PdfGenerator {
         
         Path resourceRoot = cssFile != null ? cssFile.getParent() : (fontFiles != null && !fontFiles.isEmpty() ? fontFiles.get(0).getParent() : null);
 
-        return generatePdfInternal(htmlContent, cssContent != null ? cssContent : "", 
-            null, null, null, fontFiles, password, "false", resourceRoot);
+        return generatePdfInternal(htmlContent, cssContent != null ? cssContent : "",
+            null, null, null, fontFiles, password, "false", resourceRoot, orientation);
     }
 
     /**
      * Internal method that handles the core PDF generation logic.
      */
-    private byte[] generatePdfInternal(String htmlContent, String cssContent, 
-            String headerHtml, String footerHtml, String banglaFooterHtml, 
-            List<Path> fontFiles, String password, String jsEnable) {
-        
-        return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml, 
-            banglaFooterHtml, fontFiles, password, jsEnable, null);
+    private byte[] generatePdfInternal(String htmlContent, String cssContent,
+            String headerHtml, String footerHtml, String banglaFooterHtml,
+            List<Path> fontFiles, String password, String jsEnable, PageOrientation orientation) {
+
+        return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
+            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation);
     }
 
     /**
      * Internal method that handles the core PDF generation logic with CSS file path.
      */
-    private byte[] generatePdfInternal(String htmlContent, String cssContent, 
-            String headerHtml, String footerHtml, String banglaFooterHtml, 
-            List<Path> fontFiles, String password, String jsEnable, Path resourceRoot) {
+    private byte[] generatePdfInternal(String htmlContent, String cssContent,
+        String headerHtml, String footerHtml, String banglaFooterHtml,
+        List<Path> fontFiles, String password, String jsEnable, Path resourceRoot,
+        PageOrientation orientation) {
         
         HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable);
 
@@ -136,13 +139,14 @@ public class ITextPdfGenerator implements PdfGenerator {
                 ConverterProperties converterProperties = setupConverterProperties(fontFiles, resourceRoot);
                 converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
 
-                byte[] pdfBytes = convertHtmlToPdf(
+        byte[] pdfBytes = convertHtmlToPdf(
                         variant.getHtml(),
                         converterProperties,
                         headerHtml,
                         footerHtml,
                         banglaFooterHtml,
-                        password
+            password,
+            orientation
                 );
 
                 logger.debug("PDF generation completed using {} HTML variant, size: {} bytes",
@@ -192,7 +196,8 @@ public class ITextPdfGenerator implements PdfGenerator {
             String headerHtml,
             String footerHtml,
             String banglaFooterHtml,
-            String password) throws Exception {
+            String password,
+            PageOrientation orientation) throws Exception {
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             PdfWriter writer = createPdfWriter(outputStream, password);
@@ -200,11 +205,31 @@ public class ITextPdfGenerator implements PdfGenerator {
                 configureEventHandlers(pdfDocument, headerHtml, footerHtml, banglaFooterHtml);
 
                 logger.debug("Converting HTML to PDF with bookmark support");
-                HtmlConverter.convertToPdf(html, pdfDocument, converterProperties);
+                Document document = HtmlConverter.convertToDocument(html, pdfDocument, converterProperties);
+                applyOrientation(pdfDocument, orientation);
+                document.close();
             }
 
             return outputStream.toByteArray();
         }
+    }
+
+    private void applyOrientation(PdfDocument pdfDocument, PageOrientation orientation) {
+        if (orientation == null || orientation == PageOrientation.PORTRAIT) {
+            return;
+        }
+
+        if (pdfDocument == null || pdfDocument.isClosed()) {
+            logger.debug("Skipping orientation adjustment because PdfDocument is null or already closed");
+            return;
+        }
+
+        int rotation = orientation.getRotationDegrees();
+        int totalPages = pdfDocument.getNumberOfPages();
+        for (int i = 1; i <= totalPages; i++) {
+            pdfDocument.getPage(i).setRotation(rotation);
+        }
+        logger.debug("Applied {} orientation ({}°) to {} pages", orientation.name(), rotation, totalPages);
     }
 
     /**

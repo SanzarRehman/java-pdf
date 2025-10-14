@@ -5,39 +5,43 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * CSS processor that sanitizes CSS content to prevent FileNotFoundException
- * and other issues during PDF generation with iText.
- */
 @Component
 public class CssProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(CssProcessor.class);
 
-
-    private static final Pattern PAGE_RULE_PATTERN = Pattern.compile(
-        "@page[^{]*\\{(?:[^{}]*\\{[^{}]*\\}[^{}]*|[^{}])*\\}", Pattern.CASE_INSENSITIVE);
-    
     private static final Pattern URL_PATTERN = Pattern.compile(
         "[^;{}]*url\\s*\\([^)]*\\)[^;]*;", Pattern.CASE_INSENSITIVE);
-    
+
     private static final Pattern IMPORT_PATTERN = Pattern.compile(
         "@import[^;]*;", Pattern.CASE_INSENSITIVE);
-    
+
     private static final Pattern PROBLEMATIC_PROPERTIES_PATTERN = Pattern.compile(
-        "(?:content|counter-[^:]*|string-set|target-[^:]*|break-[^:]*|page-break-[^:]*|columns?|" +
-        "display\\s*:\\s*(?:flex|grid)|flex[^:]*|grid[^:]*|transform|animation|transition|filter)\\s*:[^;]*;", 
+        "(?:content|counter-[^:]*|string-set|target-[^:]*|columns?|" +
+        "display\\s*:\\s*(?:flex|grid)|flex[^:]*|grid[^:]*|transform|animation|transition|filter)\\s*:[^;]*;",
         Pattern.CASE_INSENSITIVE);
-    
+
     private static final Pattern PSEUDO_ELEMENTS_PATTERN = Pattern.compile(
-        "[^{}]*::?(?:before|after)[^{]*\\{(?:[^{}]*\\{[^{}]*\\}[^{}]*|[^{}])*\\}", 
+        "[^{}]*::?(?:before|after)[^{]*\\{(?:[^{}]*\\{[^{}]*\\}[^{}]*|[^{}])*\\}",
         Pattern.CASE_INSENSITIVE);
-    
+
     private static final Pattern EMPTY_RULES_PATTERN = Pattern.compile("\\s*\\{\\s*\\}");
-    
+
     private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
+
+    private static final Pattern FONT_FACE_PATTERN = Pattern.compile(
+        "@font-face\\s*\\{[^{}]*\\}", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SRC_DECLARATION_PATTERN = Pattern.compile(
+        "src\\s*:[^;]*;", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern FONT_URL_PATTERN = Pattern.compile(
+        "url\\s*\\(\\s*['\"]?([^'\"\\)]+)['\"]?\\s*\\)", Pattern.CASE_INSENSITIVE);
+
+    private static final Set<String> SUPPORTED_FONT_EXTENSIONS = Set.of("ttf", "otf", "woff", "woff2", "ttc");
 
     /**
      * Processes CSS content by removing problematic rules and properties
@@ -75,9 +79,6 @@ public class CssProcessor {
         logger.debug("Sanitizing CSS using optimized regex patterns");
         
         String sanitized = cssContent;
-        
-
-        sanitized = PAGE_RULE_PATTERN.matcher(sanitized).replaceAll("");
         
 
         sanitized = URL_PATTERN.matcher(sanitized).replaceAll("");
@@ -135,18 +136,25 @@ public class CssProcessor {
     private String extractSafeFontFaces(String cssContent) {
         StringBuilder safeFontFaces = new StringBuilder();
         
-        Pattern fontFacePattern = Pattern.compile(
-            "@font-face\\s*\\{[^{}]*\\}", Pattern.CASE_INSENSITIVE);
-        
-        java.util.regex.Matcher matcher = fontFacePattern.matcher(cssContent);
+        Matcher matcher = FONT_FACE_PATTERN.matcher(cssContent);
         while (matcher.find()) {
             String fontFace = matcher.group();
             
             // Only keep font-face rules that have font-family but remove src with url()
             if (fontFace.toLowerCase().contains("font-family")) {
                 // Remove src declarations with url() references
-                String cleanedFontFace = fontFace.replaceAll(
-                    "src\\s*:[^;]*url\\s*\\([^)]*\\)[^;]*;", "");
+                String cleanedFontFace = SRC_DECLARATION_PATTERN.matcher(fontFace).replaceAll("");
+                String safeSrc = buildSafeFontSrc(fontFace);
+                if (safeSrc != null) {
+                    int closingIndex = cleanedFontFace.lastIndexOf('}');
+                    if (closingIndex != -1) {
+                        String before = cleanedFontFace.substring(0, closingIndex).trim();
+                        String after = cleanedFontFace.substring(closingIndex);
+                        cleanedFontFace = before + " " + safeSrc + " " + after;
+                    } else {
+                        cleanedFontFace = cleanedFontFace.trim() + " " + safeSrc;
+                    }
+                }
                 
                 // Only keep if it still has meaningful content after cleaning
                 if (cleanedFontFace.toLowerCase().contains("font-family") && 
@@ -158,6 +166,49 @@ public class CssProcessor {
         }
         
         return safeFontFaces.toString();
+    }
+
+    private String buildSafeFontSrc(String fontFace) {
+        Matcher srcMatcher = SRC_DECLARATION_PATTERN.matcher(fontFace);
+        while (srcMatcher.find()) {
+            String declaration = srcMatcher.group();
+            Matcher urlMatcher = FONT_URL_PATTERN.matcher(declaration);
+            while (urlMatcher.find()) {
+                String url = urlMatcher.group(1).trim();
+                if (isSupportedFontAsset(url)) {
+                    String format = detectFontFormat(url);
+                    return String.format("src: url('%s')%s;", url, format);
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isSupportedFontAsset(String path) {
+        String lower = path.toLowerCase();
+        int dotIndex = lower.lastIndexOf('.');
+        if (dotIndex == -1 || dotIndex == lower.length() - 1) {
+            return false;
+        }
+        String ext = lower.substring(dotIndex + 1);
+        return SUPPORTED_FONT_EXTENSIONS.contains(ext);
+    }
+
+    private String detectFontFormat(String path) {
+        String lower = path.toLowerCase();
+        if (lower.endsWith(".ttf") || lower.endsWith(".ttc")) {
+            return " format('truetype')";
+        }
+        if (lower.endsWith(".otf")) {
+            return " format('opentype')";
+        }
+        if (lower.endsWith(".woff2")) {
+            return " format('woff2')";
+        }
+        if (lower.endsWith(".woff")) {
+            return " format('woff')";
+        }
+        return "";
     }
 
     /**

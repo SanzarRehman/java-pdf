@@ -4,6 +4,7 @@ import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.dto.PdfResponse;
 import com.bracits.easyJavaPdf.exception.FileProcessingException;
 import com.bracits.easyJavaPdf.exception.PdfGenerationException;
+import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.bracits.easyJavaPdf.util.TempFileManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,10 +14,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
@@ -29,11 +32,16 @@ public class PdfService {
   private final Executor executor;
   private final PdfGenerator pdfGenerator;
   private final TempFileManager tempFileManager;
+  private final TemplateRenderingService templateRenderingService;
 
-  public PdfService(@Qualifier("executor") Executor executor, PdfGenerator pdfGenerator, TempFileManager tempFileManager) {
+  public PdfService(@Qualifier("executor") Executor executor,
+      PdfGenerator pdfGenerator,
+      TempFileManager tempFileManager,
+      TemplateRenderingService templateRenderingService) {
     this.executor = executor;
     this.pdfGenerator = pdfGenerator;
     this.tempFileManager = tempFileManager;
+    this.templateRenderingService = templateRenderingService;
   }
 
   /**
@@ -49,15 +57,16 @@ public class PdfService {
       String banglaFooterHtml,
       List<Path> fontFiles,
       String password,
-      String jsEnable) {
+    String jsEnable,
+    PageOrientation orientation) {
 
     logger.info("Starting PDF generation for file: {}", htmlFile);
     long startTime = System.currentTimeMillis();
 
     return CompletableFuture.supplyAsync(() -> {
       try {
-        byte[] pdfBytes = generatePdfInternal(htmlFile, cssFile, headerHtml, footerHtml, 
-            banglaFooterHtml, fontFiles, password, jsEnable);
+    byte[] pdfBytes = generatePdfInternal(htmlFile, cssFile, headerHtml, footerHtml,
+      banglaFooterHtml, fontFiles, password, jsEnable, orientation);
         
         long duration = System.currentTimeMillis() - startTime;
         logger.info("PDF generation completed successfully in {} ms, size: {} bytes", 
@@ -81,11 +90,12 @@ public class PdfService {
     
     return CompletableFuture.supplyAsync(() -> {
       try {
+        PageOrientation orientation = resolveOrientation(request);
         // Check if we should use content-based or file-based generation
         if (hasContentBasedInput(request)) {
-          return generateFromContent(request);
+          return generateFromContent(request, orientation);
         } else {
-          return generateFromFiles(request);
+          return generateFromFiles(request, orientation);
         }
       } catch (Exception e) {
         logger.error("Failed to generate PDF from request", e);
@@ -97,7 +107,7 @@ public class PdfService {
   /**
    * Generates PDF from content strings (HTML content, CSS content) using a dedicated temporary folder.
    */
-  private PdfResponse generateFromContent(PdfGenerationRequest request) throws IOException {
+  private PdfResponse generateFromContent(PdfGenerationRequest request, PageOrientation orientation) throws IOException {
     logger.debug("Using content-based PDF generation with dedicated temp folder");
     
     // Create a dedicated temporary folder for this request
@@ -129,13 +139,17 @@ public class PdfService {
       if (cssContent == null && request.getCssFile() != null) {
         cssContent = new String(request.getCssFile().getBytes());
       }
-      
+
+      Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
+      htmlContent = renderThymeleafIfNecessary(htmlContent, request, templateModel);
+
       // Generate PDF using content-based method
-      byte[] pdfBytes = pdfGenerator.generatePdfFromContent(
+    byte[] pdfBytes = pdfGenerator.generatePdfFromContent(
           htmlContent, 
           cssContent, 
           fontFiles, 
-          request.getPassword()
+      request.getPassword(),
+      orientation
       );
       
       return PdfResponse.builder()
@@ -154,7 +168,7 @@ public class PdfService {
   /**
    * Generates PDF from uploaded files using a dedicated temporary folder per request.
    */
-  private PdfResponse generateFromFiles(PdfGenerationRequest request) throws IOException, InterruptedException, ExecutionException {
+  private PdfResponse generateFromFiles(PdfGenerationRequest request, PageOrientation orientation) throws IOException, InterruptedException, ExecutionException {
     logger.debug("Using file-based PDF generation with dedicated temp folder");
     
     // Create a dedicated temporary folder for this request
@@ -196,6 +210,9 @@ public class PdfService {
         tempFileManager.registerForCleanup(cssFile);
       }
       
+      Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
+      renderThymeleafTemplateToFile(htmlFile, request, templateModel);
+
       // Handle asset files (fonts, images, etc.) - save them in the same directory
       if (request.getAssets() != null) {
         for (MultipartFile assetFile : request.getAssets()) {
@@ -226,7 +243,7 @@ public class PdfService {
       }
       
       // Generate PDF using file-based method
-      CompletableFuture<byte[]> pdfFuture = generate(
+    CompletableFuture<byte[]> pdfFuture = generate(
           htmlFile, 
           cssFile, 
           headerHtml,
@@ -234,7 +251,8 @@ public class PdfService {
           banglaFooterHtml,
           fontFiles,
           request.getPassword(),
-          request.isJsEnabled() ? "true" : "false"
+      request.isJsEnabled() ? "true" : "false",
+      orientation
       );
       
       byte[] pdfBytes = pdfFuture.get();
@@ -316,13 +334,42 @@ public class PdfService {
   /**
    * Internal method that delegates PDF generation to the PdfGenerator implementation.
    */
-  private byte[] generatePdfInternal(Path htmlFile, Path cssFile, String headerHtml, 
-      String footerHtml, String banglaFooterHtml, List<Path> fontFiles, 
-      String password, String jsEnable) {
+  private byte[] generatePdfInternal(Path htmlFile, Path cssFile, String headerHtml,
+      String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
+      String password, String jsEnable, PageOrientation orientation) {
     
     logger.debug("Delegating PDF generation to PdfGenerator implementation");
-    return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml, 
-        banglaFooterHtml, fontFiles, password, jsEnable);
+    return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+        banglaFooterHtml, fontFiles, password, jsEnable, orientation);
+  }
+
+  private String renderThymeleafIfNecessary(String htmlContent, PdfGenerationRequest request, Map<String, Object> model) {
+    if (htmlContent == null) {
+      return null;
+    }
+
+    if (!templateRenderingService.shouldRenderTemplate(request, htmlContent)) {
+      return htmlContent;
+    }
+
+    return templateRenderingService.renderTemplate(htmlContent, model);
+  }
+
+  private void renderThymeleafTemplateToFile(Path htmlFile, PdfGenerationRequest request, Map<String, Object> model) throws IOException {
+    if (htmlFile == null || !Files.exists(htmlFile)) {
+      return;
+    }
+
+    String htmlContent = Files.readString(htmlFile, StandardCharsets.UTF_8);
+    String rendered = renderThymeleafIfNecessary(htmlContent, request, model);
+
+    if (rendered != null && !rendered.equals(htmlContent)) {
+      Files.writeString(htmlFile, rendered, StandardCharsets.UTF_8);
+    }
+  }
+
+  private PageOrientation resolveOrientation(PdfGenerationRequest request) {
+    return PageOrientation.fromOrDefault(request.getPageOrientation(), PageOrientation.PORTRAIT);
   }
 
 }

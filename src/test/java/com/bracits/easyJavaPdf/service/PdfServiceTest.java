@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -32,6 +33,9 @@ class PdfServiceTest {
     @Mock
     private com.bracits.easyJavaPdf.util.TempFileManager mockTempFileManager;
 
+    @Mock
+    private TemplateRenderingService mockTemplateRenderingService;
+
     private PdfService pdfService;
 
     @TempDir
@@ -39,7 +43,9 @@ class PdfServiceTest {
 
     @BeforeEach
     void setUp() {
-        pdfService = new PdfService(mockExecutor, mockPdfGenerator, mockTempFileManager);
+        when(mockTemplateRenderingService.resolveModel(any())).thenReturn(Collections.emptyMap());
+        when(mockTemplateRenderingService.shouldRenderTemplate(any(), any())).thenReturn(false);
+        pdfService = new PdfService(mockExecutor, mockPdfGenerator, mockTempFileManager, mockTemplateRenderingService);
     }
 
     @Test

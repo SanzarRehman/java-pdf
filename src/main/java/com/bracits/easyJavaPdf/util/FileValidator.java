@@ -30,8 +30,8 @@ public final class FileValidator {
     );
 
     private static final Set<String> SUPPORTED_IMAGE_TYPES = Set.of(
-            "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp", 
-            "image/tiff", "image/webp", "application/octet-stream"
+        "image/jpeg", "image/jpg", "image/png", "image/gif", "image/bmp", 
+        "image/tiff", "image/webp", "image/svg+xml", "application/octet-stream"
     );
 
     private static final Set<String> SUPPORTED_FONT_TYPES = Set.of(
@@ -39,14 +39,19 @@ public final class FileValidator {
             "application/x-font-ttf", "application/x-font-otf", "application/octet-stream"
     );
 
+    private static final Set<String> SUPPORTED_JSON_TYPES = Set.of(
+        "application/json", "text/json", "application/octet-stream"
+    );
+
 
     private static final Set<String> HTML_EXTENSIONS = Set.of(".html", ".htm");
     private static final Set<String> CSS_EXTENSIONS = Set.of(".css");
     private static final Set<String> PDF_EXTENSIONS = Set.of(".pdf");
     private static final Set<String> IMAGE_EXTENSIONS = Set.of(
-            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp",".html"
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".tif", ".webp", ".svg", ".html"
     );
     private static final Set<String> FONT_EXTENSIONS = Set.of(".ttf", ".otf");
+    private static final Set<String> JSON_EXTENSIONS = Set.of(".json");
 
     private FileValidator() {
 
@@ -201,6 +206,28 @@ public final class FileValidator {
             throw new ValidationException(
                     fieldName + " must be a valid font file (.ttf, .otf)"
             );
+        }
+    }
+
+    /**
+     * Validates if the file is a valid JSON file.
+     *
+     * @param file the file to validate
+     * @param fieldName the name of the field for error messages
+     * @throws ValidationException if the file is not a valid JSON file
+     */
+    public static void validateJsonFile(MultipartFile file, String fieldName) {
+        if (file == null || file.isEmpty()) {
+            return;
+        }
+
+        validateFileSize(file, fieldName);
+
+        String contentType = file.getContentType();
+        String fileName = file.getOriginalFilename();
+
+        if (!isValidFileType(contentType, fileName, SUPPORTED_JSON_TYPES, JSON_EXTENSIONS)) {
+            throw new ValidationException(fieldName + " must be a JSON file (.json)");
         }
     }
 

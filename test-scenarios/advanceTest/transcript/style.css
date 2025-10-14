@@ -1,0 +1,511 @@
+@font-face {
+    font-family: Arial;
+    src: url(arial.ttf);
+}
+
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 10pt 43pt;
+    }
+    #container-content {
+        transform: translateY(-25px);
+    }
+    body{
+        padding: 0!important;
+        margin: 0!important;
+    }
+}
+@page {
+    margin: 240px 55px;
+    size: A4 landscape;
+    margin-bottom: 85px;
+    padding: 0;
+
+    @top-right {
+        background: transparent;
+        content: 'Page ' counter(page) ' of ' counter(pages);
+        font-size: 8pt;
+        font-family: Arial;
+        font-style: italic;
+        color: #000000;
+        margin-top: -220px;
+        text-align: left;
+        width: 80px;
+        padding-right: 15px;
+    }
+
+    @bottom-right {
+        content: 'Please Turn Over';
+        font-size: 8pt;
+        font-family: Arial, serif;
+        font-weight: bold;
+    }
+}
+
+header {
+    position: fixed;
+    top: -186px;
+    left: 0;
+    width: 100%;
+    height: 100px; /* Adjust as needed for your header height */
+    background: transparent;
+    text-align: center;
+
+}
+
+footer {
+    /*position: fixed;*/
+    /*bottom: -65px;*/
+    /*left: 0;*/
+    width: 100%;
+    height: 40px; /* Adjust as needed for your header height */
+    background: transparent;
+    text-align: center;
+    margin-top: 30px;
+}
+
+body {
+    background: transparent;
+    color: #000000;
+    font-size: 8pt;
+    font-family: Arial;
+}
+
+.logo{
+    width: 80px;
+}
+
+
+.clearfix {
+    clear: both;
+}
+
+.page-break-always {
+    page-break-before: always;
+}
+
+
+.w-100 {
+    width: 100%;
+}
+
+.w-50 {
+    width: 50%;
+}
+
+.w-95 {
+    width: 95%;
+}
+
+.w-45 {
+    width: 45%;
+}
+
+.w-49 {
+    width: 49%;
+}
+
+.w-10 {
+    width: 10%;
+}
+
+.w-20 {
+    width: 20%;
+}
+
+.w-22 {
+    width: 22%;
+}
+
+.w-12 {
+    width: 12%;
+}
+
+.w-15 {
+    width: 15%;
+}
+
+.w-14 {
+    width: 14%;
+}
+
+.w-55 {
+    width: 55%;
+}
+
+.w-99 {
+    width: 99%;
+}
+
+.w-35{
+    width: 35%;
+}
+.w-30{
+    width: 30%;
+}
+.w-40{
+    width: 40%;
+}
+.w-18{
+    width: 18%;
+}
+.w-19{
+    width: 19%;
+}
+.w-44{
+    width:44%;
+}
+
+
+.float-left {
+    float: left;
+}
+
+.float-right {
+    float: right;
+}
+
+.text-left {
+    text-align: left;
+}
+
+.text-right {
+    text-align: right;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.mt-120 {
+    margin-top: 100px;
+}
+
+.mt-100 {
+    margin-top: 100px;
+}
+
+.mt-125 {
+    margin-top: 125px;
+}
+
+.mt-0 {
+    margin-top: 0;
+}
+
+.mt-5 {
+    margin-top: 5px;
+}
+
+.m-0 {
+    margin: 0;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.mt-15 {
+    margin-top: 15px;
+}
+
+.mb-10{
+    margin-bottom: 10px;
+}
+
+.p-0 {
+    padding: 0;
+}
+
+
+.mt-25 {
+    margin-top: 25px;
+}
+
+.mt-28 {
+    margin-top: 28px;
+}
+
+.line-height-44 {
+    line-height: 44px;
+}
+
+.mt--10 {
+    margin-top: -10px;
+}
+
+.mt--7 {
+    margin-top: -7px;
+}
+.mt--20 {
+    margin-top: -20px;
+}
+.mb-20{
+    margin-bottom: 20px;
+}
+.font-bold {
+    font-weight: bold;
+}
+
+.fs-8 {
+    font-size: 8pt;
+}
+
+.fs-9 {
+    font-size: 9pt;
+}
+
+.fs-10 {
+    font-size: 10pt;
+}
+
+.fs-11 {
+    font-size: 11pt;
+}
+
+.fs-18 {
+    font-size: 18pt;
+}
+
+.fs-22 {
+    font-size: 22pt;
+}
+
+.fs-14 {
+    font-size: 14pt;
+}
+.fs-16{
+    font-size: 16pt;
+}
+
+.font-italic {
+    font-style: italic;
+}
+
+.text-upper {
+    text-transform: uppercase;
+}
+
+.ml-5 {
+    margin-left: 5px;
+}
+
+.ml-10 {
+    margin-left: 10px;
+}
+
+.qr-info {
+    position: absolute;
+    /*top: -78px;*/
+    top: 20px;
+    right: 0;
+}
+
+.border-top {
+    border-top: dotted 1px #000000;
+    display: inline-block;
+    padding: 5px;
+    margin: 0;
+}
+
+.issue-date-text {
+    padding: 2px 40px;
+    float: left;
+    /*margin-left: 20px;*/
+    margin-top: 0;
+}
+
+
+.issue-date {
+    margin-left: 20px;
+    margin-bottom: 5px;
+    margin-top: 10px;
+}
+
+.generated-date {
+    margin-bottom: 5px;
+    margin-top: 10px;
+}
+
+.continued-text {
+    margin: 2px;
+    padding: 2px;
+}
+
+
+.header-container p, .program-info p {
+    line-height: 10px;
+    /*margin: 7px;*/
+}
+.container{
+    page-break-inside: auto;
+}
+
+.bordered {
+    border: solid 1px #000000;
+}
+
+.table {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border-collapse: collapse;
+}
+
+.table th,
+.table td {
+    padding: 2px 5px;
+    margin: 0;
+    text-align: left;
+}
+
+.semester-standing-tbl {
+    border-top: solid 1px #000000;
+    border-bottom: solid 1px #000000;
+}
+.pl-8 {
+    padding-left: 8px;
+}
+.pl-10 {
+    padding-left: 10px;
+}
+
+.pt-50 {
+    padding-top: 50px;
+}
+
+.pt-30 {
+    padding-top: 30px;
+}
+
+.course-no {
+    width: 50px !important;
+}
+
+.course-title {
+    width: 198px !important;
+}
+
+.credit-earned {
+    width: 60pt;
+}
+
+.grade {
+    width: 30pt;
+}
+
+.grade-points {
+    width: 50pt;
+}
+
+.pb-10 {
+    padding-bottom: 10px;
+}
+
+.column-layout {
+    width: 100%;
+}
+
+.column-row {
+    width: 100%;
+    display: flex;
+    gap: 12px;
+    padding-bottom: 6px;
+}
+
+.semester-column {
+    flex: 1 1 0;
+    margin: 0;
+}
+
+.semester-column.right {
+    float: none;
+}
+
+.semester-block {
+    page-break-inside: avoid;
+    border: 1px solid #000000;
+    padding: 3px 5px 5px;
+    margin-bottom: 6px;
+}
+
+.semester-title {
+    font-weight: bold;
+    text-align: right;
+    margin-bottom: 3px;
+}
+
+.course-table thead {
+    border-bottom: 1px solid #000000;
+}
+
+.course-table thead th {
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.course-table tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.015);
+}
+
+.standing-table {
+    margin-top: 4px;
+}
+
+.standing-table td {
+    font-size: 7.5pt;
+}
+
+.recognition {
+    font-weight: bold;
+    text-align: right;
+    padding-top: 2px;
+}
+
+.transcript-summary {
+    margin-top: 20px;
+    page-break-inside: avoid;
+}
+
+.pt-10 {
+    padding-top: 10px;
+}
+.w-80 {
+    width: 80%;
+}
+.w-88 {
+    width: 88%;
+}
+.w-33 {
+    width: 33.3%;
+}
+.py-3 {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.lh-120 {
+    line-height: 120%;
+}
+
+.bg-light{
+    background-color: #CCCCCC;
+}
+
+.bg-lighter{
+    background-color: #DCDCDC;
+}
+
+table tr td, table tr td{
+    padding: 2px 3px;
+    vertical-align: middle;
+}
+
+table thead{
+    border: solid 1px #000000 !important;
+}
+
+.table {
+    border-spacing: 0;
+}
