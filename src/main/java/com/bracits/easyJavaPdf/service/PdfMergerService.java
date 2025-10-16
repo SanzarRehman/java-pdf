@@ -10,6 +10,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.apache.pdfbox.Loader;
@@ -47,6 +49,20 @@ public class PdfMergerService {
         
         try {
             PDFMergerUtility pdfMerger = configurePdfMerger(optimizer);
+
+            if (pageRanges == null || pageRanges.isEmpty()) {
+                pageRanges = new ArrayList<>();
+                for (Path pdf : tempFiles) {
+                    try (PDDocument doc = Loader.loadPDF(pdf.toFile())) {
+                        int totalPages = doc.getNumberOfPages();
+                        pageRanges.add(new PageRange(
+                                pdf.toString(),  // file path
+                                0,               // startPage
+                                totalPages,      // endPage
+                                1));
+                    }
+                }
+            }
             
             for (PageRange pageRange : pageRanges) {
                 processPageRange(tempFiles, pageRange, tempLoc, pdfMerger);
@@ -67,9 +83,9 @@ public class PdfMergerService {
         if (tempFiles == null || tempFiles.isEmpty()) {
             throw new ValidationException("The list of temporary files cannot be null or empty");
         }
-        if (pageRanges == null || pageRanges.isEmpty()) {
-            throw new ValidationException("The list of page ranges cannot be null or empty");
-        }
+//        if (pageRanges == null || pageRanges.isEmpty()) {
+//            throw new ValidationException("The list of page ranges cannot be null or empty");
+//        }
         
         logger.debug("Validated merge inputs: {} files, {} page ranges", tempFiles.size(), pageRanges.size());
     }
@@ -95,7 +111,7 @@ public class PdfMergerService {
      * Processes a single page range by finding the file and handling it based on type
      */
     private void processPageRange(List<Path> tempFiles, PageRange pageRange, Path tempLoc, PDFMergerUtility pdfMerger) {
-        logger.debug("Processing page range for file: {}", pageRange.getFile());
+        logger.info("Processing page range for file: {}", pageRange.getFile());
         
         Path inputPath = findInputFile(tempFiles, pageRange);
         validateFileExists(inputPath);
@@ -121,8 +137,14 @@ public class PdfMergerService {
         return tempFiles.stream()
                 .filter(file -> {
                     String fileName = file.getFileName().toString();
-                    return fileName.equals(pageRange.getFile() + ".pdf") || 
-                           fileName.equals(pageRange.getFile());
+
+                    String targetFileName = Paths.get(pageRange.getFile()).getFileName().toString();
+
+                    logger.info("File name: {}", fileName);
+
+                    return fileName.equals(targetFileName);
+//                    return fileName.equals(pageRange.getFile() + ".pdf") ||
+//                           fileName.equals(pageRange.getFile());
                 })
                 .findFirst()
                 .orElseThrow(() -> new FileProcessingException("File not found: " + pageRange.getFile()));
@@ -141,7 +163,7 @@ public class PdfMergerService {
      * Processes a PDF file with the specified page range
      */
     private void processPdfFile(Path inputPath, PageRange pageRange, Path tempLoc, PDFMergerUtility pdfMerger) throws IOException {
-        logger.debug("Processing PDF file: {} with page range {}-{}", inputPath.getFileName(), 
+        logger.info("Processing PDF file: {} with page range {}-{}", inputPath.getFileName(),
                     pageRange.getStartPage(), pageRange.getEndPage());
         
         try (PDDocument sourceDocument = Loader.loadPDF(inputPath.toFile())) {
