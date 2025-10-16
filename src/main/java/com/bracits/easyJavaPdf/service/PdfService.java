@@ -119,8 +119,8 @@ public class PdfService {
     try {
       // Prepare font files in the temp directory
       List<Path> fontFiles = new ArrayList<>();
-      if (request.getAssets() != null) {
-        for (MultipartFile assetFile : request.getAssets()) {
+      if (request.getAsset() != null) {
+        for (MultipartFile assetFile : request.getAsset()) {
           String originalName = assetFile.getOriginalFilename();
           String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "asset_" + System.currentTimeMillis();
           Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
@@ -132,14 +132,14 @@ public class PdfService {
       
       // Get HTML content
       String htmlContent = request.getHtmlContent();
-      if (htmlContent == null && request.getHtmlFile() != null) {
-        htmlContent = new String(request.getHtmlFile().getBytes());
+      if (htmlContent == null && request.getHtml() != null) {
+        htmlContent = new String(request.getHtml().getBytes());
       }
       
       // Get CSS content
       String cssContent = request.getCssContent();
-      if (cssContent == null && request.getCssFile() != null) {
-        cssContent = new String(request.getCssFile().getBytes());
+      if (cssContent == null && request.getStyle() != null) {
+        cssContent = new String(request.getStyle().getBytes());
       }
 
       Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
@@ -185,8 +185,8 @@ public class PdfService {
       Path cssFile = null;
       
       // Handle HTML file
-      if (request.getHtmlFile() != null) {
-        htmlFile = saveMultipartFileToDirectory(request.getHtmlFile(), requestTempDir, "index.html");
+      if (request.getHtml() != null) {
+        htmlFile = saveMultipartFileToDirectory(request.getHtml(), requestTempDir, "index.html");
       } else if (request.getHtmlContent() != null) {
         // Create HTML file from content in the request temp directory
         htmlFile = requestTempDir.resolve("index.html");
@@ -195,10 +195,10 @@ public class PdfService {
       }
       
       // Handle CSS file
-      if (request.getCssFile() != null) {
-        String originalName = request.getCssFile().getOriginalFilename();
+      if (request.getStyle() != null) {
+        String originalName = request.getStyle().getOriginalFilename();
         String cssFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "styles.css";
-        cssFile = saveMultipartFileToDirectory(request.getCssFile(), requestTempDir, cssFileName);
+        cssFile = saveMultipartFileToDirectory(request.getStyle(), requestTempDir, cssFileName);
       } else if (request.getCssContent() != null) {
         // Create CSS file from content in the request temp directory
         cssFile = requestTempDir.resolve("styles.css");
@@ -218,8 +218,8 @@ public class PdfService {
       renderThymeleafTemplateToFile(htmlFile, request, templateModel);
 
       // Handle asset files (fonts, images, etc.) - save them in the same directory
-      if (request.getAssets() != null) {
-        for (MultipartFile assetFile : request.getAssets()) {
+      if (request.getAsset() != null) {
+        for (MultipartFile assetFile : request.getAsset()) {
           String originalName = assetFile.getOriginalFilename();
           String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "asset_" + System.currentTimeMillis();
           Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);

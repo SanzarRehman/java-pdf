@@ -41,7 +41,7 @@ public final class PdfGenerationRequestValidator {
         validateOptionalHeaderFile(request.getHeaderFile());
         validateOptionalFooterFile(request.getFooterFile());
         validateOptionalBanglaFooterFile(request.getBanglaFooter());
-        validateAssetFiles(request.getAssets());
+        validateAssetFiles(request.getAsset());
         validatePassword(request.getPassword());
     validateJsEnabledFlag(request.isJsEnabled());
     validateOrientation(request.getPageOrientation());
@@ -59,7 +59,7 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if HTML input is invalid
      */
     private static void validateHtmlInput(PdfGenerationRequest request) {
-        MultipartFile htmlFile = request.getHtmlFile();
+        MultipartFile htmlFile = request.getHtml();
         String htmlContent = request.getHtmlContent();
         
         // Either htmlFile or htmlContent must be provided, but not both
@@ -89,7 +89,7 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if CSS input is invalid
      */
     private static void validateCssInput(PdfGenerationRequest request) {
-        MultipartFile cssFile = request.getCssFile();
+        MultipartFile cssFile = request.getStyle();
         String cssContent = request.getCssContent();
         
         // Both cssFile and cssContent are optional, but if both are provided, that's an error
@@ -377,7 +377,7 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if asset configuration is invalid
      */
     private static void validateAssetFilesWithHtmlContent(PdfGenerationRequest request) {
-        List<MultipartFile> assets = request.getAssets();
+        List<MultipartFile> assets = request.getAsset();
         
         if (assets == null || assets.isEmpty()) {
             return;

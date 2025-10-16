@@ -45,12 +45,12 @@ class PdfGenerationRequestTest {
     @Test
     void testValidPdfGenerationRequest() {
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(mockHtmlFile);
-        request.setCssFile(mockCssFile);
+        request.setHtml(mockHtmlFile);
+        request.setStyle(mockCssFile);
         request.setHeaderFile(mockHeaderFile);
         request.setFooterFile(mockFooterFile);
         request.setBanglaFooter(mockBanglaFooter);
-        request.setAssets(Arrays.asList(mockAssetFile));
+        request.setAsset(Arrays.asList(mockAssetFile));
         request.setPassword("testPassword");
         request.setJsEnabled(true);
         request.setForceBrowserMode(true);
@@ -62,8 +62,8 @@ class PdfGenerationRequestTest {
     @Test
     void testPdfGenerationRequestWithNullHtmlFile() {
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(null);
-        request.setCssFile(mockCssFile);
+        request.setHtml(null);
+        request.setStyle(mockCssFile);
 
     Set<ConstraintViolation<PdfGenerationRequest>> violations = validator.validate(request);
     assertTrue(violations.isEmpty(), "Bean validation allows missing htmlFile when htmlContent may be supplied");
@@ -74,7 +74,7 @@ class PdfGenerationRequestTest {
     @Test
     void testPdfGenerationRequestWithMinimalValidData() {
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(mockHtmlFile);
+        request.setHtml(mockHtmlFile);
 
         Set<ConstraintViolation<PdfGenerationRequest>> violations = validator.validate(request);
         assertTrue(violations.isEmpty(), "Request with only HTML file should be valid");
@@ -85,11 +85,11 @@ class PdfGenerationRequestTest {
         PdfGenerationRequest request = new PdfGenerationRequest();
         
 
-        request.setHtmlFile(mockHtmlFile);
-        assertEquals(mockHtmlFile, request.getHtmlFile());
+        request.setHtml(mockHtmlFile);
+        assertEquals(mockHtmlFile, request.getHtml());
         
-        request.setCssFile(mockCssFile);
-        assertEquals(mockCssFile, request.getCssFile());
+        request.setStyle(mockCssFile);
+        assertEquals(mockCssFile, request.getStyle());
         
         request.setHeaderFile(mockHeaderFile);
         assertEquals(mockHeaderFile, request.getHeaderFile());
@@ -100,9 +100,9 @@ class PdfGenerationRequestTest {
         request.setBanglaFooter(mockBanglaFooter);
         assertEquals(mockBanglaFooter, request.getBanglaFooter());
         
-        request.setAssets(Arrays.asList(mockAssetFile));
-        assertEquals(1, request.getAssets().size());
-        assertEquals(mockAssetFile, request.getAssets().get(0));
+        request.setAsset(Arrays.asList(mockAssetFile));
+        assertEquals(1, request.getAsset().size());
+        assertEquals(mockAssetFile, request.getAsset().get(0));
         
         request.setPassword("testPassword");
         assertEquals("testPassword", request.getPassword());
@@ -143,14 +143,14 @@ class PdfGenerationRequestTest {
             "LANDSCAPE"
         );
 
-        assertEquals(mockHtmlFile, request.getHtmlFile());
-        assertEquals(mockCssFile, request.getCssFile());
+        assertEquals(mockHtmlFile, request.getHtml());
+        assertEquals(mockCssFile, request.getStyle());
         assertEquals("body { margin: 0; }", request.getCssContent());
         assertEquals("<html><body>Content</body></html>", request.getHtmlContent());
         assertEquals(mockHeaderFile, request.getHeaderFile());
         assertEquals(mockFooterFile, request.getFooterFile());
         assertEquals(mockBanglaFooter, request.getBanglaFooter());
-        assertEquals(1, request.getAssets().size());
+        assertEquals(1, request.getAsset().size());
         assertEquals("testPassword", request.getPassword());
         assertTrue(request.isJsEnabled());
         assertTrue(request.isForceBrowserMode());
@@ -164,12 +164,12 @@ class PdfGenerationRequestTest {
     void testPdfGenerationRequestNoArgsConstructor() {
         PdfGenerationRequest request = new PdfGenerationRequest();
         
-        assertNull(request.getHtmlFile());
-        assertNull(request.getCssFile());
+        assertNull(request.getHtml());
+        assertNull(request.getStyle());
         assertNull(request.getHeaderFile());
         assertNull(request.getFooterFile());
         assertNull(request.getBanglaFooter());
-        assertNull(request.getAssets());
+        assertNull(request.getAsset());
         assertNull(request.getPassword());
         assertFalse(request.isJsEnabled());
         assertFalse(request.isForceBrowserMode());
