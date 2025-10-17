@@ -43,7 +43,7 @@ public final class PdfGenerationRequestValidator {
         validateOptionalBanglaFooterFile(request.getBanglaFooter());
         validateAssetFiles(request.getAsset());
         validatePassword(request.getPassword());
-    validateJsEnabledFlag(request.isJsEnabled());
+    validateJsEnabledFlag(request.isJsEnable());
     validateOrientation(request.getPageOrientation());
         validateThymeleafConfiguration(request);
         
@@ -385,7 +385,7 @@ public final class PdfGenerationRequestValidator {
 
 
 
-    if ((request.isJsEnabled() || request.isForceBrowserMode()) && assets.size() > 20) {
+    if ((request.isJsEnable() || request.isForceBrowserMode()) && assets.size() > 20) {
             throw new ValidationException(
                     "When JavaScript is enabled, maximum 20 asset files are allowed for performance reasons. " +
                     "Current count: " + assets.size()

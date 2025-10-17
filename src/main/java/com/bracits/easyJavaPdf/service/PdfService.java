@@ -255,7 +255,7 @@ public class PdfService {
           banglaFooterHtml,
           fontFiles,
           request.getPassword(),
-      (request.isJsEnabled() || forceBrowserMode) ? "true" : "false",
+      (request.isJsEnable() || forceBrowserMode) ? "true" : "false",
       orientation,
       forceBrowserMode
       );

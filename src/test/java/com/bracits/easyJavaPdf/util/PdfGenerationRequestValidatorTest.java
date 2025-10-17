@@ -307,7 +307,7 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithJsEnabledAndTooManyAssets_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
-        request.setJsEnabled(true);
+        request.setJsEnable(true);
         
 
         List<MultipartFile> assets = IntStream.range(0, 21)
@@ -392,7 +392,7 @@ class PdfGenerationRequestValidatorTest {
         request.setPassword("validPassword123");
         
 
-        request.setJsEnabled(true);
+        request.setJsEnable(true);
         
         return request;
     }

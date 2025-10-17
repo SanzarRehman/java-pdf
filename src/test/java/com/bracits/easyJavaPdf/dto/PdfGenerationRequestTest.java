@@ -52,7 +52,7 @@ class PdfGenerationRequestTest {
         request.setBanglaFooter(mockBanglaFooter);
         request.setAsset(Arrays.asList(mockAssetFile));
         request.setPassword("testPassword");
-        request.setJsEnabled(true);
+        request.setJsEnable(true);
         request.setForceBrowserMode(true);
 
         Set<ConstraintViolation<PdfGenerationRequest>> violations = validator.validate(request);
@@ -107,8 +107,8 @@ class PdfGenerationRequestTest {
         request.setPassword("testPassword");
         assertEquals("testPassword", request.getPassword());
         
-        request.setJsEnabled(true);
-        assertTrue(request.isJsEnabled());
+        request.setJsEnable(true);
+        assertTrue(request.isJsEnable());
 
         request.setForceBrowserMode(true);
         assertTrue(request.isForceBrowserMode());
@@ -152,7 +152,7 @@ class PdfGenerationRequestTest {
         assertEquals(mockBanglaFooter, request.getBanglaFooter());
         assertEquals(1, request.getAsset().size());
         assertEquals("testPassword", request.getPassword());
-        assertTrue(request.isJsEnabled());
+        assertTrue(request.isJsEnable());
         assertTrue(request.isForceBrowserMode());
         assertTrue(request.isThymeleafTemplate());
         assertEquals("{\"foo\":\"bar\"}", request.getDataModel());
@@ -171,7 +171,7 @@ class PdfGenerationRequestTest {
         assertNull(request.getBanglaFooter());
         assertNull(request.getAsset());
         assertNull(request.getPassword());
-        assertFalse(request.isJsEnabled());
+        assertFalse(request.isJsEnable());
         assertFalse(request.isForceBrowserMode());
         assertFalse(request.isThymeleafTemplate());
         assertNull(request.getDataModel());

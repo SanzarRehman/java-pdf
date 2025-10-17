@@ -68,7 +68,7 @@ public class PdfGenerationRequest {
     /**
      * Flag to enable JavaScript execution during HTML conversion
      */
-    private boolean jsEnabled;
+    private boolean jsEnable;
 
     /**
      * Forces browser-based rendering pipeline with no HTML/CSS sanitization
