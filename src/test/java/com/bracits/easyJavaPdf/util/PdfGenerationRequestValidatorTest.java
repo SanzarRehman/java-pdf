@@ -62,7 +62,7 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithNullHtmlFile_ShouldThrowValidationException() {
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(null);
+        request.setHtml(null);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -75,7 +75,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockHtmlFile.isEmpty()).thenReturn(true);
         
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(mockHtmlFile);
+        request.setHtml(mockHtmlFile);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -91,7 +91,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockHtmlFile.getOriginalFilename()).thenReturn("test.pdf");
         
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(mockHtmlFile);
+        request.setHtml(mockHtmlFile);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -108,7 +108,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockHtmlFile.getOriginalFilename()).thenReturn(longFilename);
         
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(mockHtmlFile);
+        request.setHtml(mockHtmlFile);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -125,7 +125,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockCssFile.getContentType()).thenReturn("application/pdf");
         when(mockCssFile.getOriginalFilename()).thenReturn("test.pdf");
         
-        request.setCssFile(mockCssFile);
+        request.setStyle(mockCssFile);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -143,7 +143,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockCssFile.getContentType()).thenReturn("text/css");
         when(mockCssFile.getOriginalFilename()).thenReturn(longFilename);
         
-        request.setCssFile(mockCssFile);
+        request.setStyle(mockCssFile);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -219,7 +219,7 @@ class PdfGenerationRequestValidatorTest {
             })
             .toList();
         
-        request.setAssets(assets);
+        request.setAsset(assets);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -235,7 +235,7 @@ class PdfGenerationRequestValidatorTest {
         MultipartFile asset1 = createMockAssetFile("duplicate.png", "image/png", 1024L);
         MultipartFile asset2 = createMockAssetFile("duplicate.png", "image/png", 1024L);
         
-        request.setAssets(Arrays.asList(asset1, asset2));
+        request.setAsset(Arrays.asList(asset1, asset2));
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -307,14 +307,14 @@ class PdfGenerationRequestValidatorTest {
     @Test
     void validate_WithJsEnabledAndTooManyAssets_ShouldThrowValidationException() {
         PdfGenerationRequest request = createValidMinimalRequest();
-        request.setJsEnabled(true);
+        request.setJsEnable(true);
         
 
         List<MultipartFile> assets = IntStream.range(0, 21)
             .mapToObj(i -> createMockAssetFile("asset" + i + ".png", "image/png", 1024L))
             .toList();
         
-        request.setAssets(assets);
+        request.setAsset(assets);
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -332,7 +332,7 @@ class PdfGenerationRequestValidatorTest {
         MultipartFile asset2 = createMockAssetFile("asset2.png", "image/png", largeAssetSize);
         MultipartFile asset3 = createMockAssetFile("asset3.png", "image/png", largeAssetSize);
         
-        request.setAssets(Arrays.asList(asset1, asset2, asset3));
+        request.setAsset(Arrays.asList(asset1, asset2, asset3));
         
         ValidationException exception = assertThrows(ValidationException.class,
             () -> PdfGenerationRequestValidator.validate(request));
@@ -363,7 +363,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockHtmlFile.getOriginalFilename()).thenReturn("test.html");
         
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setHtmlFile(mockHtmlFile);
+        request.setHtml(mockHtmlFile);
         return request;
     }
 
@@ -375,7 +375,7 @@ class PdfGenerationRequestValidatorTest {
         when(mockCssFile.getSize()).thenReturn(512L);
         when(mockCssFile.getContentType()).thenReturn("text/css");
         when(mockCssFile.getOriginalFilename()).thenReturn("styles.css");
-        request.setCssFile(mockCssFile);
+        request.setStyle(mockCssFile);
         
 
         when(mockHeaderFile.isEmpty()).thenReturn(false);
@@ -386,13 +386,13 @@ class PdfGenerationRequestValidatorTest {
         
 
         MultipartFile asset = createMockAssetFile("font.ttf", "font/ttf", 1024L);
-        request.setAssets(Collections.singletonList(asset));
+        request.setAsset(Collections.singletonList(asset));
         
 
         request.setPassword("validPassword123");
         
 
-        request.setJsEnabled(true);
+        request.setJsEnable(true);
         
         return request;
     }

@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,21 +47,21 @@ public class MergeController {
         
 
         PdfMergeRequestValidator.validate(request);
+
+        TempFileManager sessionTempManager = tempFileManager;
+        Path tempDir = null;
+        List<Path> tempFiles = new ArrayList<>();
         
-        try (TempFileManager sessionTempManager = tempFileManager) {
-
-            Path tempDir = sessionTempManager.createTempDirectory("merge_request_");
+        try {
+            tempDir = sessionTempManager.createTempDirectory("merge_request_");
             log.debug("Created temporary directory: {}", tempDir);
-            
 
-            List<Path> tempFiles = new ArrayList<>();
             for (var file : request.getFiles()) {
                 Path tempFile = tempDir.resolve(file.getOriginalFilename());
                 file.transferTo(tempFile);
                 tempFiles.add(tempFile);
                 sessionTempManager.registerForCleanup(tempFile);
             }
-            
 
             List<PageRange> pageRanges = request.getPagesDefinition() != null
                 ? PageRangeParser.parse(request.getPagesDefinition(), tempDir.toString())
@@ -92,6 +94,26 @@ public class MergeController {
         } catch (Exception e) {
             log.error("Error merging PDF files", e);
             throw new RuntimeException("Error merging PDF files: " + e.getMessage(), e);
+        } finally {
+            // Ensure temp files are deleted even if exception occurs
+            for (Path tempFile : tempFiles) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException ex) {
+                    log.warn("Failed to delete temp file: {}", tempFile, ex);
+                }
+            }
+
+            // Delete temp directory
+            if (tempDir != null) {
+                try {
+                    Files.deleteIfExists(tempDir);
+                } catch (IOException ex) {
+                    log.warn("Failed to delete temp directory: {}", tempDir, ex);
+                }
+            }
         }
     }
 }
+
+

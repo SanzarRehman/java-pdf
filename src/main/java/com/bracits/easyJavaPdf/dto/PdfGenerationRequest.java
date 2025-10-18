@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -22,12 +23,12 @@ public class PdfGenerationRequest {
     /**
      * The main HTML file to convert to PDF (optional if htmlContent is provided)
      */
-    private MultipartFile htmlFile;
+    private MultipartFile html;
 
     /**
      * Optional CSS file for styling the HTML content
      */
-    private MultipartFile cssFile;
+    private MultipartFile style;
 
     /**
      * Optional CSS content as string (alternative to cssFile)
@@ -57,7 +58,7 @@ public class PdfGenerationRequest {
     /**
      * Optional list of asset files (fonts, images, etc.)
      */
-    private List<MultipartFile> assets;
+    private List<MultipartFile> asset;
 
     /**
      * Optional password for PDF encryption
@@ -67,7 +68,7 @@ public class PdfGenerationRequest {
     /**
      * Flag to enable JavaScript execution during HTML conversion
      */
-    private boolean jsEnabled;
+    private boolean jsEnable;
 
     /**
      * Forces browser-based rendering pipeline with no HTML/CSS sanitization

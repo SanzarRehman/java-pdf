@@ -41,9 +41,9 @@ public final class PdfGenerationRequestValidator {
         validateOptionalHeaderFile(request.getHeaderFile());
         validateOptionalFooterFile(request.getFooterFile());
         validateOptionalBanglaFooterFile(request.getBanglaFooter());
-        validateAssetFiles(request.getAssets());
+        validateAssetFiles(request.getAsset());
         validatePassword(request.getPassword());
-    validateJsEnabledFlag(request.isJsEnabled());
+    validateJsEnabledFlag(request.isJsEnable());
     validateOrientation(request.getPageOrientation());
         validateThymeleafConfiguration(request);
         
@@ -59,7 +59,7 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if HTML input is invalid
      */
     private static void validateHtmlInput(PdfGenerationRequest request) {
-        MultipartFile htmlFile = request.getHtmlFile();
+        MultipartFile htmlFile = request.getHtml();
         String htmlContent = request.getHtmlContent();
         
         // Either htmlFile or htmlContent must be provided, but not both
@@ -89,7 +89,7 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if CSS input is invalid
      */
     private static void validateCssInput(PdfGenerationRequest request) {
-        MultipartFile cssFile = request.getCssFile();
+        MultipartFile cssFile = request.getStyle();
         String cssContent = request.getCssContent();
         
         // Both cssFile and cssContent are optional, but if both are provided, that's an error
@@ -377,7 +377,7 @@ public final class PdfGenerationRequestValidator {
      * @throws ValidationException if asset configuration is invalid
      */
     private static void validateAssetFilesWithHtmlContent(PdfGenerationRequest request) {
-        List<MultipartFile> assets = request.getAssets();
+        List<MultipartFile> assets = request.getAsset();
         
         if (assets == null || assets.isEmpty()) {
             return;
@@ -385,7 +385,7 @@ public final class PdfGenerationRequestValidator {
 
 
 
-    if ((request.isJsEnabled() || request.isForceBrowserMode()) && assets.size() > 20) {
+    if ((request.isJsEnable() || request.isForceBrowserMode()) && assets.size() > 20) {
             throw new ValidationException(
                     "When JavaScript is enabled, maximum 20 asset files are allowed for performance reasons. " +
                     "Current count: " + assets.size()
