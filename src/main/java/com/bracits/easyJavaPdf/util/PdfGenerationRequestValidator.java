@@ -3,6 +3,7 @@ package com.bracits.easyJavaPdf.util;
 import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.bracits.easyJavaPdf.exception.ValidationException;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -61,24 +62,36 @@ public final class PdfGenerationRequestValidator {
     private static void validateHtmlInput(PdfGenerationRequest request) {
         MultipartFile htmlFile = request.getHtml();
         String htmlContent = request.getHtmlContent();
+        String report = request.getReport();
         
-        // Either htmlFile or htmlContent must be provided, but not both
-        if ((htmlFile == null || htmlFile.isEmpty()) && (htmlContent == null || htmlContent.trim().isEmpty())) {
-            throw new ValidationException("Either HTML file or HTML content must be provided");
+        boolean hasHtmlFile = htmlFile != null && !htmlFile.isEmpty();
+        boolean hasHtmlContent = StringUtils.hasText(htmlContent);
+        boolean hasReport = StringUtils.hasText(report);
+
+        int primaryInputs = (hasHtmlFile ? 1 : 0) + (hasHtmlContent ? 1 : 0) + (hasReport ? 1 : 0);
+
+        if (primaryInputs == 0) {
+            throw new ValidationException("Provide either an HTML input or a report template");
         }
-        
-        if (htmlFile != null && !htmlFile.isEmpty() && htmlContent != null && !htmlContent.trim().isEmpty()) {
+
+        if (primaryInputs > 1) {
+            throw new ValidationException("Provide only one of HTML file, HTML content, or report template");
+        }
+
+        if (hasHtmlFile && hasHtmlContent) {
             throw new ValidationException("Cannot provide both HTML file and HTML content. Please choose one");
         }
-        
-        // Validate HTML file if provided
-        if (htmlFile != null && !htmlFile.isEmpty()) {
+
+        if (hasHtmlFile) {
             validateHtmlFile(htmlFile);
         }
-        
-        // Validate HTML content if provided
-        if (htmlContent != null && !htmlContent.trim().isEmpty()) {
+
+        if (hasHtmlContent) {
             validateHtmlContent(htmlContent);
+        }
+
+        if (hasReport) {
+            validateReportName(report);
         }
     }
 
@@ -146,6 +159,26 @@ public final class PdfGenerationRequestValidator {
         // Basic HTML validation - should contain some HTML-like content
         if (!trimmed.toLowerCase().contains("<") || !trimmed.toLowerCase().contains(">")) {
             throw new ValidationException("HTML content does not appear to contain valid HTML markup");
+        }
+    }
+
+    private static void validateReportName(String report) {
+        String trimmed = report != null ? report.trim() : null;
+        if (!StringUtils.hasText(trimmed)) {
+            throw new ValidationException("Report template name cannot be empty");
+        }
+
+        if (trimmed.length() > 255) {
+            throw new ValidationException("Report template name is too long (maximum 255 characters)");
+        }
+
+        if (trimmed.contains("..") || trimmed.contains("\\") || trimmed.startsWith("/") || trimmed.startsWith(".")) {
+            throw new ValidationException("Report template name contains invalid path sequences");
+        }
+
+        String allowedPattern = "^[a-zA-Z0-9_./-]+$";
+        if (!trimmed.matches(allowedPattern)) {
+            throw new ValidationException("Report template name contains unsupported characters");
         }
     }
 
@@ -347,9 +380,58 @@ public final class PdfGenerationRequestValidator {
     private static void validateThymeleafConfiguration(PdfGenerationRequest request) {
         MultipartFile dataModelFile = request.getDataModelFile();
         String dataModel = request.getDataModel();
+        String data = request.getData();
+        String dataSet = request.getDataSet();
+        String report = request.getReport();
+
+        boolean hasData = StringUtils.hasText(data);
+        boolean hasDataSet = StringUtils.hasText(dataSet);
+        boolean hasReport = StringUtils.hasText(report);
 
         boolean hasDataModel = dataModel != null && !dataModel.trim().isEmpty();
         boolean hasDataModelFile = dataModelFile != null && !dataModelFile.isEmpty();
+
+        if (hasData && hasDataSet) {
+            throw new ValidationException("Provide either data or data_set, not both");
+        }
+
+        if ((hasData || hasDataSet) && (hasDataModel || hasDataModelFile)) {
+            throw new ValidationException("Use either data/data_set or dataModel/dataModelFile, not a combination");
+        }
+
+        if (hasReport) {
+            if (hasDataModel || hasDataModelFile) {
+                throw new ValidationException("Do not supply dataModel when using report templates");
+            }
+
+            if (!hasData && !hasDataSet) {
+                throw new ValidationException("Provide data or data_set when specifying a report template");
+            }
+
+            if (hasData && data.length() > MAX_DATA_MODEL_LENGTH) {
+                throw new ValidationException("Data payload is too large (maximum 5MB)");
+            }
+
+            if (hasDataSet && dataSet.length() > MAX_DATA_MODEL_LENGTH) {
+                throw new ValidationException("Data set payload is too large (maximum 5MB)");
+            }
+
+            return;
+        }
+
+        if (hasDataSet) {
+            throw new ValidationException("data_set can only be used with a report template");
+        }
+
+        if (hasData) {
+            if (data.length() > MAX_DATA_MODEL_LENGTH) {
+                throw new ValidationException("Data payload is too large (maximum 5MB)");
+            }
+
+            if (!request.isThymeleafTemplate()) {
+                throw new ValidationException("Enable thymeleafTemplate when providing a data payload");
+            }
+        }
 
         if (hasDataModel && hasDataModelFile) {
             throw new ValidationException("Provide either dataModel or dataModelFile, not both");
@@ -359,14 +441,16 @@ public final class PdfGenerationRequestValidator {
             if (dataModel.length() > MAX_DATA_MODEL_LENGTH) {
                 throw new ValidationException("Data model content is too large (maximum 5MB)");
             }
+            if (!request.isThymeleafTemplate()) {
+                throw new ValidationException("Enable thymeleafTemplate when providing a data model");
+            }
         }
 
         if (hasDataModelFile) {
             FileValidator.validateJsonFile(dataModelFile, "Data model file");
-        }
-
-        if ((hasDataModel || hasDataModelFile) && !request.isThymeleafTemplate()) {
-            throw new ValidationException("Enable thymeleafTemplate when providing a data model");
+            if (!request.isThymeleafTemplate()) {
+                throw new ValidationException("Enable thymeleafTemplate when providing a data model file");
+            }
         }
     }
 

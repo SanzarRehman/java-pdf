@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -33,15 +34,18 @@ public class PdfService {
   private final PdfGenerator pdfGenerator;
   private final TempFileManager tempFileManager;
   private final TemplateRenderingService templateRenderingService;
+  private final ReportTemplateService reportTemplateService;
 
   public PdfService(@Qualifier("executor") Executor executor,
       PdfGenerator pdfGenerator,
       TempFileManager tempFileManager,
-      TemplateRenderingService templateRenderingService) {
+      TemplateRenderingService templateRenderingService,
+      ReportTemplateService reportTemplateService) {
     this.executor = executor;
     this.pdfGenerator = pdfGenerator;
     this.tempFileManager = tempFileManager;
     this.templateRenderingService = templateRenderingService;
+    this.reportTemplateService = reportTemplateService;
   }
 
   /**
@@ -93,7 +97,9 @@ public class PdfService {
       try {
         PageOrientation orientation = resolveOrientation(request);
         // Check if we should use content-based or file-based generation
-        if (hasContentBasedInput(request)) {
+        if (StringUtils.hasText(request.getReport())) {
+          return generateFromReport(request, orientation);
+        } else if (hasContentBasedInput(request)) {
           return generateFromContent(request, orientation);
         } else {
           return generateFromFiles(request, orientation);
@@ -142,8 +148,9 @@ public class PdfService {
         cssContent = new String(request.getStyle().getBytes());
       }
 
-      Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
-      htmlContent = renderThymeleafIfNecessary(htmlContent, request, templateModel);
+  Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
+  htmlContent = renderThymeleafIfNecessary(htmlContent, request, templateModel);
+  logRenderedHtml("content", resolveHtmlIdentifier(null, request), htmlContent);
 
       // Generate PDF using content-based method
     byte[] pdfBytes = pdfGenerator.generatePdfFromContent(
@@ -165,6 +172,83 @@ public class PdfService {
     } finally {
       // The temp directory and all its contents will be cleaned up automatically
       logger.debug("Content request processing completed, temp directory will be cleaned up: {}", requestTempDir);
+    }
+  }
+
+  private PdfResponse generateFromReport(PdfGenerationRequest request, PageOrientation orientation)
+      throws IOException, InterruptedException, ExecutionException {
+    logger.debug("Using report-based PDF generation with template: {}", request.getReport());
+    boolean forceBrowserMode = request.isForceBrowserMode();
+
+    Path requestTempDir = tempFileManager.createTempDirectory("pdf-report");
+    logger.debug("Created report temp directory: {}", requestTempDir);
+
+    try {
+      ReportTemplateDescriptor descriptor = reportTemplateService.prepareTemplate(request.getReport(), requestTempDir);
+      registerCopiedResources(descriptor);
+
+      List<Path> fontFiles = new ArrayList<>(descriptor.fontFiles());
+
+      if (request.getAsset() != null) {
+        for (MultipartFile assetFile : request.getAsset()) {
+          String originalName = assetFile.getOriginalFilename();
+          String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName
+              : "asset_" + System.currentTimeMillis();
+          Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
+          if (assetPath != null && isFontFile(assetFileName)) {
+            fontFiles.add(assetPath);
+          }
+        }
+      }
+
+  List<Map<String, Object>> models = templateRenderingService.resolveModelCollection(request);
+  String templateContent = Files.readString(descriptor.htmlFile(), StandardCharsets.UTF_8);
+  String renderedHtml = templateRenderingService.renderTemplate(templateContent, models);
+  logRenderedHtml("report", descriptor.templateName(), renderedHtml);
+      Files.writeString(descriptor.htmlFile(), renderedHtml, StandardCharsets.UTF_8);
+
+      Path cssFile = resolveCssFile(descriptor, requestTempDir);
+
+      String headerHtml = null;
+      String footerHtml = null;
+      String banglaFooterHtml = null;
+
+      if (request.getHeaderFile() != null) {
+        headerHtml = new String(request.getHeaderFile().getBytes());
+      }
+
+      if (request.getFooterFile() != null) {
+        footerHtml = new String(request.getFooterFile().getBytes());
+      }
+
+      if (request.getBanglaFooter() != null) {
+        banglaFooterHtml = new String(request.getBanglaFooter().getBytes());
+      }
+
+      CompletableFuture<byte[]> pdfFuture = generate(
+          descriptor.htmlFile(),
+          cssFile,
+          headerHtml,
+          footerHtml,
+          banglaFooterHtml,
+          fontFiles,
+          request.getPassword(),
+          (request.isJsEnable() || forceBrowserMode) ? "true" : "false",
+          orientation,
+          forceBrowserMode
+      );
+
+      byte[] pdfBytes = pdfFuture.get();
+
+      return PdfResponse.builder()
+          .content(pdfBytes)
+          .contentLength((long) pdfBytes.length)
+          .fileName(buildReportFileName(request.getReport()))
+          .disposition("attachment")
+          .build();
+
+    } finally {
+      logger.debug("Report request processing completed, temp directory will be cleaned up: {}", requestTempDir);
     }
   }
 
@@ -214,8 +298,12 @@ public class PdfService {
         tempFileManager.registerForCleanup(cssFile);
       }
       
-      Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
-      renderThymeleafTemplateToFile(htmlFile, request, templateModel);
+    Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
+    renderThymeleafTemplateToFile(htmlFile, request, templateModel);
+    String finalHtml = htmlFile != null && Files.exists(htmlFile)
+      ? Files.readString(htmlFile, StandardCharsets.UTF_8)
+      : null;
+    logRenderedHtml("file", resolveHtmlIdentifier(htmlFile, request), finalHtml);
 
       // Handle asset files (fonts, images, etc.) - save them in the same directory
       if (request.getAsset() != null) {
@@ -280,7 +368,8 @@ public class PdfService {
    * Determines if the request contains content-based input (strings) vs file-based input.
    */
   private boolean hasContentBasedInput(PdfGenerationRequest request) {
-    return (request.getHtmlContent() != null || request.getCssContent() != null) &&
+    return !StringUtils.hasText(request.getReport()) &&
+        (request.getHtmlContent() != null || request.getCssContent() != null) &&
            (request.getHeaderFile() == null && request.getFooterFile() == null && request.getBanglaFooter() == null);
   }
 
@@ -348,6 +437,59 @@ public class PdfService {
         banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
   }
 
+  private void registerCopiedResources(ReportTemplateDescriptor descriptor) {
+    if (descriptor == null || descriptor.copiedResources() == null) {
+      return;
+    }
+
+    for (Path path : descriptor.copiedResources()) {
+      if (path != null) {
+        tempFileManager.registerForCleanup(path);
+      }
+    }
+  }
+
+  private Path resolveCssFile(ReportTemplateDescriptor descriptor, Path workingDir) throws IOException {
+    if (descriptor != null && descriptor.copiedResources() != null) {
+      for (Path path : descriptor.copiedResources()) {
+        if (isCssFile(path)) {
+          return path;
+        }
+      }
+    }
+
+    return createPlaceholderCss(workingDir);
+  }
+
+  private Path createPlaceholderCss(Path workingDir) throws IOException {
+    Path cssFile = workingDir.resolve("styles.css");
+    if (!Files.exists(cssFile)) {
+      Files.writeString(cssFile, "");
+    }
+    tempFileManager.registerForCleanup(cssFile);
+    return cssFile;
+  }
+
+  private boolean isCssFile(Path path) {
+    if (path == null) {
+      return false;
+    }
+
+    return Files.isRegularFile(path) && path.getFileName().toString().toLowerCase().endsWith(".css");
+  }
+
+  private String buildReportFileName(String report) {
+    if (!StringUtils.hasText(report)) {
+      return "generated.pdf";
+    }
+
+    String sanitized = report.trim().replaceAll("[^a-zA-Z0-9_\\-]", "_");
+    if (sanitized.length() > 60) {
+      sanitized = sanitized.substring(0, 60);
+    }
+    return sanitized + ".pdf";
+  }
+
   private String renderThymeleafIfNecessary(String htmlContent, PdfGenerationRequest request, Map<String, Object> model) {
     if (htmlContent == null) {
       return null;
@@ -382,6 +524,44 @@ public class PdfService {
       }
     } catch (PdfGenerationException e) {
       logger.warn("Thymeleaf file rendering failed, keeping original HTML: {}", e.getMessage());
+    }
+  }
+
+  private String resolveHtmlIdentifier(Path htmlFile, PdfGenerationRequest request) {
+    if (htmlFile != null) {
+      Path fileName = htmlFile.getFileName();
+      if (fileName != null) {
+        return fileName.toString();
+      }
+    }
+
+    if (request != null && StringUtils.hasText(request.getReport())) {
+      return request.getReport();
+    }
+
+    return "inline-html";
+  }
+
+  private void logRenderedHtml(String context, String identifier, String htmlContent) {
+    if (!logger.isInfoEnabled() && !logger.isDebugEnabled()) {
+      return;
+    }
+
+    int length = htmlContent != null ? htmlContent.length() : 0;
+    if (htmlContent == null) {
+      logger.info("Final HTML (context={}, id={}) is <null>", context, identifier);
+      return;
+    }
+
+    if (logger.isInfoEnabled()) {
+      logger.info("=== Final HTML (context={}, id={}, length={} chars) ===\n{}\n=== End Final HTML (context={}, id={}) ===",
+          context, identifier, length, htmlContent, context, identifier);
+    } else if (logger.isDebugEnabled()) {
+      int maxPreview = 20000;
+      String printable = htmlContent.length() > maxPreview
+          ? htmlContent.substring(0, maxPreview) + "\n...[truncated]"
+          : htmlContent;
+      logger.debug("Final HTML preview (context={}, id={}): {}", context, identifier, printable);
     }
   }
 

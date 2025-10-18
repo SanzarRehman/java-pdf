@@ -176,9 +176,9 @@
                                 <td class="w-14 text-right"
                                     th:text="${session['semesterStanding']['semesterCreditEarned'] ?: '0.0'}">15.0
                                 </td>
-                                <td class="w-10 text-right">GPA</td>
+                                <td class="w-10 text-right">CGPA</td>
                                 <td class="w-14 text-center"
-                                    th:text="${session['semesterStanding']['semesterGpa'] ?: '0.00'}">3.75
+                                    th:text="${session['semesterStanding']['cumulativeCgpa'] ?: '0.00'}">3.80
                                 </td>
                             </tr>
                             <tr>

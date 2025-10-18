@@ -34,7 +34,7 @@ class PdfGenerationRequestTest {
 
 
         mockHtmlFile = new MockMultipartFile("html", "test.html", "text/html", "<html><body>Test</body></html>".getBytes());
-        mockCssFile = new MockMultipartFile("css", "style.css", "text/css", "body { margin: 0; }".getBytes());
+        mockCssFile = new MockMultipartFile("css", "transcript/style.css", "text/css", "body { margin: 0; }".getBytes());
         mockHeaderFile = new MockMultipartFile("header", "header.html", "text/html", "<div>Header</div>".getBytes());
         mockFooterFile = new MockMultipartFile("footer", "footer.html", "text/html", "<div>Footer</div>".getBytes());
         mockBanglaFooter = new MockMultipartFile("bangla", "bangla.html", "text/html", "<div>বাংলা</div>".getBytes());
@@ -103,6 +103,15 @@ class PdfGenerationRequestTest {
         request.setAsset(Arrays.asList(mockAssetFile));
         assertEquals(1, request.getAsset().size());
         assertEquals(mockAssetFile, request.getAsset().get(0));
+
+    request.setReport("transcript");
+    assertEquals("transcript", request.getReport());
+
+    request.setData("{\"foo\":\"bar\"}");
+    assertEquals("{\"foo\":\"bar\"}", request.getData());
+
+    request.setDataSet("[{\"foo\":1}]");
+    assertEquals("[{\"foo\":1}]", request.getDataSet());
         
         request.setPassword("testPassword");
         assertEquals("testPassword", request.getPassword());
@@ -134,6 +143,9 @@ class PdfGenerationRequestTest {
             mockFooterFile,
             mockBanglaFooter,
             Arrays.asList(mockAssetFile),
+            "transcript",
+            "{\"foo\":\"bar\"}",
+            "[{\"foo\":1}]",
             "testPassword",
             true,
             true,
@@ -151,6 +163,9 @@ class PdfGenerationRequestTest {
         assertEquals(mockFooterFile, request.getFooterFile());
         assertEquals(mockBanglaFooter, request.getBanglaFooter());
         assertEquals(1, request.getAsset().size());
+        assertEquals("transcript", request.getReport());
+        assertEquals("{\"foo\":\"bar\"}", request.getData());
+        assertEquals("[{\"foo\":1}]", request.getDataSet());
         assertEquals("testPassword", request.getPassword());
         assertTrue(request.isJsEnable());
         assertTrue(request.isForceBrowserMode());
@@ -170,6 +185,9 @@ class PdfGenerationRequestTest {
         assertNull(request.getFooterFile());
         assertNull(request.getBanglaFooter());
         assertNull(request.getAsset());
+    assertNull(request.getReport());
+    assertNull(request.getData());
+    assertNull(request.getDataSet());
         assertNull(request.getPassword());
         assertFalse(request.isJsEnable());
         assertFalse(request.isForceBrowserMode());

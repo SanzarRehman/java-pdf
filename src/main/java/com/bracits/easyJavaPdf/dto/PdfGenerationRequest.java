@@ -1,11 +1,10 @@
 package com.bracits.easyJavaPdf.dto;
 
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -59,6 +58,22 @@ public class PdfGenerationRequest {
      * Optional list of asset files (fonts, images, etc.)
      */
     private List<MultipartFile> asset;
+
+    /**
+     * Optional named report template stored in the classpath
+     */
+    private String report;
+
+    /**
+     * Optional JSON payload providing model variables for a report template
+     */
+    private String data;
+
+    /**
+     * Optional JSON payload providing model variables for multiple report instances
+     */
+    @JsonAlias("data_set")
+    private String dataSet;
 
     /**
      * Optional password for PDF encryption
