@@ -500,7 +500,7 @@ public class PdfService {
     }
 
     try {
-      return templateRenderingService.renderTemplate(htmlContent, model);
+      return templateRenderingService.renderTemplate(htmlContent, model, false);
     } catch (PdfGenerationException e) {
       logger.warn("Thymeleaf rendering failed, falling back to raw HTML: {}", e.getMessage());
       return htmlContent;
@@ -518,7 +518,7 @@ public class PdfService {
     }
 
     try {
-      String rendered = templateRenderingService.renderTemplate(htmlContent, model);
+      String rendered = templateRenderingService.renderTemplate(htmlContent, model,false);
       if (rendered != null && !rendered.equals(htmlContent)) {
         Files.writeString(htmlFile, rendered, StandardCharsets.UTF_8);
       }

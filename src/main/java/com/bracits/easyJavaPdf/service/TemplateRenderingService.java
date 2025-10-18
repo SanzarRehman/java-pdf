@@ -5,6 +5,8 @@ import com.bracits.easyJavaPdf.exception.PdfGenerationException;
 import com.bracits.easyJavaPdf.exception.ValidationException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -17,8 +19,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,6 +33,7 @@ import java.util.Set;
 @Service
 public class TemplateRenderingService {
 
+    private static final Logger logger = LoggerFactory.getLogger(TemplateRenderingService.class);
     private static final String PAGE_BREAK_FRAGMENT = "<div style=\"page-break-after: always;\"></div>";
 
     private final SpringTemplateEngine templateEngine;
@@ -105,22 +111,44 @@ public class TemplateRenderingService {
 
     /**
      * Renders the provided template content using Thymeleaf.
+     * Processes both template names and inline HTML content through the same engine.
      */
-    public String renderTemplate(String templateContent, Map<String, Object> model) {
+    public String renderTemplate(String templateContent, Map<String, Object> model, boolean isTemplateName) {
         try {
-            return templateEngine.process(templateContent, buildContext(model));
+            Context context = buildContext(model);
+            
+            // Log the template content before rendering
+            logger.info("========== TEMPLATE CONTENT BEFORE RENDERING ==========");
+            logger.info("Is Template Name: {}", isTemplateName);
+            if (isTemplateName) {
+                logger.info("Template Name: {}", templateContent);
+            } else {
+                logger.info("Template HTML Content:\n{}", templateContent);
+            }
+            logger.info("Model Data: {}", model);
+            logger.info("=======================================================");
+            
+            String renderedHtml = templateEngine.process(templateContent, context);
+            
+            // Log the rendered HTML
+            logger.info("========== RENDERED HTML OUTPUT ==========");
+            logger.info("{}", renderedHtml);
+            logger.info("==========================================");
+            
+            return renderedHtml;
         } catch (Exception e) {
             throw new PdfGenerationException("Failed to render Thymeleaf template", e);
         }
     }
 
+
     public String renderTemplate(String templateContent, List<Map<String, Object>> models) {
         if (models == null || models.isEmpty()) {
-            return renderTemplate(templateContent, Collections.emptyMap());
+            return renderTemplate(templateContent, Collections.emptyMap(), false);
         }
 
         if (models.size() == 1) {
-            return renderTemplate(templateContent, models.get(0));
+            return renderTemplate(templateContent, models.get(0), false);
         }
 
         StringBuilder combined = new StringBuilder();
@@ -128,7 +156,7 @@ public class TemplateRenderingService {
             if (i > 0) {
                 combined.append(PAGE_BREAK_FRAGMENT);
             }
-            combined.append(renderTemplate(templateContent, models.get(i)));
+            combined.append(renderTemplate(templateContent, models.get(i), false));
         }
         return combined.toString();
     }
@@ -212,18 +240,22 @@ public class TemplateRenderingService {
     }
 
     private void registerInlineTemplateResolverIfNecessary(SpringTemplateEngine engine) {
-        boolean hasResolver = engine.getTemplateResolvers().stream()
+        // Check if StringTemplateResolver is already registered
+        boolean hasStringResolver = engine.getTemplateResolvers().stream()
             .anyMatch(resolver -> resolver instanceof StringTemplateResolver);
 
-        if (!hasResolver) {
-            StringTemplateResolver resolver = new StringTemplateResolver();
-            resolver.setName("inlineTemplateResolver");
-            resolver.setTemplateMode(TemplateMode.HTML);
-            resolver.setCacheable(false);
-            resolver.setOrder(Integer.MAX_VALUE);
-            resolver.setCheckExistence(false);
-            resolver.setResolvablePatterns(Set.of("*<*"));
-            engine.addTemplateResolver(resolver);
+        if (!hasStringResolver) {
+            // Create and configure StringTemplateResolver for inline HTML content
+            StringTemplateResolver stringResolver = new StringTemplateResolver();
+            stringResolver.setName("inlineStringTemplateResolver");
+            stringResolver.setTemplateMode(TemplateMode.HTML);
+            stringResolver.setCacheable(false);
+            stringResolver.setCheckExistence(false);
+            // Set highest order (lowest priority) so file-based templates take precedence
+            stringResolver.setOrder(Integer.MAX_VALUE);
+            
+            engine.addTemplateResolver(stringResolver);
+            logger.debug("Registered StringTemplateResolver for inline HTML content");
         }
     }
 }
