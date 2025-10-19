@@ -11,7 +11,7 @@ import com.itextpdf.styledxmlparser.node.IElementNode;
 import java.util.HashMap;
 import java.util.Map;
 
- class QRCodeTagWorker implements ITagWorker {
+public class QRCodeTagWorker implements ITagWorker {
 
   private static final String[] allowedErrorCorrection = {"L", "M", "Q", "H"};
 

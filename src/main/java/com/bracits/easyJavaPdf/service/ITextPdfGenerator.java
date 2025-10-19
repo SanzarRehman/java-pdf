@@ -5,6 +5,7 @@ import com.bracits.easyJavaPdf.exception.PdfGenerationException;
 import com.bracits.easyJavaPdf.handler.BengaliPageNumberHandler;
 import com.bracits.easyJavaPdf.handler.Footer;
 import com.bracits.easyJavaPdf.handler.Header;
+import com.bracits.easyJavaPdf.handler.QRCodeTagWorkerFactory;
 import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
@@ -140,7 +141,27 @@ public class ITextPdfGenerator implements PdfGenerator {
         for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
             try {
                 ConverterProperties converterProperties = setupConverterProperties(fontFiles, resourceRoot);
-                converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
+//                converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
+//                converterProperties.setTagWorkerFactory(new QRCodeTagWorkerFactory());
+
+                converterProperties.setTagWorkerFactory(new DefaultTagWorkerFactory() {
+                    private final MarginSafeBookmarkTagWorkerFactory bookmarkFactory = new MarginSafeBookmarkTagWorkerFactory();
+                    private final QRCodeTagWorkerFactory qrFactory = new QRCodeTagWorkerFactory();
+
+                    @Override
+                    public ITagWorker getCustomTagWorker(IElementNode tag, ProcessorContext context) {
+                        // 1. Try QR code first
+                        ITagWorker qrWorker = qrFactory.getCustomTagWorker(tag, context);
+                        if (qrWorker != null) return qrWorker;
+
+                        // 2. Then try bookmark factory
+                        ITagWorker bookmarkWorker = bookmarkFactory.getCustomTagWorker(tag, context);
+                        if (bookmarkWorker != null) return bookmarkWorker;
+
+                        // 3. Fallback to default behavior
+                        return super.getCustomTagWorker(tag, context);
+                    }
+                });
 
         byte[] pdfBytes = convertHtmlToPdf(
                         variant.getHtml(),
@@ -301,8 +322,7 @@ public class ITextPdfGenerator implements PdfGenerator {
         }
         
 
-//        converterProperties.setCharset(StandardCharsets.UTF_8.name());
-        converterProperties.setCharset("UTF-8");
+        converterProperties.setCharset(StandardCharsets.UTF_8.name());
 
         // Enable automatic bookmark generation based on heading hierarchy
         converterProperties.setOutlineHandler(OutlineHandler.createStandardHandler());
