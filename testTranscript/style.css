@@ -1,0 +1,441 @@
+@font-face {
+    font-family: Arial;
+    src: url(arial.ttf);
+}
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 4mm 9mm 4mm 11mm;
+    }
+    #container {
+        padding-top: 1px !important;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+    }
+
+    .page-break-avoid {
+        break-inside: avoid;
+        page-break-inside: avoid;           /* legacy */
+        -webkit-column-break-inside: avoid; /* legacy WebKit multicol */
+        -webkit-region-break-inside: avoid; /* legacy WebKit regions */
+    }
+    .page-break-auto {
+        page-break-inside: auto;
+    }
+}
+@page {
+    /* margin-top: 220px;
+    size: A4 landscape;
+    margin-bottom: 90px; */ /* For pdf */
+
+    @top-right {
+        background: transparent;
+        content: 'Page ' counter(page) ' of ' counter(pages);
+        text-align: left;
+        width: 120px;
+        margin-top: -95px;
+        font-size: 8pt;
+        font-family: Arial;
+        font-style: italic;
+        color: #000000;
+    }
+    @bottom-right {
+        content: string(footer-right, last);
+        font-style: italic;
+        text-align: center;
+        color: #000000;
+        font-size: 8pt;
+        font-family: Arial;
+        margin-right: 125px;
+        margin-top: -60px;
+    }
+    @bottom-left {
+        content: string(footer-left, last);
+        font-style: italic;
+        text-align: center;
+        color: #e41111;
+        font-size: 8pt;
+        font-family: Arial;
+        margin-left: 125px;
+        margin-top: -60px;
+    }
+}
+/* Default footer content for all pages */
+body {
+    string-set:footer-right "--------------- Continued Next Page ---------------";
+    
+}
+
+/* Clear the footer on the last page */
+.last-page-marker { string-set: footer-left "", footer-right ""; }
+
+body {
+    
+    background: transparent;
+    color: #000000;
+    font-size: 8pt;
+    font-family: Arial;
+    /* For pdf */
+    /* margin: 0;
+    padding: 0; */
+    /* For pdf */
+
+    /* Remove from pdf */
+    margin-top: 220px;
+    size: A4 landscape;
+    margin-bottom: 90px;
+    /* Remove from pdf */
+
+}
+.clearfix {
+    clear: both;
+}
+.page-break-always {
+    page-break-before: always;
+}
+.width-50 {
+    width: 50%;
+}
+.width-25 {
+    width: 25%;
+}
+.width-15 {
+    width: 15%;
+}
+.width-30 {
+    width: 30%;
+}
+.w-100{
+    width: 100%;
+}
+.w-48 {
+    width: 48%;
+}
+.w-50 {
+    width: 50%;
+}
+.w-52 {
+    width: 52%;
+}
+.w-95 {
+    width: 95%;
+}
+.w-45 {
+    width: 45%;
+}
+.w-49 {
+    width: 49%;
+}
+.w-5 {
+    width: 5%;
+}
+.w-8 {
+    width: 8%;
+}
+.w-10{
+    width: 10%;
+}
+.w-16 {
+    width: 16%;
+}
+.w-20{
+    width: 20%;
+}
+.w-21{
+    width: 21%;
+}
+.w-22{
+    width: 22%;
+}
+.w-23{
+    width: 23%;
+}
+.w-24{
+    width: 24%;
+}
+.w-12{
+    width: 12%;
+}
+.w-15{
+    width: 15%;
+}
+.w-14{
+    width: 14%;
+}
+.w-55 {
+    width: 55%;
+}
+
+.w-99{
+    width: 99%;
+}
+.w-40{
+    width: 40%;
+}
+
+.float-left {
+    float: left;
+}
+.float-right {
+    float: right;
+}
+
+.text-left {
+    text-align: left;
+}
+.text-right {
+    text-align: right;
+}
+.text-center {
+    text-align: center;
+}
+
+.mt-120{
+    margin-top: 100px;
+}
+
+.mt-100{
+    margin-top: 100px;
+}
+
+.mt-125{
+    margin-top: 125px;
+}
+
+.mt-0{
+    margin-top: 0;
+}
+
+.mt-5{
+    margin-top: 5px;
+}
+
+.m-0{
+    margin: 0;
+}
+
+.mt-10{
+    margin-top: 10px;
+}
+.p-0{
+    padding: 0;
+}
+
+.font-size-18{
+    font-size: 18pt;
+}
+
+.font-size-22{
+    font-size: 22pt;
+}
+
+.font-size-14{
+    font-size: 14pt;
+}
+
+.mt-25{
+    margin-top: 25px;
+}
+.mt-28{
+    margin-top: 28px;
+}
+
+.line-height-44{
+    line-height: 44px;
+}
+.mt--10{
+    margin-top: -10px;
+}
+
+.font-bold{
+    font-weight: bold;
+}
+
+.fs-8{
+    font-size: 8pt;
+}
+.fs-9{
+    font-size: 9pt;
+}
+
+.fs-10{
+    font-size: 10pt;
+}
+
+.fs-11{
+    font-size: 11pt;
+}
+
+.font-italic{
+    font-style: italic;
+}
+.text-upper {
+    text-transform: uppercase;
+}
+
+.ml-5{
+    margin-left: 5px;
+}
+/*.content {*/
+/*    column-count: 2; !* Initially one column *!*/
+/*    !*border: solid 1px #7a3a37;*!*/
+/*    padding-bottom: 5px;*/
+/*}*/
+
+.transcript-item {
+    /*border: solid 1px #0d6efd;*/
+}
+
+
+
+header {
+    position: fixed;
+    top: 0px; /* on pdf -85px */
+    left: 0;
+    width: 100%;
+    height: auto;
+    background: transparent;
+    text-align: center;
+}
+footer {
+    position: fixed;
+    bottom: 0px;  /* on pdf -65px */
+    left: 0;
+    width: 100%;
+    height: 60px;
+    background: transparent;
+    text-align: center;
+
+}
+
+.qr-info{
+    position: absolute;
+    /*top: -78px;*/
+    top: -120px;
+    right: 0;
+}
+
+.border-top{
+    border-top: dotted 1px #000000;
+    display: inline-block;
+    padding: 5px;
+    margin: 0;
+}
+.issue-date-text{
+    padding: 2px 40px;
+    float: left;
+    margin-left: 20px;
+    margin-top: 0;
+}
+
+
+.issue-date{
+    margin-left: 55px;
+    margin-bottom: 5px;
+    margin-top: 20px;
+    font-size: 9pt;
+}
+.continued-text{
+    margin: 2px;
+    padding: 2px;
+}
+
+.student-other-info{
+    margin-top: -55px;
+}
+.header-container p, .program-info p{
+    line-height: 10px;
+    margin: 7px;
+}
+.content {
+    break-inside: avoid; /* Ensure column breaks before .content */
+    columns: 2;
+    column-gap: 5px; /* Adjust column gap as needed */
+    /*column-fill: auto; !* Distribute content evenly across columns *!*/
+    /*writing-mode: vertical-rl; !* Set vertical writing mode *!*/
+}
+
+.bordered{
+    border: solid 1px #000000;
+}
+.table{
+    padding: 0;
+    margin: 0;
+}
+.table tr td {
+    padding: 0;
+    margin: 0;
+}
+.semester-standing-tbl{
+    border-top: dashed 1px #000000;
+    border-bottom: dashed 1px #000000;
+}
+.pt-5{
+    padding-top: 5px!important;
+}
+.pt-50{
+    padding-top: 50px;
+}
+.pt-30{
+    padding-top: 30px;
+}
+.pl-2{
+    padding-left: 2px;
+}
+.pl-5{
+    padding-left: 5px;
+}
+.pl-25{
+    padding-left: 25px;
+}
+.pr-10{
+    padding-right: 10px;
+}
+.pr-15{
+    padding-right: 15px;
+}
+.pr-20{
+    padding-right: 20px;
+}
+.pr-25{
+    padding-right: 25px;
+}
+.pr-30{
+    padding-right: 30px;
+}
+.course-no{
+    width: 50px !important;
+    border: solid 1px red;
+}
+.course-title{
+    width: 198px !important;
+}
+.credit-earned{
+    width: 60pt;
+}
+.grade{
+    width: 30pt;
+}
+.grade-points{
+    width: 50pt;
+}
+.pb-10{
+    padding-bottom: 10px;
+}
+.pt-10{
+    padding-top: 10px;
+}
+.pt-20{
+    padding-top: 20px;
+}
+.w-88{
+    width: 88%;
+}
+
+.py-3{
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+.lh-120{
+    line-height: 120%;
+}

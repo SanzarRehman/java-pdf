@@ -2,88 +2,43 @@ package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.dto.PdfResponse;
-import com.bracits.easyJavaPdf.exception.FileProcessingException;
 import com.bracits.easyJavaPdf.exception.PdfGenerationException;
+import com.bracits.easyJavaPdf.exception.ValidationException;
 import com.bracits.easyJavaPdf.model.PageOrientation;
-import com.bracits.easyJavaPdf.util.TempFileManager;
+import com.bracits.easyJavaPdf.service.strategy.PdfGenerationStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 
+/**
+ * Main service for PDF generation operations.
+ * Uses the Strategy pattern to delegate to appropriate generation strategies.
+ */
 @Service
 public class PdfService {
 
   private static final Logger logger = LoggerFactory.getLogger(PdfService.class);
 
   private final Executor executor;
-  private final PdfGenerator pdfGenerator;
-  private final TempFileManager tempFileManager;
-  private final TemplateRenderingService templateRenderingService;
+  private final List<PdfGenerationStrategy> strategies;
 
   public PdfService(@Qualifier("executor") Executor executor,
-      PdfGenerator pdfGenerator,
-      TempFileManager tempFileManager,
-      TemplateRenderingService templateRenderingService) {
+                    List<PdfGenerationStrategy> strategies) {
     this.executor = executor;
-    this.pdfGenerator = pdfGenerator;
-    this.tempFileManager = tempFileManager;
-    this.templateRenderingService = templateRenderingService;
-  }
-
-  /**
-   * Generates PDF from HTML file and associated resources.
-   * This method handles the core PDF generation logic.
-   */
-  @Async
-  public CompletableFuture<byte[]> generate(
-      Path htmlFile,
-      Path cssFile,
-      String headerHtml,
-      String footerHtml,
-      String banglaFooterHtml,
-      List<Path> fontFiles,
-      String password,
-      String jsEnable,
-      PageOrientation orientation,
-      boolean forceBrowserMode) {
-
-    logger.info("Starting PDF generation for file: {}", htmlFile);
-    long startTime = System.currentTimeMillis();
-
-    return CompletableFuture.supplyAsync(() -> {
-    try {
-    byte[] pdfBytes = generatePdfInternal(htmlFile, cssFile, headerHtml, footerHtml,
-      banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
-        
-        long duration = System.currentTimeMillis() - startTime;
-        logger.info("PDF generation completed successfully in {} ms, size: {} bytes", 
-            duration, pdfBytes.length);
-        
-        return pdfBytes;
-      } catch (Exception e) {
-        logger.error("PDF generation failed for file: {}", htmlFile, e);
-        throw new PdfGenerationException("Failed to generate PDF from HTML file: " + htmlFile, e);
-      }
-    }, executor);
+    this.strategies = strategies;
+    logger.info("Initialized PdfService with {} generation strategies", strategies.size());
   }
 
   /**
    * Generates PDF from a PdfGenerationRequest DTO.
-   * This method handles the conversion from DTO to the internal generate method.
+   * Selects appropriate strategy and delegates generation.
    */
   @Async
   public CompletableFuture<PdfResponse> generatePdf(PdfGenerationRequest request) {
@@ -92,12 +47,19 @@ public class PdfService {
     return CompletableFuture.supplyAsync(() -> {
       try {
         PageOrientation orientation = resolveOrientation(request);
-        // Check if we should use content-based or file-based generation
-        if (hasContentBasedInput(request)) {
-          return generateFromContent(request, orientation);
-        } else {
-          return generateFromFiles(request, orientation);
-        }
+        
+        // Find the appropriate strategy
+        PdfGenerationStrategy strategy = strategies.stream()
+            .filter(s -> s.supports(request))
+            .min(Comparator.comparingInt(PdfGenerationStrategy::getPriority))
+            .orElseThrow(() -> new ValidationException(
+                "No suitable PDF generation strategy found for the request"));
+        
+        logger.debug("Selected strategy: {}", strategy.getClass().getSimpleName());
+        
+        // Delegate to the strategy
+        return strategy.generate(request, orientation);
+        
       } catch (Exception e) {
         logger.error("Failed to generate PDF from request", e);
         throw new PdfGenerationException("Failed to generate PDF", e);
@@ -106,288 +68,10 @@ public class PdfService {
   }
 
   /**
-   * Generates PDF from content strings (HTML content, CSS content) using a dedicated temporary folder.
+   * Resolves the page orientation from the request.
    */
-  private PdfResponse generateFromContent(PdfGenerationRequest request, PageOrientation orientation) throws IOException {
-    logger.debug("Using content-based PDF generation with dedicated temp folder");
-    boolean forceBrowserMode = request.isForceBrowserMode();
-    
-    // Create a dedicated temporary folder for this request
-    Path requestTempDir = tempFileManager.createTempDirectory("pdf-content-request");
-    logger.debug("Created content request temp directory: {}", requestTempDir);
-    
-    try {
-      // Prepare font files in the temp directory
-      List<Path> fontFiles = new ArrayList<>();
-      if (request.getAsset() != null) {
-        for (MultipartFile assetFile : request.getAsset()) {
-          String originalName = assetFile.getOriginalFilename();
-          String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "asset_" + System.currentTimeMillis();
-          Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
-          if (isFontFile(assetFileName)) {
-            fontFiles.add(assetPath);
-          }
-        }
-      }
-      
-      // Get HTML content
-      String htmlContent = request.getHtmlContent();
-      if (htmlContent == null && request.getHtml() != null) {
-        htmlContent = new String(request.getHtml().getBytes());
-      }
-      
-      // Get CSS content
-      String cssContent = request.getCssContent();
-      if (cssContent == null && request.getStyle() != null) {
-        cssContent = new String(request.getStyle().getBytes());
-      }
-
-      Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
-      htmlContent = renderThymeleafIfNecessary(htmlContent, request, templateModel);
-
-      // Generate PDF using content-based method
-    byte[] pdfBytes = pdfGenerator.generatePdfFromContent(
-          htmlContent, 
-          cssContent, 
-          fontFiles, 
-      request.getPassword(),
-      orientation,
-      forceBrowserMode
-      );
-      
-      return PdfResponse.builder()
-          .content(pdfBytes)
-          .contentLength((long) pdfBytes.length)
-          .fileName("generated.pdf")
-          .disposition("attachment")
-          .build();
-          
-    } finally {
-      // The temp directory and all its contents will be cleaned up automatically
-      logger.debug("Content request processing completed, temp directory will be cleaned up: {}", requestTempDir);
-    }
-  }
-
-  /**
-   * Generates PDF from uploaded files using a dedicated temporary folder per request.
-   */
-  private PdfResponse generateFromFiles(PdfGenerationRequest request, PageOrientation orientation) throws IOException, InterruptedException, ExecutionException {
-    logger.debug("Using file-based PDF generation with dedicated temp folder");
-    boolean forceBrowserMode = request.isForceBrowserMode();
-    
-    // Create a dedicated temporary folder for this request
-    Path requestTempDir = tempFileManager.createTempDirectory("pdf-request");
-    logger.debug("Created request temp directory: {}", requestTempDir);
-    
-    try {
-      List<Path> fontFiles = new ArrayList<>();
-      Path htmlFile = null;
-      Path cssFile = null;
-      
-      // Handle HTML file
-      if (request.getHtml() != null) {
-        htmlFile = saveMultipartFileToDirectory(request.getHtml(), requestTempDir, "index.html");
-      } else if (request.getHtmlContent() != null) {
-        // Create HTML file from content in the request temp directory
-        htmlFile = requestTempDir.resolve("index.html");
-        Files.write(htmlFile, request.getHtmlContent().getBytes());
-        tempFileManager.registerForCleanup(htmlFile);
-      }
-      
-      // Handle CSS file
-      if (request.getStyle() != null) {
-        String originalName = request.getStyle().getOriginalFilename();
-        String cssFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "styles.css";
-        cssFile = saveMultipartFileToDirectory(request.getStyle(), requestTempDir, cssFileName);
-      } else if (request.getCssContent() != null) {
-        // Create CSS file from content in the request temp directory
-        cssFile = requestTempDir.resolve("styles.css");
-        Files.write(cssFile, request.getCssContent().getBytes());
-        tempFileManager.registerForCleanup(cssFile);
-      }
-
-      if (cssFile == null) {
-        cssFile = requestTempDir.resolve("styles.css");
-        if (!Files.exists(cssFile)) {
-          Files.writeString(cssFile, "");
-        }
-        tempFileManager.registerForCleanup(cssFile);
-      }
-      
-      Map<String, Object> templateModel = templateRenderingService.resolveModel(request);
-      renderThymeleafTemplateToFile(htmlFile, request, templateModel);
-
-      // Handle asset files (fonts, images, etc.) - save them in the same directory
-      if (request.getAsset() != null) {
-        for (MultipartFile assetFile : request.getAsset()) {
-          String originalName = assetFile.getOriginalFilename();
-          String assetFileName = (originalName != null && !originalName.isEmpty()) ? originalName : "asset_" + System.currentTimeMillis();
-          Path assetPath = saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
-          if (isFontFile(assetFileName)) {
-            fontFiles.add(assetPath);
-          }
-        }
-      }
-      
-      // Handle header/footer content
-      String headerHtml = null;
-      String footerHtml = null;
-      String banglaFooterHtml = null;
-      
-      if (request.getHeaderFile() != null) {
-        headerHtml = new String(request.getHeaderFile().getBytes());
-      }
-      
-      if (request.getFooterFile() != null) {
-        footerHtml = new String(request.getFooterFile().getBytes());
-      }
-      
-      if (request.getBanglaFooter() != null) {
-        banglaFooterHtml = new String(request.getBanglaFooter().getBytes());
-      }
-      
-  // Generate PDF using file-based method
-  CompletableFuture<byte[]> pdfFuture = generate(
-          htmlFile, 
-          cssFile, 
-          headerHtml,
-          footerHtml,
-          banglaFooterHtml,
-          fontFiles,
-          request.getPassword(),
-      (request.isJsEnable() || forceBrowserMode) ? "true" : "false",
-      orientation,
-      forceBrowserMode
-      );
-      
-      byte[] pdfBytes = pdfFuture.get();
-      
-      return PdfResponse.builder()
-          .content(pdfBytes)
-          .contentLength((long) pdfBytes.length)
-          .fileName("generated.pdf")
-          .disposition("attachment")
-          .build();
-          
-    } finally {
-      // The temp directory and all its contents will be cleaned up automatically
-      // when the TempFileManager is closed, but we can also clean it up immediately
-      logger.debug("Request processing completed, temp directory will be cleaned up: {}", requestTempDir);
-    }
-  }
-
-  /**
-   * Determines if the request contains content-based input (strings) vs file-based input.
-   */
-  private boolean hasContentBasedInput(PdfGenerationRequest request) {
-    return (request.getHtmlContent() != null || request.getCssContent() != null) &&
-           (request.getHeaderFile() == null && request.getFooterFile() == null && request.getBanglaFooter() == null);
-  }
-
-  /**
-   * Saves a MultipartFile to a temporary location.
-   */
-  private Path saveMultipartFile(MultipartFile file, String prefix) throws IOException {
-    if (file == null || file.isEmpty()) {
-      return null;
-    }
-    
-    Path tempFile = tempFileManager.createTempFile(prefix, getFileExtension(file.getOriginalFilename()));
-    Files.write(tempFile, file.getBytes());
-    return tempFile;
-  }
-
-  /**
-   * Saves a MultipartFile to a specific directory with a given filename.
-   */
-  private Path saveMultipartFileToDirectory(MultipartFile file, Path directory, String filename) throws IOException {
-    if (file == null || file.isEmpty()) {
-      return null;
-    }
-    
-    Path targetFile = directory.resolve(filename);
-    Files.write(targetFile, file.getBytes());
-    tempFileManager.registerForCleanup(targetFile);
-    
-    logger.debug("Saved file {} to directory {}", filename, directory);
-    return targetFile;
-  }
-  
-  /**
-   * Extracts file extension from filename.
-   */
-  private String getFileExtension(String filename) {
-    if (filename == null || !filename.contains(".")) {
-      return "";
-    }
-    return filename.substring(filename.lastIndexOf("."));
-  }
-
-  private boolean isFontFile(String filename) {
-    if (filename == null) {
-      return false;
-    }
-
-    String lowerName = filename.toLowerCase();
-    return lowerName.endsWith(".ttf")
-        || lowerName.endsWith(".otf")
-        || lowerName.endsWith(".woff")
-        || lowerName.endsWith(".woff2")
-        || lowerName.endsWith(".ttc");
-  }
-
-  /**
-   * Internal method that delegates PDF generation to the PdfGenerator implementation.
-   */
-  private byte[] generatePdfInternal(Path htmlFile, Path cssFile, String headerHtml,
-      String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
-      String password, String jsEnable, PageOrientation orientation, boolean forceBrowserMode) {
-    
-    logger.debug("Delegating PDF generation to PdfGenerator implementation");
-    return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
-  }
-
-  private String renderThymeleafIfNecessary(String htmlContent, PdfGenerationRequest request, Map<String, Object> model) {
-    if (htmlContent == null) {
-      return null;
-    }
-
-    if (!templateRenderingService.shouldRenderTemplate(request, htmlContent)) {
-      return htmlContent;
-    }
-
-    try {
-      return templateRenderingService.renderTemplate(htmlContent, model);
-    } catch (PdfGenerationException e) {
-      logger.warn("Thymeleaf rendering failed, falling back to raw HTML: {}", e.getMessage());
-      return htmlContent;
-    }
-  }
-
-  private void renderThymeleafTemplateToFile(Path htmlFile, PdfGenerationRequest request, Map<String, Object> model) throws IOException {
-    if (htmlFile == null || !Files.exists(htmlFile)) {
-      return;
-    }
-
-    String htmlContent = Files.readString(htmlFile, StandardCharsets.UTF_8);
-    if (!templateRenderingService.shouldRenderTemplate(request, htmlContent)) {
-      return;
-    }
-
-    try {
-      String rendered = templateRenderingService.renderTemplate(htmlContent, model);
-      if (rendered != null && !rendered.equals(htmlContent)) {
-        Files.writeString(htmlFile, rendered, StandardCharsets.UTF_8);
-      }
-    } catch (PdfGenerationException e) {
-      logger.warn("Thymeleaf file rendering failed, keeping original HTML: {}", e.getMessage());
-    }
-  }
-
   private PageOrientation resolveOrientation(PdfGenerationRequest request) {
     return PageOrientation.fromOrDefault(request.getPageOrientation(), PageOrientation.PORTRAIT);
   }
-
 }
 

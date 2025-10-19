@@ -11,10 +11,6 @@
 
 ---
 
-
-
-## Inspiration
-
 This project is inspired by [easy-pdf-rest](https://github.com/ronisaha/easy-pdf-rest). Special thanks to the developers for their amazing contribution and idea-sharing within the open-source community!
 
 ---
@@ -39,11 +35,6 @@ docker run -p 8081:8081 sanzar686/easyjavapdf
 Merge multiple PDF files and other resources like images into a single PDF document. You can also specify page ranges for each file.
 
 #### **Endpoint**
-`POST /api/v1.0/merge`
-
-#### **Parameters**
-- `files[]`: List of files (PDFs or supported resources like images) to merge.
-- `pages`: (Optional) JSON array defining page ranges for each file.
 - `password`: (Optional) Password for protected files.
 - `resourceOptimizer`: (Optional) Optimize the merged document. Default: `false`.
 ##### pages can be passed as JSON
@@ -137,6 +128,28 @@ Convert HTML files into PDF documents, supporting additional styles, fonts, and 
 | `style`        | file or string   | Optional       | Inline CSS to apply when not already linked in the HTML. Use either `style` or `style[]`. |
 | `style[]`      | file or file[]   | Optional       | Multiple CSS files to apply when not referenced in the HTML. Use either `style` or `style[]`. |
 | `asset[]`      | file or file[]   | Optional       | Assets referenced by the HTML (images, CSS, fonts). Filenames must match the references exactly. |
+
+#### Using report templates
+
+Store reusable Thymeleaf themes under `src/main/resources/templates`. The template name becomes the `report` parameter and can live alongside an asset directory:
+
+```
+src/main/resources/templates/
+├── certificate.html
+└── certificate/
+    ├── style.css
+    └── logo.png
+```
+
+Send template variables via the `data` field (single report) or `data_set` (multiple sequential reports). Each entry in `data_set` renders with an automatic page break.
+
+```bash
+curl --location 'http://localhost:8081/api/v1.0/print' \
+  --form 'report="certificate"' \
+  --form 'data="{\"student\":{\"name\":\"Jane Doe\"}}"'
+```
+
+All assets inside the matching folder are copied automatically, letting relative URLs and fonts resolve without additional uploads.
 
 #### **Example Request**
 ```bash

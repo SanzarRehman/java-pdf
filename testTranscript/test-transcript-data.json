@@ -1,0 +1,147 @@
+{
+  "portfolioInfo": {
+    "studentId": "19103006",
+    "ugcId": "01619102161006",
+    "name": "John Doe",
+    "academicType": "Undergraduate Program",
+    "program": "Bachelor Of Arts In English",
+    "academicStanding": "High Distinction",
+    "totalInstitutionCredit": 120.0,
+    "totalGrade": 475.20,
+    "cgpa": 3.96,
+    "totalTransferredCredit": 0.0,
+    "totalCredit": 120.0
+  },
+  "transcriptData": [
+    {
+      "semesterStanding": {
+        "semester": "Spring",
+        "year": "2019",
+        "semesterCreditAttempt": 12.0,
+        "semesterCreditEarned": 12.0,
+        "semesterGpa": 4.0,
+        "cumulativeCreditAttempt": 12.0,
+        "cumulativeCreditEarned": 12.0,
+        "cumulativeCgpa": 4.0,
+        "recognitionType": "VC's List"
+      },
+      "courseResults": [
+        {
+          "courseCode": "ENG102",
+          "name": "English Composition I",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        },
+        {
+          "courseCode": "ENG114",
+          "name": "Introduction To English Drama",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        },
+        {
+          "courseCode": "HUM101",
+          "name": "World Civilization And Culture",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        },
+        {
+          "courseCode": "PHY101",
+          "name": "Introduction To Physics",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        }
+      ]
+    },
+    {
+      "semesterStanding": {
+        "semester": "Summer",
+        "year": "2019",
+        "semesterCreditAttempt": 12.0,
+        "semesterCreditEarned": 12.0,
+        "semesterGpa": 3.7,
+        "cumulativeCreditAttempt": 24.0,
+        "cumulativeCreditEarned": 24.0,
+        "cumulativeCgpa": 3.8,
+        "recognitionType": "VC's List"
+      },
+      "courseResults": [
+        {
+          "courseCode": "BNG103",
+          "name": "Bangla Language And Literature",
+          "courseCredit": 3.0,
+          "grade": "B+",
+          "gpa": 3.3
+        },
+        {
+          "courseCode": "EMB101",
+          "name": "Emergence Of Bangladesh",
+          "courseCredit": 3.0,
+          "grade": "A-",
+          "gpa": 3.7
+        },
+        {
+          "courseCode": "ENG103",
+          "name": "Advanced Writing And Presentation Skills",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        },
+        {
+          "courseCode": "HUM103",
+          "name": "Ethics And Culture",
+          "courseCredit": 3.0,
+          "grade": "A-",
+          "gpa": 3.7
+        }
+      ]
+    },
+    {
+      "semesterStanding": {
+        "semester": "Fall",
+        "year": "2019",
+        "semesterCreditAttempt": 12.0,
+        "semesterCreditEarned": 12.0,
+        "semesterGpa": 3.9,
+        "cumulativeCreditAttempt": 36.0,
+        "cumulativeCreditEarned": 36.0,
+        "cumulativeCgpa": 3.9,
+        "recognitionType": "VC's List"
+      },
+      "courseResults": [
+        {
+          "courseCode": "BUS101",
+          "name": "Introduction To Business",
+          "courseCredit": 3.0,
+          "grade": "A-",
+          "gpa": 3.7
+        },
+        {
+          "courseCode": "ENG111",
+          "name": "Principles Of Linguistics",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        },
+        {
+          "courseCode": "ENG115",
+          "name": "Introduction To English Prose",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        },
+        {
+          "courseCode": "MAT101",
+          "name": "Fundamentals Of Mathematics",
+          "courseCredit": 3.0,
+          "grade": "A",
+          "gpa": 4.0
+        }
+      ]
+    }
+  ],
+  "generateDate": "14 Oct 2025"
+}
