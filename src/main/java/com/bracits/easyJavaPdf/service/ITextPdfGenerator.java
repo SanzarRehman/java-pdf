@@ -28,6 +28,7 @@ import com.itextpdf.html2pdf.attach.impl.DefaultTagWorkerFactory;
 import com.itextpdf.html2pdf.attach.impl.tags.BodyTagWorker;
 import com.itextpdf.html2pdf.attach.impl.tags.DivTagWorker;
 import com.itextpdf.html2pdf.attach.impl.tags.HTagWorker;
+import com.itextpdf.layout.font.FontSet;
 import com.itextpdf.styledxmlparser.node.IElementNode;
 import com.itextpdf.layout.IPropertyContainer;
 import com.itextpdf.layout.element.IElement;
@@ -300,7 +301,8 @@ public class ITextPdfGenerator implements PdfGenerator {
         }
         
 
-        converterProperties.setCharset(StandardCharsets.UTF_8.name());
+//        converterProperties.setCharset(StandardCharsets.UTF_8.name());
+        converterProperties.setCharset("UTF-8");
 
         // Enable automatic bookmark generation based on heading hierarchy
         converterProperties.setOutlineHandler(OutlineHandler.createStandardHandler());
@@ -318,15 +320,22 @@ public class ITextPdfGenerator implements PdfGenerator {
      * Creates a font provider with the specified font files.
      */
     private FontProvider createFontProvider(List<Path> fontFiles) {
-        FontProvider fontProvider = new FontProvider();
+//        FontProvider fontProvider = new FontProvider();
+//        for (Path fontFile : fontFiles) {
+//            try {
+//                logger.debug("Adding font: {}", fontFile);
+//                fontProvider.addFont(fontFile.toString());
+//            } catch (Exception e) {
+//                logger.warn("Failed to add font: {}, continuing without it", fontFile, e);
+//            }
+//        }
+
+        FontSet fontSet = new FontSet();
         for (Path fontFile : fontFiles) {
-            try {
-                logger.debug("Adding font: {}", fontFile);
-                fontProvider.addFont(fontFile.toString());
-            } catch (Exception e) {
-                logger.warn("Failed to add font: {}, continuing without it", fontFile, e);
-            }
+            fontSet.addFont(fontFile.toString());
         }
+        FontProvider fontProvider = new FontProvider(fontSet);
+
         return fontProvider;
     }
 
