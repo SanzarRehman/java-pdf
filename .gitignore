@@ -54,3 +54,4 @@ test.css
 test-css-sanitizer.sh
 simple-test.html
 remove_comments.py
+/ARCHITECTURE_REVIEW.md
