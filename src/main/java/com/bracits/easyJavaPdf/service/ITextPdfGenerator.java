@@ -5,6 +5,7 @@ import com.bracits.easyJavaPdf.exception.PdfGenerationException;
 import com.bracits.easyJavaPdf.handler.BengaliPageNumberHandler;
 import com.bracits.easyJavaPdf.handler.Footer;
 import com.bracits.easyJavaPdf.handler.Header;
+import com.bracits.easyJavaPdf.handler.QRCodeTagWorkerFactory;
 import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
@@ -28,6 +29,7 @@ import com.itextpdf.html2pdf.attach.impl.DefaultTagWorkerFactory;
 import com.itextpdf.html2pdf.attach.impl.tags.BodyTagWorker;
 import com.itextpdf.html2pdf.attach.impl.tags.DivTagWorker;
 import com.itextpdf.html2pdf.attach.impl.tags.HTagWorker;
+import com.itextpdf.layout.font.FontSet;
 import com.itextpdf.styledxmlparser.node.IElementNode;
 import com.itextpdf.layout.IPropertyContainer;
 import com.itextpdf.layout.element.IElement;
@@ -139,7 +141,27 @@ public class ITextPdfGenerator implements PdfGenerator {
         for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
             try {
                 ConverterProperties converterProperties = setupConverterProperties(fontFiles, resourceRoot);
-                converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
+//                converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
+//                converterProperties.setTagWorkerFactory(new QRCodeTagWorkerFactory());
+
+                converterProperties.setTagWorkerFactory(new DefaultTagWorkerFactory() {
+                    private final MarginSafeBookmarkTagWorkerFactory bookmarkFactory = new MarginSafeBookmarkTagWorkerFactory();
+                    private final QRCodeTagWorkerFactory qrFactory = new QRCodeTagWorkerFactory();
+
+                    @Override
+                    public ITagWorker getCustomTagWorker(IElementNode tag, ProcessorContext context) {
+                        // 1. Try QR code first
+                        ITagWorker qrWorker = qrFactory.getCustomTagWorker(tag, context);
+                        if (qrWorker != null) return qrWorker;
+
+                        // 2. Then try bookmark factory
+                        ITagWorker bookmarkWorker = bookmarkFactory.getCustomTagWorker(tag, context);
+                        if (bookmarkWorker != null) return bookmarkWorker;
+
+                        // 3. Fallback to default behavior
+                        return super.getCustomTagWorker(tag, context);
+                    }
+                });
 
         byte[] pdfBytes = convertHtmlToPdf(
                         variant.getHtml(),
@@ -318,15 +340,22 @@ public class ITextPdfGenerator implements PdfGenerator {
      * Creates a font provider with the specified font files.
      */
     private FontProvider createFontProvider(List<Path> fontFiles) {
-        FontProvider fontProvider = new FontProvider();
+//        FontProvider fontProvider = new FontProvider();
+//        for (Path fontFile : fontFiles) {
+//            try {
+//                logger.debug("Adding font: {}", fontFile);
+//                fontProvider.addFont(fontFile.toString());
+//            } catch (Exception e) {
+//                logger.warn("Failed to add font: {}, continuing without it", fontFile, e);
+//            }
+//        }
+
+        FontSet fontSet = new FontSet();
         for (Path fontFile : fontFiles) {
-            try {
-                logger.debug("Adding font: {}", fontFile);
-                fontProvider.addFont(fontFile.toString());
-            } catch (Exception e) {
-                logger.warn("Failed to add font: {}, continuing without it", fontFile, e);
-            }
+            fontSet.addFont(fontFile.toString());
         }
+        FontProvider fontProvider = new FontProvider(fontSet);
+
         return fontProvider;
     }
 
