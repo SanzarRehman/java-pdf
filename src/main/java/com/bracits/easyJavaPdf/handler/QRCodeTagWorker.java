@@ -7,9 +7,11 @@ import com.itextpdf.html2pdf.attach.ITagWorker;
 import com.itextpdf.html2pdf.attach.ProcessorContext;
 import com.itextpdf.io.image.ImageData;
 import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.kernel.pdf.xobject.PdfImageXObject;
+import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.IPropertyContainer;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.styledxmlparser.node.IElementNode;
@@ -31,7 +33,7 @@ public class QRCodeTagWorker implements ITagWorker {
 
   private Image qrCodeAsImage;
 
-  private int qrCodeSize;
+  private int qrCodeSize=50;
 
   /**
    * Instantiates a new QR code tag worker.
@@ -41,15 +43,27 @@ public class QRCodeTagWorker implements ITagWorker {
    */
   public QRCodeTagWorker(IElementNode element, ProcessorContext context) {
     Map<EncodeHintType, Object> hints = new HashMap<>();
+
     String charset = element.getAttribute("charset");
     if (checkCharacterSet(charset)) {
       hints.put(EncodeHintType.CHARACTER_SET, charset);
     }
+
     String errorCorrection = element.getAttribute("errorcorrection");
     if (checkErrorCorrectionAllowed(errorCorrection)) {
       ErrorCorrectionLevel errorCorrectionLevel = getErrorCorrectionLevel(errorCorrection);
       hints.put(EncodeHintType.ERROR_CORRECTION, errorCorrectionLevel);
     }
+
+      String sizeAttr = element.getAttribute("size");
+      if (sizeAttr != null && !sizeAttr.isEmpty()) {
+          try {
+              qrCodeSize = Integer.parseInt(sizeAttr);
+          } catch (NumberFormatException e) {
+              System.err.println("⚠️ Invalid QR size attribute, using default: " + e.getMessage());
+          }
+      }
+
     qrCode = new BarcodeQRCode("placeholder", hints);
 
   }
@@ -72,15 +86,10 @@ public class QRCodeTagWorker implements ITagWorker {
   @Override
   public void processEnd(IElementNode element, ProcessorContext context) {
 
-
-
-//    qrCodeAsImage = new Image(qrCode.createFormXObject(context.getPdfDocument()));
-
       // 1️⃣ Create QR code XObject
       PdfFormXObject qrObject = qrCode.createFormXObject(context.getPdfDocument());
 
       // Wrap QR code XObject in Image for layout
-      qrCodeSize=200;
       Image qrImage = new Image(qrObject).setWidth(qrCodeSize).setHeight(qrCodeSize);
 
       // 2️⃣ Check if logo attribute exists
@@ -91,20 +100,25 @@ public class QRCodeTagWorker implements ITagWorker {
               ImageData logoData = ImageDataFactory.create(logoPath);
               Image logoImage = new Image(logoData);
 
-              // Scale logo to 25% of QR code size
-              float logoWidth = qrCodeSize/20f;
-              float logoHeight = qrCodeSize/20f;
+              // Use QR XObject’s intrinsic dimensions
+              float qrWidth = qrObject.getWidth();
+              float qrHeight = qrObject.getHeight();
+
+// Logo should cover ~30–40% of QR width for good balance
+              float logoScaleRatio = 0.35f;
+              float logoWidth = qrWidth * logoScaleRatio;
+              float logoHeight = qrHeight * logoScaleRatio;
               logoImage.scaleAbsolute(logoWidth, logoHeight);
 
-              // Center logo inside QR code
-              float centerX = (qrObject.getWidth() - logoWidth) / 2f;
-              float centerY = (qrObject.getHeight() - logoHeight) / 2f;
+// Center logo within the QR XObject
+              float centerX = (qrWidth - logoWidth) / 2f;
+              float centerY = (qrHeight - logoHeight) / 2f;
               logoImage.setFixedPosition(centerX, centerY);
 
               // Draw logo directly on QR code XObject using Canvas
-              com.itextpdf.layout.Canvas canvas = new com.itextpdf.layout.Canvas(
+              Canvas canvas = new Canvas(
                       new PdfCanvas(qrObject, context.getPdfDocument()),
-                      new com.itextpdf.kernel.geom.Rectangle(0, 0, qrObject.getWidth(), qrObject.getHeight())
+                      new Rectangle(0, 0, qrObject.getWidth(), qrObject.getHeight())
               );
               canvas.add(logoImage);
               canvas.close();
