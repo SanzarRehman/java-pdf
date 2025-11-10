@@ -40,3 +40,19 @@ size="50"
 logo="/path/to/logo.png">
 https://www.bracu.ac.bd
 \</qr>
+
+**5. Page numbering in Footers**
+
+This system allows adding dynamic footers to PDFs generated from HTML using iText, with configurable page number behavior. The footer can be customized via HTML and supports three modes for page numbering:
+
+1. *first-page-1* – Page numbers start from the first page, counting 1, 2, 3…
+
+2. *second-page-1* – Page numbers start from the second page, counting 1, 2, 3… (first page has no footer).
+
+3. *second-page-2* – Page numbers start from the second page, counting 2, 3, 4… (first page has no footer).
+
+The footer is defined using a \<div> with _class_ footer and a _mode_ attribute:
+
+\<div class="footer" mode="first-page-1">Page {{pageNumber}}\</div>
+
+Use {{pageNumber}} as a placeholder in your HTML where you want the dynamic page number to appear. The entire footer content will be skipped on the first page for second-page-1 and second-page-2 modes. You can also include additional HTML or styling inside the footer div. For example, add dashed lines, logos, or other content.

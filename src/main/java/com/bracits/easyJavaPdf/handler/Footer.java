@@ -27,7 +27,7 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
   private static final float FOOTER_Y_OFFSET = 30f;
   private static final float FOOTER_WIDTH = 200f;
 
-    private boolean skipFirstPage = false;
+  private String mode = "first-page-1";
 
   /**
    * Creates a new footer handler with the specified HTML content.
@@ -36,19 +36,7 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
    */
   public Footer(String footerHtmlContent) {
     super(footerHtmlContent);
-
-      try {
-          Document doc = Jsoup.parse(footerHtmlContent);
-          Element footerDiv = doc.selectFirst(".footer");
-          if (footerDiv != null) {
-              String skip = footerDiv.attr("data-skip-first-page");
-              if ("true".equalsIgnoreCase(skip)) {
-                  skipFirstPage = true;
-              }
-          }
-      } catch (Exception e) {
-          logger.warn("Failed to parse skipFirstPage from HTML, defaulting to false", e);
-      }
+    parsePagingMode(footerHtmlContent);
   }
 
   /**
@@ -75,8 +63,26 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
   protected String processHtmlContent(PdfDocument pdf, PdfPage page) {
     int pageNumber = pdf.getPageNumber(page);
     logger.debug("Processing footer for page {}", pageNumber);
-      return htmlContent
-              .replace("{{pageNumber}}", String.valueOf(pageNumber));
+      // Handle different modes
+    switch (mode) {
+      case "first-page-1":
+          // Always show page number starting from first page
+          return htmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
+
+      case "second-page-1":
+          // Skip first page but numbering starts at 1 from second page
+          if (pageNumber == 1) return ""; // skip footer
+          return htmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber - 1));
+
+      case "second-page-2":
+          // Skip first page, numbering starts at 2 from second page
+          if (pageNumber == 1) return ""; // skip footer
+          return htmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
+
+      default:
+          return htmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
+
+      }
   }
 
   /**
@@ -88,12 +94,6 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
    */
   @Override
   protected void renderElements(Canvas canvas, List<IElement> elements, Rectangle pageSize) {
-      // Skip footer rendering if page = 1 and skipFirstPage is true
-      int currentPage = canvas.getPdfDocument().getPageNumber(canvas.getPdfDocument().getLastPage());
-      if (skipFirstPage && currentPage == 2) {
-          logger.debug("Skipping footer on page 1");
-          return; // do not render footer
-      }
     float footerY = pageSize.getBottom() + FOOTER_Y_OFFSET;
     float centerX = pageSize.getWidth() / 2 - FOOTER_WIDTH / 2;
     
@@ -106,4 +106,22 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
       }
     }
   }
+
+    private void parsePagingMode(String footerHtmlContent) {
+        try{
+            Document doc = Jsoup.parse(footerHtmlContent);
+            Element footerDiv = doc.selectFirst(".footer");
+            if (footerDiv != null) {
+                String m = footerDiv.attr("mode");
+                if (m != null && !m.isEmpty()) {
+                    mode = m.toLowerCase();
+                }
+            }
+        }
+        catch (Exception e) {
+            logger.warn("Failed to parse from HTML, defaulting to false", e);
+        }
+    }
+
+
 }
