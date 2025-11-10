@@ -24,8 +24,6 @@ import java.util.List;
  */
 public class Footer extends AbstractHtmlDocumentEventHandler {
   private static final Logger logger = LoggerFactory.getLogger(Footer.class);
-  private static final float FOOTER_Y_OFFSET = 30f;
-  private static final float FOOTER_WIDTH = 200f;
 
   private String mode = "first-page-1";
 
@@ -63,7 +61,7 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
   protected String processHtmlContent(PdfDocument pdf, PdfPage page) {
     int pageNumber = pdf.getPageNumber(page);
     logger.debug("Processing footer for page {}", pageNumber);
-      // Handle different modes
+
     switch (mode) {
       case "first-page-1":
           // Always show page number starting from first page
@@ -94,15 +92,16 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
    */
   @Override
   protected void renderElements(Canvas canvas, List<IElement> elements, Rectangle pageSize) {
-    float footerY = pageSize.getBottom() + FOOTER_Y_OFFSET;
-    float centerX = pageSize.getWidth() / 2 - FOOTER_WIDTH / 2;
+    float footerWidth = pageSize.getWidth() - 40;
+    float footerX = 20;
+    float footerY = pageSize.getBottom() + 30;
     
     logger.debug("Rendering footer with {} elements at y-position {}", elements.size(), footerY);
     
     for (IElement element : elements) {
       if (element instanceof BlockElement) {
         BlockElement<?> block = (BlockElement<?>) element;
-        canvas.add((IBlockElement) block.setFixedPosition(centerX, footerY, FOOTER_WIDTH));
+          canvas.add((IBlockElement) block.setFixedPosition(footerX, footerY, footerWidth));
       }
     }
   }
