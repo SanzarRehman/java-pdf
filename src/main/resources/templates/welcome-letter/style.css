@@ -1,0 +1,142 @@
+:root {
+    --primary-color: #1a73e8;
+    --accent-color: #0f4c81;
+    --text-color: #1f2933;
+    --muted-text: #52606d;
+    --background: #f5f7fb;
+    --card-background: #ffffff;
+    --border-radius: 12px;
+    --shadow: 0 10px 25px rgba(15, 76, 129, 0.08);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: "Inter", "Segoe UI", sans-serif;
+    color: var(--text-color);
+    background: linear-gradient(135deg, #edf2fb 0%, #fef9f9 100%);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 750px;
+    margin: 40px auto;
+    background: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 48px 56px;
+    border: 1px solid rgba(26, 115, 232, 0.08);
+}
+
+.letter-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 2px solid rgba(26, 115, 232, 0.15);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+}
+
+.brand h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: var(--primary-color);
+    letter-spacing: 0.02em;
+}
+
+.brand .tagline {
+    margin: 6px 0 0;
+    color: var(--muted-text);
+    font-weight: 500;
+}
+
+.contact-block {
+    text-align: right;
+    color: var(--muted-text);
+    font-size: 0.95rem;
+}
+
+.issued-on {
+    color: var(--muted-text);
+    margin: 0 0 20px;
+}
+
+.intro p,
+.message p,
+.closing p {
+    margin: 0 0 16px;
+    font-size: 1.05rem;
+}
+
+.highlight {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.highlights h2 {
+    margin: 32px 0 16px;
+    font-size: 1.35rem;
+    color: var(--primary-color);
+}
+
+.highlight-card {
+    display: flex;
+    gap: 18px;
+    background: rgba(26, 115, 232, 0.06);
+    padding: 18px 22px;
+    border-radius: var(--border-radius);
+    margin-bottom: 16px;
+    border: 1px solid rgba(26, 115, 232, 0.12);
+}
+
+.highlight-card .counter {
+    width: 36px;
+    height: 36px;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+.highlight-card h3 {
+    margin: 0 0 8px;
+    font-size: 1.1rem;
+    color: var(--accent-color);
+}
+
+.signature {
+    margin-top: 48px;
+}
+
+.signature-name {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.signature-title {
+    margin: 4px 0 0;
+    color: var(--muted-text);
+}
+
+@media (max-width: 640px) {
+    .container {
+        padding: 32px 28px;
+    }
+
+    .letter-header {
+        flex-direction: column;
+        text-align: left;
+        gap: 16px;
+    }
+
+    .contact-block {
+        text-align: left;
+    }
+}

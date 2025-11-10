@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome Letter</title>
+    <link rel="stylesheet" href="welcome-letter/style.css" th:href="@{welcome-letter/style.css}">
+</head>
+<body>
+<div class="container">
+    <header class="letter-header">
+        <div class="brand">
+            <h1 th:text="${company != null ? company['name'] : 'Your Company'}">Your Company</h1>
+            <p class="tagline" th:text="${company != null ? company['tagline'] : 'Inspiring Innovation Everyday'}">Inspiring Innovation Everyday</p>
+        </div>
+        <div class="contact-block">
+            <p th:text="${company != null ? company['address'] : '123 Main Street, Metropolis'}">123 Main Street, Metropolis</p>
+            <p>
+                <span th:text="${company != null ? company['email'] : 'hello@company.com'}">hello@company.com</span>
+                <span>&nbsp;|&nbsp;</span>
+                <span th:text="${company != null ? company['phone'] : '+1 (555) 123-4567'}">+1 (555) 123-4567</span>
+            </p>
+        </div>
+    </header>
+
+    <section class="intro">
+        <p class="issued-on">
+            <strong>Date:&nbsp;</strong>
+            <span th:text="${issuedOn != null ? issuedOn : #temporals.format(T(java.time.LocalDate).now(), 'MMMM d, yyyy')}">October 1, 2025</span>
+        </p>
+        <p>
+            Dear
+            <span class="highlight" th:text="${recipient != null ? recipient['name'] : 'New Team Member'}">New Team Member</span>,
+        </p>
+        <p>
+            Welcome to
+            <span class="highlight" th:text="${company != null ? company['name'] : 'Your Company'}">Your Company</span>!
+            We are delighted to have you join our team as
+            <span class="highlight" th:text="${recipient != null ? recipient['position'] : 'Product Specialist'}">Product Specialist</span>.
+        </p>
+    </section>
+
+    <section class="message">
+        <p th:text="${message != null ? message : 'We believe your skills and experience will make a tremendous impact on our upcoming initiatives. This letter outlines a few helpful highlights to guide your first weeks with us.'}">
+            We believe your skills and experience will make a tremendous impact on our upcoming initiatives. This letter outlines a few helpful highlights to guide your first weeks with us.
+        </p>
+    </section>
+
+    <section class="highlights" th:if="${highlights != null && !highlights.isEmpty()}">
+        <h2>Key Highlights</h2>
+        <div class="highlight-card" th:each="highlight, iterStat : ${highlights}">
+            <div class="counter" th:text="${iterStat.count}">1</div>
+            <div class="content">
+                <h3 th:text="${highlight != null ? highlight['title'] : 'Getting Started'}">Getting Started</h3>
+                <p th:text="${highlight != null ? highlight['description'] : 'Access your onboarding portal to review the first week checklist and resources.'}">
+                    Access your onboarding portal to review the first week checklist and resources.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <section class="closing">
+        <p>
+            Should you need any assistance, please reach out to your onboarding partner,
+            <span class="highlight" th:text="${partner != null ? partner['name'] : 'Jordan Blake'}">Jordan Blake</span>
+            at
+            <span class="highlight" th:text="${partner != null ? partner['email'] : 'jordan.blake@company.com'}">jordan.blake@company.com</span>.
+        </p>
+        <p>We are thrilled to have you with us and look forward to achieving great things together.</p>
+    </section>
+
+    <footer class="signature">
+        <p class="signature-name" th:text="${signature != null ? signature['name'] : 'Alex Morgan'}">Alex Morgan</p>
+        <p class="signature-title" th:text="${signature != null ? signature['title'] : 'Director of People & Culture'}">Director of People & Culture</p>
+    </footer>
+</div>
+</body>
+</html>

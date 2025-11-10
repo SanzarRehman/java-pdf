@@ -4,260 +4,104 @@ import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.dto.PdfResponse;
 import com.bracits.easyJavaPdf.exception.PdfGenerationException;
 import com.bracits.easyJavaPdf.model.PageOrientation;
+import com.bracits.easyJavaPdf.service.strategy.PdfGenerationStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.CompletionException;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PdfServiceTest {
 
     @Mock
-    private Executor mockExecutor;
+    private Executor executor;
 
     @Mock
-    private PdfGenerator mockPdfGenerator;
+    private PdfGenerationStrategy highPriorityStrategy;
 
     @Mock
-    private com.bracits.easyJavaPdf.util.TempFileManager mockTempFileManager;
-
-    @Mock
-    private TemplateRenderingService mockTemplateRenderingService;
-
-    @Mock
-    private ReportTemplateService mockReportTemplateService;
+    private PdfGenerationStrategy lowPriorityStrategy;
 
     private PdfService pdfService;
 
-    @TempDir
-    Path tempDir;
-
     @BeforeEach
     void setUp() {
-        when(mockTemplateRenderingService.resolveModel(any())).thenReturn(Collections.emptyMap());
-        lenient().when(mockTemplateRenderingService.resolveModelCollection(any())).thenReturn(List.of(Collections.emptyMap()));
-        when(mockTemplateRenderingService.shouldRenderTemplate(any(), any())).thenReturn(false);
         doAnswer(invocation -> {
             Runnable runnable = invocation.getArgument(0);
             runnable.run();
             return null;
-        }).when(mockExecutor).execute(any(Runnable.class));
-        pdfService = new PdfService(mockExecutor, mockPdfGenerator, mockTempFileManager, mockTemplateRenderingService, mockReportTemplateService);
+        }).when(executor).execute(any(Runnable.class));
+
+        pdfService = new PdfService(executor, List.of(lowPriorityStrategy, highPriorityStrategy));
     }
 
     @Test
-    void testGenerateWithValidParameters() throws Exception {
-
-        Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
-        Path cssFile = createTempFile("test.css", "body { font-family: Arial; }");
-        byte[] expectedPdfBytes = new byte[]{1, 2, 3, 4};
-        
-    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
-            .thenReturn(expectedPdfBytes);
-
-
-        CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, cssFile, "header", "footer", null, null, "password", "false",
-            PageOrientation.PORTRAIT, false
-        );
-
-
-        assertNotNull(result);
-        byte[] actualBytes = result.get();
-        assertArrayEquals(expectedPdfBytes, actualBytes);
-        
-
-        verify(mockPdfGenerator).generatePdf(
-            eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
-            eq(null), eq(null), eq("password"), eq("false"), eq(PageOrientation.PORTRAIT), eq(false)
-        );
-    }
-
-    @Test
-    void testGenerateWithPdfGeneratorException() throws Exception {
-
-        Path htmlFile = createTempFile("test.html", "<html><body>Test Content</body></html>");
-        
-    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
-            .thenThrow(new PdfGenerationException("PDF generation failed"));
-
-
-        CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, null, null, null, null, null, null, "false",
-            PageOrientation.PORTRAIT, false
-        );
-        
-        Exception exception = assertThrows(Exception.class, result::join);
-        assertTrue(exception.getCause() instanceof PdfGenerationException);
-        assertEquals("Failed to generate PDF from HTML file: " + htmlFile, exception.getCause().getMessage());
-    }
-
-    @Test
-    void testGenerateWithAllParameters() throws Exception {
-
-        Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
-        Path cssFile = createTempFile("test.css", "body { color: red; }");
-        Path fontFile = createTempFile("font.ttf", "fake font");
-        List<Path> fontFiles = Arrays.asList(fontFile);
-        byte[] expectedPdfBytes = new byte[]{5, 6, 7, 8};
-        
-    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
-            .thenReturn(expectedPdfBytes);
-
-
-        CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, cssFile, "header", "footer", "bangla", fontFiles, "pass", "true",
-            PageOrientation.LANDSCAPE, true
-        );
-
-
-        assertNotNull(result);
-        byte[] actualBytes = result.get();
-        assertArrayEquals(expectedPdfBytes, actualBytes);
-        
-
-        verify(mockPdfGenerator).generatePdf(
-            eq(htmlFile), eq(cssFile), eq("header"), eq("footer"), 
-            eq("bangla"), eq(fontFiles), eq("pass"), eq("true"),
-            eq(PageOrientation.LANDSCAPE), eq(true)
-        );
-    }
-
-    @Test
-    void testGenerateLogsPerformanceMetrics() throws Exception {
-
-        Path htmlFile = createTempFile("test.html", "<html><body>Test</body></html>");
-        byte[] expectedPdfBytes = new byte[]{1, 2, 3};
-        
-    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
-            .thenReturn(expectedPdfBytes);
-
-
-        CompletableFuture<byte[]> result = pdfService.generate(
-            htmlFile, null, null, null, null, null, null, "false",
-            PageOrientation.PORTRAIT, false
-        );
-
-
-        assertNotNull(result);
-        byte[] actualBytes = result.get();
-        assertArrayEquals(expectedPdfBytes, actualBytes);
-        
-
-    verify(mockPdfGenerator).generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean());
-    }
-
-
-
-    private Path createTempFile(String fileName, String content) throws IOException {
-        Path file = tempDir.resolve(fileName);
-        Files.write(file, content.getBytes());
-        return file;
-    }
-
-    @Test
-    void testGeneratePdfWithReportTemplate() throws Exception {
-        Path workingDir = tempDir.resolve("reportWork");
-        Files.createDirectories(workingDir);
-
-        Path htmlPath = workingDir.resolve("report.html");
-        Files.writeString(htmlPath, "<html></html>");
-
-        ReportTemplateDescriptor descriptor = new ReportTemplateDescriptor(
-                "report",
-                htmlPath,
-                List.of(htmlPath),
-                List.of()
-        );
-
-        when(mockTempFileManager.createTempDirectory(anyString())).thenReturn(workingDir);
-        when(mockReportTemplateService.prepareTemplate(eq("report-template"), eq(workingDir))).thenReturn(descriptor);
-        when(mockTemplateRenderingService.resolveModelCollection(any())).thenReturn(List.of(Collections.singletonMap("key", "value")));
-        when(mockTemplateRenderingService.renderNamedTemplate(eq("report"), anyList()))
-                .thenReturn("<html><body>Rendered</body></html>");
-        when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
-                .thenReturn(new byte[]{9, 9, 9});
-
+    void generatePdfUsesHighestPrioritySupportingStrategy() throws Exception {
         PdfGenerationRequest request = new PdfGenerationRequest();
-        request.setReport("report-template");
-        request.setData("{\"key\":\"value\"}");
 
-        PdfResponse response = pdfService.generatePdf(request).get();
+        when(highPriorityStrategy.supports(request)).thenReturn(true);
+        when(highPriorityStrategy.getPriority()).thenReturn(5);
+        when(lowPriorityStrategy.supports(request)).thenReturn(true);
+        when(lowPriorityStrategy.getPriority()).thenReturn(10);
 
-        assertNotNull(response);
-        assertArrayEquals(new byte[]{9, 9, 9}, response.getContent());
-        assertEquals(3L, response.getContentLength());
-        assertEquals("report-template.pdf", response.getFileName());
-        verify(mockReportTemplateService).prepareTemplate(eq("report-template"), eq(workingDir));
-        verify(mockTemplateRenderingService).renderNamedTemplate(eq("report"), anyList());
+        PdfResponse expectedResponse = PdfResponse.builder()
+                .content(new byte[]{1, 2, 3})
+                .contentLength(3L)
+                .fileName("generated.pdf")
+                .build();
+
+        when(highPriorityStrategy.generate(request, PageOrientation.PORTRAIT)).thenReturn(expectedResponse);
+
+        PdfResponse actual = pdfService.generatePdf(request).get();
+
+        assertSame(expectedResponse, actual, "Should return response from highest priority strategy");
+        verify(highPriorityStrategy).generate(request, PageOrientation.PORTRAIT);
+        verify(lowPriorityStrategy, never()).generate(any(), any());
     }
 
     @Test
-    void testGeneratePdfWithReportTemplateDataSet() throws Exception {
-    Path workingDir = tempDir.resolve("transcriptWork");
-    Files.createDirectories(workingDir);
+    void generatePdfPropagatesOrientationToStrategy() throws Exception {
+        PdfGenerationRequest request = new PdfGenerationRequest();
+        request.setPageOrientation("landscape");
 
-    Path htmlPath = workingDir.resolve("transcript/transcript.html");
-    Files.createDirectories(htmlPath.getParent());
-    Files.writeString(htmlPath, "<html></html>");
-    Path cssPath = workingDir.resolve("transcript/style.css");
-    Files.writeString(cssPath, "body{}");
+        when(highPriorityStrategy.supports(request)).thenReturn(true);
+        when(highPriorityStrategy.getPriority()).thenReturn(1);
 
-    ReportTemplateDescriptor descriptor = new ReportTemplateDescriptor(
-        "transcript/transcript",
-        htmlPath,
-        List.of(htmlPath, cssPath),
-        List.of()
-    );
+        PdfResponse response = PdfResponse.builder().content(new byte[0]).contentLength(0L).build();
+        when(highPriorityStrategy.generate(any(), any())).thenReturn(response);
 
-    when(mockTempFileManager.createTempDirectory(anyString())).thenReturn(workingDir);
-    when(mockReportTemplateService.prepareTemplate(eq("transcript"), eq(workingDir))).thenReturn(descriptor);
+        pdfService.generatePdf(request).get();
 
-    List<Map<String, Object>> models = List.of(
-        Collections.singletonMap("portfolioInfo", Collections.singletonMap("name", "Alice")),
-        Collections.singletonMap("portfolioInfo", Collections.singletonMap("name", "Bob"))
-    );
+        ArgumentCaptor<PageOrientation> orientationCaptor = ArgumentCaptor.forClass(PageOrientation.class);
+        verify(highPriorityStrategy).generate(eq(request), orientationCaptor.capture());
+        assertEquals(PageOrientation.LANDSCAPE, orientationCaptor.getValue());
+    }
 
-    when(mockTemplateRenderingService.resolveModelCollection(any())).thenReturn(models);
-    when(mockTemplateRenderingService.renderNamedTemplate(eq("transcript/transcript"), anyList()))
-        .thenReturn("<html><body>Transcript</body></html>");
-    when(mockPdfGenerator.generatePdf(any(), any(), any(), any(), any(), any(), any(), any(), any(PageOrientation.class), anyBoolean()))
-        .thenReturn(new byte[]{1, 0, 1});
+    @Test
+    void generatePdfThrowsWhenNoStrategySupportsRequest() {
+        PdfGenerationRequest request = new PdfGenerationRequest();
 
-    PdfGenerationRequest request = new PdfGenerationRequest();
-    request.setReport("transcript");
-    request.setDataSet("[{\"portfolioInfo\":{\"name\":\"Alice\"}},{\"portfolioInfo\":{\"name\":\"Bob\"}}]");
+        when(highPriorityStrategy.supports(request)).thenReturn(false);
+        when(lowPriorityStrategy.supports(request)).thenReturn(false);
 
-    PdfResponse response = pdfService.generatePdf(request).get();
+        CompletableFuture<PdfResponse> future = pdfService.generatePdf(request);
 
-    assertNotNull(response);
-    assertEquals("transcript.pdf", response.getFileName());
-    assertEquals(3L, response.getContentLength());
-
-    ArgumentCaptor<List<Map<String, Object>>> captor = ArgumentCaptor.forClass(List.class);
-    verify(mockTemplateRenderingService).renderNamedTemplate(eq("transcript/transcript"), captor.capture());
-    List<Map<String, Object>> capturedModels = captor.getValue();
-    assertEquals(2, capturedModels.size());
-    assertEquals("Alice", ((Map<?, ?>) capturedModels.get(0).get("portfolioInfo")).get("name"));
-    assertEquals("Bob", ((Map<?, ?>) capturedModels.get(1).get("portfolioInfo")).get("name"));
+        CompletionException exception = assertThrows(CompletionException.class, future::join);
+        assertTrue(exception.getCause() instanceof PdfGenerationException);
+        assertEquals("Failed to generate PDF", exception.getCause().getMessage());
     }
 }
