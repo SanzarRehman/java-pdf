@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -73,5 +74,7 @@ public class PdfService {
   private PageOrientation resolveOrientation(PdfGenerationRequest request) {
     return PageOrientation.fromOrDefault(request.getPageOrientation(), PageOrientation.PORTRAIT);
   }
+
+
 }
 

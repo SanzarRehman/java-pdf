@@ -4,10 +4,15 @@ import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.element.BlockElement;
 import com.itextpdf.layout.element.IBlockElement;
 import com.itextpdf.layout.element.IElement;
+import com.itextpdf.layout.properties.TextAlignment;
+import com.itextpdf.styledxmlparser.jsoup.Jsoup;
+import com.itextpdf.styledxmlparser.jsoup.nodes.Document;
+import com.itextpdf.styledxmlparser.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,6 +27,8 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
   private static final float FOOTER_Y_OFFSET = 30f;
   private static final float FOOTER_WIDTH = 200f;
 
+    private boolean skipFirstPage = false;
+
   /**
    * Creates a new footer handler with the specified HTML content.
    *
@@ -29,6 +36,19 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
    */
   public Footer(String footerHtmlContent) {
     super(footerHtmlContent);
+
+      try {
+          Document doc = Jsoup.parse(footerHtmlContent);
+          Element footerDiv = doc.selectFirst(".footer");
+          if (footerDiv != null) {
+              String skip = footerDiv.attr("data-skip-first-page");
+              if ("true".equalsIgnoreCase(skip)) {
+                  skipFirstPage = true;
+              }
+          }
+      } catch (Exception e) {
+          logger.warn("Failed to parse skipFirstPage from HTML, defaulting to false", e);
+      }
   }
 
   /**
@@ -55,7 +75,8 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
   protected String processHtmlContent(PdfDocument pdf, PdfPage page) {
     int pageNumber = pdf.getPageNumber(page);
     logger.debug("Processing footer for page {}", pageNumber);
-    return htmlContent.replace("{{pageNumber}}", String.valueOf(pageNumber));
+      return htmlContent
+              .replace("{{pageNumber}}", String.valueOf(pageNumber));
   }
 
   /**
@@ -67,6 +88,12 @@ public class Footer extends AbstractHtmlDocumentEventHandler {
    */
   @Override
   protected void renderElements(Canvas canvas, List<IElement> elements, Rectangle pageSize) {
+      // Skip footer rendering if page = 1 and skipFirstPage is true
+      int currentPage = canvas.getPdfDocument().getPageNumber(canvas.getPdfDocument().getLastPage());
+      if (skipFirstPage && currentPage == 2) {
+          logger.debug("Skipping footer on page 1");
+          return; // do not render footer
+      }
     float footerY = pageSize.getBottom() + FOOTER_Y_OFFSET;
     float centerX = pageSize.getWidth() / 2 - FOOTER_WIDTH / 2;
     

@@ -255,7 +255,10 @@ public class ITextPdfGenerator implements PdfGenerator {
                 logger.debug("Converting HTML to PDF with bookmark support");
                 Document document = HtmlConverter.convertToDocument(html, pdfDocument, converterProperties);
                 applyOrientation(pdfDocument, orientation);
+                int numberOfPages = pdfDocument.getNumberOfPages();
                 document.close();
+
+
             }
 
             return outputStream.toByteArray();
@@ -392,7 +395,9 @@ public class ITextPdfGenerator implements PdfGenerator {
         if (footerHtml != null && !footerHtml.trim().isEmpty()) {
             logger.debug("Adding footer event handler");
             pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new Footer(footerHtml));
-        } else if (banglaFooterHtml != null && !banglaFooterHtml.trim().isEmpty()) {
+        }
+
+        else if (banglaFooterHtml != null && !banglaFooterHtml.trim().isEmpty()) {
             logger.debug("Adding Bengali footer event handler");
             pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new BengaliPageNumberHandler(banglaFooterHtml));
         }
