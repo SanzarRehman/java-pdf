@@ -51,6 +51,7 @@ public final class PdfGenerationRequestValidator {
 
         validateHeaderFooterConsistency(request);
         validateAssetFilesWithHtmlContent(request);
+        validateLogoImage(request.getLogoImage());
     }
 
     /**
@@ -518,6 +519,18 @@ public final class PdfGenerationRequestValidator {
             }
         }
     }
+
+    private static void validateLogoImage(MultipartFile logoImage) {
+        if (logoImage != null && !logoImage.isEmpty()) {
+            FileValidator.validateImageFile(logoImage, "Logo image");
+
+
+            if (logoImage.getSize() > 1024 * 1024) {
+                throw new ValidationException("Logo image size should not exceed 1MB");
+            }
+        }
+    }
+
 
     /**
      * Checks if the password contains invalid characters.

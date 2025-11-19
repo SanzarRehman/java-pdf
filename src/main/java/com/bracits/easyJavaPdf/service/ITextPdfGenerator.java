@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -70,7 +71,7 @@ public class ITextPdfGenerator implements PdfGenerator {
     @Override
     public byte[] generatePdf(Path htmlFile, Path cssFile, String headerHtml,
         String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
-        String password, String jsEnable, PageOrientation orientation, boolean forceBrowserMode) {
+        String password, String jsEnable, PageOrientation orientation, boolean forceBrowserMode, BufferedImage logoImage) {
         
         logger.debug("Starting PDF generation from files - HTML: {}, CSS: {}", htmlFile, cssFile);
         
@@ -80,7 +81,7 @@ public class ITextPdfGenerator implements PdfGenerator {
             Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
             return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
-                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation, forceBrowserMode);
+                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation, forceBrowserMode, logoImage);
                 
         } catch (IOException e) {
             throw new FileProcessingException("Failed to read HTML or CSS file", e);
@@ -112,7 +113,7 @@ public class ITextPdfGenerator implements PdfGenerator {
         Path resourceRoot = cssFile != null ? cssFile.getParent() : (fontFiles != null && !fontFiles.isEmpty() ? fontFiles.get(0).getParent() : null);
 
         return generatePdfInternal(htmlContent, cssContent != null ? cssContent : "",
-            null, null, null, fontFiles, password, "false", resourceRoot, orientation, forceBrowserMode);
+            null, null, null, fontFiles, password, "false", resourceRoot, orientation, forceBrowserMode, null);
     }
 
     /**
@@ -121,10 +122,10 @@ public class ITextPdfGenerator implements PdfGenerator {
     private byte[] generatePdfInternal(String htmlContent, String cssContent,
             String headerHtml, String footerHtml, String banglaFooterHtml,
             List<Path> fontFiles, String password, String jsEnable, PageOrientation orientation,
-            boolean forceBrowserMode) {
+            boolean forceBrowserMode, BufferedImage logoImage) {
 
         return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
-            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation, forceBrowserMode);
+            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation, forceBrowserMode, logoImage);
     }
 
     /**
@@ -133,7 +134,7 @@ public class ITextPdfGenerator implements PdfGenerator {
     private byte[] generatePdfInternal(String htmlContent, String cssContent,
         String headerHtml, String footerHtml, String banglaFooterHtml,
         List<Path> fontFiles, String password, String jsEnable, Path resourceRoot,
-        PageOrientation orientation, boolean forceBrowserMode) {
+        PageOrientation orientation, boolean forceBrowserMode, BufferedImage logoImage) {
         
         HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation, forceBrowserMode);
 
@@ -141,24 +142,20 @@ public class ITextPdfGenerator implements PdfGenerator {
         for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
             try {
                 ConverterProperties converterProperties = setupConverterProperties(fontFiles, resourceRoot);
-//                converterProperties.setTagWorkerFactory(new MarginSafeBookmarkTagWorkerFactory());
-//                converterProperties.setTagWorkerFactory(new QRCodeTagWorkerFactory());
 
                 converterProperties.setTagWorkerFactory(new DefaultTagWorkerFactory() {
                     private final MarginSafeBookmarkTagWorkerFactory bookmarkFactory = new MarginSafeBookmarkTagWorkerFactory();
-                    private final QRCodeTagWorkerFactory qrFactory = new QRCodeTagWorkerFactory();
+                    private final QRCodeTagWorkerFactory qrFactory = new QRCodeTagWorkerFactory(logoImage);
 
                     @Override
                     public ITagWorker getCustomTagWorker(IElementNode tag, ProcessorContext context) {
-                        // 1. Try QR code first
+
                         ITagWorker qrWorker = qrFactory.getCustomTagWorker(tag, context);
                         if (qrWorker != null) return qrWorker;
 
-                        // 2. Then try bookmark factory
                         ITagWorker bookmarkWorker = bookmarkFactory.getCustomTagWorker(tag, context);
                         if (bookmarkWorker != null) return bookmarkWorker;
 
-                        // 3. Fallback to default behavior
                         return super.getCustomTagWorker(tag, context);
                     }
                 });
