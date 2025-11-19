@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -109,6 +111,11 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
             String footerHtml = extractFileContent(request.getFooterFile());
             String banglaFooterHtml = extractFileContent(request.getBanglaFooter());
 
+            BufferedImage logoImage = null;
+            if (request.getLogoImage() != null && !request.getLogoImage().isEmpty()) {
+                logoImage = ImageIO.read(request.getLogoImage().getInputStream());
+            }
+
             // Generate PDF using file-based method
             byte[] pdfBytes = generatePdfAsync(
                     htmlFile,
@@ -120,7 +127,8 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                     request.getPassword(),
                     (request.isJsEnable() || forceBrowserMode) ? "true" : "false",
                     orientation,
-                    forceBrowserMode
+                    forceBrowserMode,
+                    logoImage
             );
 
             return PdfResponse.builder()
@@ -147,7 +155,7 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                                    String footerHtml, String banglaFooterHtml, 
                                    List<Path> fontFiles, String password, 
                                    String jsEnable, PageOrientation orientation, 
-                                   boolean forceBrowserMode) 
+                                   boolean forceBrowserMode, BufferedImage logoImage)
             throws InterruptedException, ExecutionException {
         
         logger.info("Starting async PDF generation for file: {}", htmlFile);
@@ -156,7 +164,7 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
         CompletableFuture<byte[]> pdfFuture = CompletableFuture.supplyAsync(() -> {
             try {
                 return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
+                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode, logoImage);
             } catch (Exception e) {
                 logger.error("PDF generation failed for file: {}", htmlFile, e);
                 throw new RuntimeException("Failed to generate PDF from HTML file: " + htmlFile, e);

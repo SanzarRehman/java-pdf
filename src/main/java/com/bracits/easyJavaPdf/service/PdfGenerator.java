@@ -2,6 +2,7 @@ package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.model.PageOrientation;
 
+import java.awt.image.BufferedImage;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -23,6 +24,7 @@ public interface PdfGenerator {
      * @param password Password for PDF encryption (optional)
      * @param jsEnable Enable JavaScript execution during conversion
      * @param forceBrowserMode Forces raw browser rendering without sanitization
+     * @param logoImage Optional logo image to embed inside QR codes
      * @return Generated PDF as byte array
      * @throws com.bracits.easyJavaPdf.exception.PdfGenerationException if PDF generation fails
      */
@@ -36,7 +38,8 @@ public interface PdfGenerator {
         String password,
         String jsEnable,
         PageOrientation orientation,
-        boolean forceBrowserMode
+        boolean forceBrowserMode,
+        BufferedImage logoImage
     );
 
     /**

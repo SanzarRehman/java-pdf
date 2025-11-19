@@ -16,6 +16,9 @@ import com.itextpdf.layout.IPropertyContainer;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.styledxmlparser.node.IElementNode;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,13 +38,16 @@ public class QRCodeTagWorker implements ITagWorker {
 
   private int qrCodeSize=50;
 
+  private final BufferedImage logoImage;
+
   /**
    * Instantiates a new QR code tag worker.
    *
    * @param element the element node
    * @param context the processor context
    */
-  public QRCodeTagWorker(IElementNode element, ProcessorContext context) {
+  public QRCodeTagWorker(IElementNode element, ProcessorContext context, BufferedImage logoImage) {
+      this.logoImage = logoImage;
     Map<EncodeHintType, Object> hints = new HashMap<>();
 
     String charset = element.getAttribute("charset");
@@ -92,39 +98,35 @@ public class QRCodeTagWorker implements ITagWorker {
       // Wrap QR code XObject in Image for layout
       Image qrImage = new Image(qrObject).setWidth(qrCodeSize).setHeight(qrCodeSize);
 
-      // 2️⃣ Check if logo attribute exists
-      String logoPath = element.getAttribute("logo");
-      if (logoPath != null && !logoPath.isEmpty()) {
+      if (logoImage != null) {
           try {
-              // Load logo image
-              ImageData logoData = ImageDataFactory.create(logoPath);
+              // Convert BufferedImage → ImageData
+              ByteArrayOutputStream baos = new ByteArrayOutputStream();
+              ImageIO.write(logoImage, "png", baos);
+              ImageData logoData = ImageDataFactory.create(baos.toByteArray());
               Image logoImage = new Image(logoData);
 
-              // Use QR XObject’s intrinsic dimensions
               float qrWidth = qrObject.getWidth();
               float qrHeight = qrObject.getHeight();
 
-// Logo should cover ~30–40% of QR width for good balance
-              float logoScaleRatio = 0.35f;
-              float logoWidth = qrWidth * logoScaleRatio;
-              float logoHeight = qrHeight * logoScaleRatio;
+              float scale = 0.35f;
+              float logoWidth = qrWidth * scale;
+              float logoHeight = qrHeight * scale;
               logoImage.scaleAbsolute(logoWidth, logoHeight);
 
-// Center logo within the QR XObject
               float centerX = (qrWidth - logoWidth) / 2f;
               float centerY = (qrHeight - logoHeight) / 2f;
               logoImage.setFixedPosition(centerX, centerY);
 
-              // Draw logo directly on QR code XObject using Canvas
               Canvas canvas = new Canvas(
                       new PdfCanvas(qrObject, context.getPdfDocument()),
-                      new Rectangle(0, 0, qrObject.getWidth(), qrObject.getHeight())
+                      new Rectangle(0, 0, qrWidth, qrHeight)
               );
               canvas.add(logoImage);
               canvas.close();
 
-          } catch (IOException e) {
-              e.printStackTrace();
+          } catch (IOException ex) {
+              ex.printStackTrace();
           }
       }
 

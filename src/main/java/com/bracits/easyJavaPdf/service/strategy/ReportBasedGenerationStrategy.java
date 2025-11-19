@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -102,6 +104,11 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
             String footerHtml = extractFileContent(request.getFooterFile());
             String banglaFooterHtml = extractFileContent(request.getBanglaFooter());
 
+            BufferedImage logoImage = null;
+            if (request.getLogoImage() != null && !request.getLogoImage().isEmpty()) {
+                logoImage = ImageIO.read(request.getLogoImage().getInputStream());
+            }
+
             // Generate PDF
             byte[] pdfBytes = generatePdfAsync(
                     descriptor.htmlFile(),
@@ -113,7 +120,8 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
                     request.getPassword(),
                     (request.isJsEnable() || forceBrowserMode) ? "true" : "false",
                     orientation,
-                    forceBrowserMode
+                    forceBrowserMode,
+                    logoImage
             );
 
             return PdfResponse.builder()
@@ -164,7 +172,7 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
                                    String footerHtml, String banglaFooterHtml, 
                                    List<Path> fontFiles, String password, 
                                    String jsEnable, PageOrientation orientation, 
-                                   boolean forceBrowserMode) 
+                                   boolean forceBrowserMode, BufferedImage logoImage)
             throws InterruptedException, ExecutionException {
         
         logger.info("Starting async PDF generation for report: {}", htmlFile);
@@ -173,7 +181,7 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
         CompletableFuture<byte[]> pdfFuture = CompletableFuture.supplyAsync(() -> {
             try {
                 return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
+                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode, logoImage);
             } catch (Exception e) {
                 logger.error("PDF generation failed for report: {}", htmlFile, e);
                 throw new RuntimeException("Failed to generate PDF from report: " + htmlFile, e);

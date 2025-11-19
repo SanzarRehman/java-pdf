@@ -109,4 +109,9 @@ public class PdfGenerationRequest {
      * Optional page orientation hint (PORTRAIT, LANDSCAPE, INVERTED_PORTRAIT, SEASCAPE)
      */
     private String pageOrientation;
+
+    /**
+     * Optional logo file to be included in the merged PDF to embed logo at the center of QR code
+     */
+    private MultipartFile logoImage;
 }
