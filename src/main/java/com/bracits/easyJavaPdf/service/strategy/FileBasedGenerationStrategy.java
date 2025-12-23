@@ -4,6 +4,7 @@ import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.dto.PdfResponse;
 import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.bracits.easyJavaPdf.service.PdfGenerator;
+import com.bracits.easyJavaPdf.service.renderer.RendererTuning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -35,6 +36,16 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
     public FileBasedGenerationStrategy(PdfGenerator pdfGenerator, PdfGenerationHelper helper) {
         this.pdfGenerator = pdfGenerator;
         this.helper = helper;
+    }
+
+    private RendererTuning buildTuning(com.bracits.easyJavaPdf.dto.PdfGenerationRequest request) {
+        if (request.getChunkSizeMb() == null && request.getParallelism() == null) {
+            return null;
+        }
+        return RendererTuning.builder()
+                .chunkSizeMb(request.getChunkSizeMb())
+                .parallelism(request.getParallelism())
+                .build();
     }
 
     @Override
@@ -120,7 +131,9 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                     request.getPassword(),
                     (request.isJsEnable() || forceBrowserMode) ? "true" : "false",
                     orientation,
-                    forceBrowserMode
+                    forceBrowserMode,
+                    request.getRenderer(),
+                    buildTuning(request)
             );
 
             return PdfResponse.builder()
@@ -147,16 +160,28 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                                    String footerHtml, String banglaFooterHtml, 
                                    List<Path> fontFiles, String password, 
                                    String jsEnable, PageOrientation orientation, 
-                                   boolean forceBrowserMode) 
+                                   boolean forceBrowserMode, String requestRenderer,
+                                   RendererTuning tuning) 
             throws InterruptedException, ExecutionException {
         
-        logger.info("Starting async PDF generation for file: {}", htmlFile);
+        logger.info("Starting async PDF generation for file: {} with renderer: {}", 
+                htmlFile, requestRenderer != null ? requestRenderer : "default");
         long startTime = System.currentTimeMillis();
 
         CompletableFuture<byte[]> pdfFuture = CompletableFuture.supplyAsync(() -> {
             try {
-                return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
+                // Check if pdfGenerator is ITextPdfGenerator to use renderer-aware method
+                if (pdfGenerator instanceof com.bracits.easyJavaPdf.service.ITextPdfGenerator) {
+                    com.bracits.easyJavaPdf.service.ITextPdfGenerator itextGen = 
+                        (com.bracits.easyJavaPdf.service.ITextPdfGenerator) pdfGenerator;
+                    return itextGen.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, 
+                        forceBrowserMode, requestRenderer, tuning);
+                } else {
+                    // Fallback to standard interface method
+                    return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+                            banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
+                }
             } catch (Exception e) {
                 logger.error("PDF generation failed for file: {}", htmlFile, e);
                 throw new RuntimeException("Failed to generate PDF from HTML file: " + htmlFile, e);

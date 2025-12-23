@@ -109,4 +109,23 @@ public class PdfGenerationRequest {
      * Optional page orientation hint (PORTRAIT, LANDSCAPE, INVERTED_PORTRAIT, SEASCAPE)
      */
     private String pageOrientation;
+
+    /**
+     * Optional chunk size in MB for Chromium chunked renderer. If null, defaults are used.
+     */
+    private Integer chunkSizeMb;
+
+    /**
+     * Optional parallelism (number of chunks processed concurrently) for Chromium chunked renderer.
+     * If null, defaults are used; set to 1 for strict low-memory mode.
+     */
+    private Integer parallelism;
+
+    /**
+     * Optional renderer selection (itext, chromium, puppeteer)
+     * Overrides the default renderer configured in application.properties
+     * - "itext": Use iText library for PDF generation (default)
+     * - "chromium" or "puppeteer": Use headless Chromium/Puppeteer for rendering
+     */
+    private String renderer;
 }

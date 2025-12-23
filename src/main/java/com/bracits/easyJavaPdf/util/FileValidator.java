@@ -14,7 +14,7 @@ import java.util.Set;
 public final class FileValidator {
 
 
-    private static final long MAX_FILE_SIZE = 50 * 1024 * 1024;
+    private static final long MAX_FILE_SIZE = 200 * 1024 * 1024;
 
 
     private static final Set<String> SUPPORTED_HTML_TYPES = Set.of(

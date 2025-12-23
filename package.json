@@ -1,0 +1,17 @@
+{
+  "name": "easyjavapdf",
+  "version": "1.0.0",
+  "description": "PDF generation dependencies for EasyJavaPdf",
+  "private": true,
+  "scripts": {
+    "test:pdf": "node scripts/puppeteer-pdf.js",
+    "test:chunked": "node scripts/puppeteer-pdf-chunked.js"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "puppeteer-core": "^23.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

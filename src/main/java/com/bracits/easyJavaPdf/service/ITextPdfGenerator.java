@@ -7,6 +7,8 @@ import com.bracits.easyJavaPdf.handler.Footer;
 import com.bracits.easyJavaPdf.handler.Header;
 import com.bracits.easyJavaPdf.handler.QRCodeTagWorkerFactory;
 import com.bracits.easyJavaPdf.model.PageOrientation;
+import com.bracits.easyJavaPdf.service.renderer.ChromiumPdfRenderer;
+import com.bracits.easyJavaPdf.service.renderer.RendererTuning;
 import com.itextpdf.html2pdf.ConverterProperties;
 import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.html2pdf.attach.impl.OutlineHandler;
@@ -39,8 +41,10 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -51,10 +55,16 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.itextpdf.kernel.utils.PdfMerger;
+import com.itextpdf.kernel.pdf.PdfReader;
 
 /**
  * iText-based implementation of the PdfGenerator interface.
  * Uses iText library for PDF generation and Selenium WebDriver for JavaScript execution.
+ * Can delegate to Chromium/Puppeteer renderer when configured.
  */
 @Component
 public class ITextPdfGenerator implements PdfGenerator {
@@ -62,9 +72,14 @@ public class ITextPdfGenerator implements PdfGenerator {
     private static final Logger logger = LoggerFactory.getLogger(ITextPdfGenerator.class);
     
     private final CssProcessor cssProcessor;
+    private final ChromiumPdfRenderer chromiumPdfRenderer;
 
-    public ITextPdfGenerator(CssProcessor cssProcessor) {
+    @Value("${pdf.renderer:itext}")
+    private String configuredRenderer;
+
+    public ITextPdfGenerator(CssProcessor cssProcessor, ChromiumPdfRenderer chromiumPdfRenderer) {
         this.cssProcessor = cssProcessor;
+        this.chromiumPdfRenderer = chromiumPdfRenderer;
     }
 
     @Override
@@ -72,26 +87,87 @@ public class ITextPdfGenerator implements PdfGenerator {
         String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
         String password, String jsEnable, PageOrientation orientation, boolean forceBrowserMode) {
         
-        logger.debug("Starting PDF generation from files - HTML: {}, CSS: {}", htmlFile, cssFile);
+        return generatePdf(htmlFile, cssFile, headerHtml, footerHtml, banglaFooterHtml, 
+            fontFiles, password, jsEnable, orientation, forceBrowserMode, null, null);
+    }
+
+    /**
+     * Generate PDF with optional renderer override.
+     */
+    public byte[] generatePdf(Path htmlFile, Path cssFile, String headerHtml,
+        String footerHtml, String banglaFooterHtml, List<Path> fontFiles,
+        String password, String jsEnable, PageOrientation orientation, 
+        boolean forceBrowserMode, String requestRenderer, RendererTuning tuning) {
+        
+        String effectiveRenderer = requestRenderer != null ? requestRenderer : configuredRenderer;
+        logger.debug("Starting PDF generation from files - HTML: {}, CSS: {}, renderer: {}", 
+                htmlFile, cssFile, effectiveRenderer);
         
         try {
             String htmlContent = readFileContent(htmlFile);
             String cssContent = cssFile != null ? readFileContent(cssFile) : "";
             Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
+            // Check if Chromium renderer should be used
+            if (shouldUseChromiumRenderer(effectiveRenderer)) {
+                logger.info("Using Chromium/Puppeteer renderer for PDF generation");
+                return chromiumPdfRenderer.render(htmlContent, cssContent, fontFiles, 
+                        password, orientation, resourceRoot, tuning);
+            }
+            
             return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
-                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation, forceBrowserMode);
+                banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation, forceBrowserMode, tuning);
                 
         } catch (IOException e) {
             throw new FileProcessingException("Failed to read HTML or CSS file", e);
         }
     }
 
+    /**
+     * Checks if Chromium renderer should be used based on configuration or request parameter.
+     */
+    private boolean shouldUseChromiumRenderer(String renderer) {
+        if ("chromium".equalsIgnoreCase(renderer) || "puppeteer".equalsIgnoreCase(renderer)) {
+            if (chromiumPdfRenderer.isAvailable()) {
+                return true;
+            }
+            logger.warn("Chromium/Puppeteer renderer requested but not available (Node.js not found). Falling back to iText.");
+        }
+        return false;
+    }
+
+    /**
+     * Legacy method for backward compatibility.
+     */
+    private boolean shouldUseChromiumRenderer() {
+        return shouldUseChromiumRenderer(configuredRenderer);
+    }
+
     @Override
     public byte[] generatePdfFromContent(String htmlContent, String cssContent,
         List<Path> fontFiles, String password, PageOrientation orientation, boolean forceBrowserMode) {
         
-        logger.debug("Starting PDF generation from content strings");
+        return generatePdfFromContent(htmlContent, cssContent, fontFiles, password, orientation, forceBrowserMode, null, null);
+    }
+
+    /**
+     * Generate PDF from content with optional renderer override.
+     */
+    public byte[] generatePdfFromContent(String htmlContent, String cssContent,
+        List<Path> fontFiles, String password, PageOrientation orientation, 
+        boolean forceBrowserMode, String requestRenderer, RendererTuning tuning) {
+        
+        String effectiveRenderer = requestRenderer != null ? requestRenderer : configuredRenderer;
+        logger.debug("Starting PDF generation from content strings, renderer: {}", effectiveRenderer);
+        
+        // Check if Chromium renderer should be used
+        if (shouldUseChromiumRenderer(effectiveRenderer)) {
+            logger.info("Using Chromium/Puppeteer renderer for PDF generation from content");
+            Path resourceRoot = fontFiles != null && !fontFiles.isEmpty() 
+                    ? fontFiles.get(0).getParent() : null;
+            return chromiumPdfRenderer.render(htmlContent, cssContent, fontFiles, 
+                    password, orientation, resourceRoot, tuning);
+        }
         
         // For content-based generation, we need to determine the base directory from font files
         Path cssFile = null;
@@ -112,7 +188,7 @@ public class ITextPdfGenerator implements PdfGenerator {
         Path resourceRoot = cssFile != null ? cssFile.getParent() : (fontFiles != null && !fontFiles.isEmpty() ? fontFiles.get(0).getParent() : null);
 
         return generatePdfInternal(htmlContent, cssContent != null ? cssContent : "",
-            null, null, null, fontFiles, password, "false", resourceRoot, orientation, forceBrowserMode);
+            null, null, null, fontFiles, password, "false", resourceRoot, orientation, forceBrowserMode, tuning);
     }
 
     /**
@@ -121,10 +197,10 @@ public class ITextPdfGenerator implements PdfGenerator {
     private byte[] generatePdfInternal(String htmlContent, String cssContent,
             String headerHtml, String footerHtml, String banglaFooterHtml,
             List<Path> fontFiles, String password, String jsEnable, PageOrientation orientation,
-            boolean forceBrowserMode) {
+            boolean forceBrowserMode, RendererTuning tuning) {
 
         return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
-            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation, forceBrowserMode);
+            banglaFooterHtml, fontFiles, password, jsEnable, null, orientation, forceBrowserMode, tuning);
     }
 
     /**
@@ -133,7 +209,7 @@ public class ITextPdfGenerator implements PdfGenerator {
     private byte[] generatePdfInternal(String htmlContent, String cssContent,
         String headerHtml, String footerHtml, String banglaFooterHtml,
         List<Path> fontFiles, String password, String jsEnable, Path resourceRoot,
-        PageOrientation orientation, boolean forceBrowserMode) {
+        PageOrientation orientation, boolean forceBrowserMode, RendererTuning tuning) {
         
         HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation, forceBrowserMode);
 
@@ -163,15 +239,30 @@ public class ITextPdfGenerator implements PdfGenerator {
                     }
                 });
 
-        byte[] pdfBytes = convertHtmlToPdf(
-                        variant.getHtml(),
-                        converterProperties,
-                        headerHtml,
-                        footerHtml,
-                        banglaFooterHtml,
-            password,
-            orientation
-                );
+        byte[] pdfBytes;
+
+        if (tuning != null && tuning.getChunkSizeMb() != null && tuning.getChunkSizeMb() > 0) {
+            pdfBytes = convertHtmlToPdfChunked(
+                    variant.getHtml(),
+                    converterProperties,
+                    headerHtml,
+                    footerHtml,
+                    banglaFooterHtml,
+                    password,
+                    orientation,
+                    tuning.getChunkSizeMb()
+            );
+        } else {
+            pdfBytes = convertHtmlToPdf(
+                    variant.getHtml(),
+                    converterProperties,
+                    headerHtml,
+                    footerHtml,
+                    banglaFooterHtml,
+                    password,
+                    orientation
+            );
+        }
 
                 logger.debug("PDF generation completed using {} HTML variant, size: {} bytes",
                         variant.getDescription(), pdfBytes.length);
@@ -263,6 +354,172 @@ public class ITextPdfGenerator implements PdfGenerator {
 
             return outputStream.toByteArray();
         }
+    }
+
+    /**
+     * Chunked iText conversion: split HTML into manageable pieces and merge PDFs.
+     */
+    private byte[] convertHtmlToPdfChunked(String html,
+            ConverterProperties converterProperties,
+            String headerHtml,
+            String footerHtml,
+            String banglaFooterHtml,
+            String password,
+            PageOrientation orientation,
+            int chunkSizeMb) throws Exception {
+
+        double effectiveChunkMb = Math.max(0.1, chunkSizeMb);
+        List<String> chunks = splitHtmlIntoChunks(html, effectiveChunkMb);
+        if (chunks.isEmpty()) {
+            logger.warn("Chunk splitter produced no chunks; falling back to single-pass conversion");
+            return convertHtmlToPdf(html, converterProperties, headerHtml, footerHtml, banglaFooterHtml, password, orientation);
+        }
+
+        logger.info("iText chunked mode: {} chunk(s) at ~{} MB each", chunks.size(), effectiveChunkMb);
+
+        try (ByteArrayOutputStream mergedOut = new ByteArrayOutputStream();
+             PdfDocument target = new PdfDocument(new PdfWriter(mergedOut))) {
+
+            PdfMerger merger = new PdfMerger(target);
+
+            for (int i = 0; i < chunks.size(); i++) {
+                String chunkHtml = chunks.get(i);
+                byte[] chunkPdf = convertHtmlToPdf(chunkHtml, converterProperties, headerHtml, footerHtml, banglaFooterHtml, password, orientation);
+                try (PdfDocument src = new PdfDocument(new PdfReader(new ByteArrayInputStream(chunkPdf)))) {
+                    merger.merge(src, 1, src.getNumberOfPages());
+                }
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Merged chunk {}/{}", i + 1, chunks.size());
+                }
+            }
+
+            target.close();
+            return mergedOut.toByteArray();
+        }
+    }
+
+    /**
+     * Split HTML into chunks on top-level element boundaries to keep each chunk under a size budget.
+     */
+    private List<String> splitHtmlIntoChunks(String html, double chunkSizeMb) {
+        long chunkSizeBytes = (long) (chunkSizeMb * 1024 * 1024);
+        if (chunkSizeBytes < 256 * 1024) {
+            chunkSizeBytes = 256 * 1024; // minimum chunk size ~256KB
+        }
+
+        // Extract head
+        String headContent = "<head><meta charset=\"UTF-8\"></head>";
+        Matcher headMatch = Pattern.compile("(?is)<head[^>]*>\\s*(.*?)\\s*</head>").matcher(html);
+        if (headMatch.find()) {
+            headContent = headMatch.group(0);
+        }
+
+        // Collect style tags
+        Matcher styleMatcher = Pattern.compile("(?is)<style[^>]*>.*?</style>").matcher(html);
+        StringBuilder styles = new StringBuilder();
+        while (styleMatcher.find()) {
+            styles.append(styleMatcher.group());
+        }
+
+        // Extract body content
+        Matcher bodyMatch = Pattern.compile("(?is)<body[^>]*>(.*)</body>").matcher(html);
+        String bodyContent;
+        if (bodyMatch.find()) {
+            bodyContent = bodyMatch.group(1);
+        } else {
+            // Fallback: no body wrapper
+            List<String> single = new ArrayList<>();
+            single.add(html);
+            return single;
+        }
+
+        List<String> elements = extractTopLevelElements(bodyContent);
+        if (elements.isEmpty()) {
+            List<String> single = new ArrayList<>();
+            single.add(html);
+            return single;
+        }
+
+        List<String> chunks = new ArrayList<>();
+        List<String> current = new ArrayList<>();
+        long currentSize = 0;
+
+        for (String el : elements) {
+            long elSize = el.getBytes(StandardCharsets.UTF_8).length;
+            if (!current.isEmpty() && currentSize + elSize > chunkSizeBytes) {
+                chunks.add(createChunkHtml(headContent, styles.toString(), current));
+                current = new ArrayList<>();
+                currentSize = 0;
+            }
+            current.add(el);
+            currentSize += elSize;
+        }
+
+        if (!current.isEmpty()) {
+            chunks.add(createChunkHtml(headContent, styles.toString(), current));
+        }
+
+        return chunks;
+    }
+
+    private String createChunkHtml(String headContent, String styles, List<String> elements) {
+        boolean hasStylesInHead = headContent.toLowerCase(Locale.ROOT).contains("<style");
+        String styleBlock = hasStylesInHead ? "" : styles;
+        String body = String.join("\n", elements);
+        return "<!DOCTYPE html><html>" + headContent + styleBlock + "<body>" + body + "</body></html>";
+    }
+
+    private List<String> extractTopLevelElements(String bodyContent) {
+        List<String> elements = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        StringBuilder tagName = new StringBuilder();
+        int depth = 0;
+        boolean inTag = false;
+        boolean closing = false;
+
+        Set<String> voidElements = new HashSet<>(Set.of(
+                "area", "base", "br", "col", "embed", "hr", "img", "input",
+                "link", "meta", "param", "source", "track", "wbr"
+        ));
+
+        for (int i = 0; i < bodyContent.length(); i++) {
+            char c = bodyContent.charAt(i);
+            current.append(c);
+
+            if (c == '<') {
+                inTag = true;
+                closing = (i + 1 < bodyContent.length() && bodyContent.charAt(i + 1) == '/');
+                tagName.setLength(0);
+            } else if (inTag) {
+                if (c == '>') {
+                    inTag = false;
+                    String name = tagName.toString().toLowerCase(Locale.ROOT);
+                    boolean selfClosing = voidElements.contains(name) || (i > 0 && bodyContent.charAt(i - 1) == '/');
+                    if (closing) {
+                        depth = Math.max(0, depth - 1);
+                    } else if (!selfClosing && !name.startsWith("!")) {
+                        depth++;
+                    }
+
+                    if (depth == 0 && current.toString().trim().length() > 0) {
+                        elements.add(current.toString().trim());
+                        current.setLength(0);
+                    }
+                } else if (Character.isWhitespace(c) || c == '/' ) {
+                    // ignore
+                } else if (!(closing && c == '/')) {
+                    if (tagName.length() < 30) {
+                        tagName.append(c);
+                    }
+                }
+            }
+        }
+
+        if (current.toString().trim().length() > 0) {
+            elements.add(current.toString().trim());
+        }
+
+        return elements;
     }
 
     private void applyOrientation(PdfDocument pdfDocument, PageOrientation orientation) {

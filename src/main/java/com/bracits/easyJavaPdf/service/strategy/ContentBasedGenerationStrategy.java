@@ -4,6 +4,7 @@ import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.dto.PdfResponse;
 import com.bracits.easyJavaPdf.model.PageOrientation;
 import com.bracits.easyJavaPdf.service.PdfGenerator;
+import com.bracits.easyJavaPdf.service.renderer.RendererTuning;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,16 @@ public class ContentBasedGenerationStrategy implements PdfGenerationStrategy {
     public ContentBasedGenerationStrategy(PdfGenerator pdfGenerator, PdfGenerationHelper helper) {
         this.pdfGenerator = pdfGenerator;
         this.helper = helper;
+    }
+
+    private RendererTuning buildTuning(PdfGenerationRequest request) {
+        if (request.getChunkSizeMb() == null && request.getParallelism() == null) {
+            return null;
+        }
+        return RendererTuning.builder()
+                .chunkSizeMb(request.getChunkSizeMb())
+                .parallelism(request.getParallelism())
+                .build();
     }
 
     @Override
@@ -91,14 +102,19 @@ public class ContentBasedGenerationStrategy implements PdfGenerationStrategy {
             helper.logRenderedHtml("content", helper.resolveHtmlIdentifier(null, request), htmlContent);
 
             // Generate PDF using content-based method
-            byte[] pdfBytes = pdfGenerator.generatePdfFromContent(
-                    htmlContent,
-                    cssContent,
-                    fontFiles,
-                    request.getPassword(),
-                    orientation,
-                    forceBrowserMode
-            );
+            byte[] pdfBytes;
+            // Check if pdfGenerator is ITextPdfGenerator to use renderer-aware method
+                if (pdfGenerator instanceof com.bracits.easyJavaPdf.service.ITextPdfGenerator) {
+                com.bracits.easyJavaPdf.service.ITextPdfGenerator itextGen = 
+                    (com.bracits.easyJavaPdf.service.ITextPdfGenerator) pdfGenerator;
+                pdfBytes = itextGen.generatePdfFromContent(htmlContent, cssContent, fontFiles,
+                    request.getPassword(), orientation, forceBrowserMode, request.getRenderer(),
+                    buildTuning(request));
+            } else {
+                // Fallback to standard interface method
+                pdfBytes = pdfGenerator.generatePdfFromContent(htmlContent, cssContent, fontFiles,
+                        request.getPassword(), orientation, forceBrowserMode);
+            }
 
             return PdfResponse.builder()
                     .content(pdfBytes)

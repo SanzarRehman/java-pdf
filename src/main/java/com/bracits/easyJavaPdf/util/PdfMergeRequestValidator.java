@@ -325,7 +325,7 @@ public final class PdfMergeRequestValidator {
                 .sum();
 
 
-        long maxTotalSize = 100 * 1024 * 1024;
+        long maxTotalSize = 500 * 1024 * 1024;
         if (totalSize > maxTotalSize) {
             throw new ValidationException(
                     "Total size of all files exceeds maximum allowed size for merging. " +

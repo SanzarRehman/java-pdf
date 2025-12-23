@@ -1,0 +1,37 @@
+{
+  "company": {
+    "name": "Skyline Ventures",
+    "tagline": "Empowering Bold Ideas",
+    "address": "410 Innovation Drive, Suite 900, Seattle, WA 98101",
+    "email": "people@skylineventures.com",
+    "phone": "+1 (206) 555-2841"
+  },
+  "recipient": {
+    "name": "Taylor Reed",
+    "position": "Senior Product Strategist"
+  },
+  "message": "We are thrilled to welcome you to Skyline Ventures. Over the next few weeks you will collaborate closely with the product discovery squad to frame our 2026 product roadmap. Thank you for bringing your leadership and curiosity to the table!",
+  "highlights": [
+    {
+      "title": "Week 1 Orientation",
+      "description": "Complete your onboarding checklist in Nimbus, our employee portal, and meet your mentor for the quarter."
+    },
+    {
+      "title": "Discovery Sprint",
+      "description": "Facilitate stakeholder interviews across Design, Growth, and Engineering to surface key product bets."
+    },
+    {
+      "title": "Strategy Summit",
+      "description": "Co-create the north-star metrics with the executive team and present your roadmap draft for feedback."
+    }
+  ],
+  "partner": {
+    "name": "Jordan Blake",
+    "email": "jordan.blake@skylineventures.com"
+  },
+  "signature": {
+    "name": "Alex Morgan",
+    "title": "Director of People & Culture"
+  },
+  "issuedOn": "November 10, 2025"
+}
