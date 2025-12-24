@@ -28,9 +28,10 @@ const isDocker = fs.existsSync('/.dockerenv') || process.env.PUPPETEER_EXECUTABL
 const cpuCount = os.cpus().length;
 const LOW_MEMORY_MODE = process.env.LOW_MEMORY_MODE === 'true' || process.env.LOW_MEMORY === 'true';
 const DEFAULT_CHUNK_SIZE_MB = LOW_MEMORY_MODE ? 1 : 5; // New default chunk size
-const DEFAULT_MAX_PARALLEL = LOW_MEMORY_MODE ? 1 : 8; // New default parallelism
+// Default parallelism tuned to avoid OOM spikes; can be overridden via config.parallelism
+const DEFAULT_MAX_PARALLEL = LOW_MEMORY_MODE ? 1 : Math.min(4, Math.max(1, cpuCount));
 const HARD_MAX_CHUNK_MB = 20; // Guardrail: prevent runaway memory from huge chunk requests
-const HARD_MAX_PARALLEL = LOW_MEMORY_MODE ? 1 : 8; // Guardrail aligned with default
+const HARD_MAX_PARALLEL = LOW_MEMORY_MODE ? 1 : 8; // Hard cap to avoid runaway memory
 let CURRENT_CHUNK_SIZE_MB = DEFAULT_CHUNK_SIZE_MB;
 let CURRENT_MAX_PARALLEL = DEFAULT_MAX_PARALLEL;
 const MAX_RETRIES = 2; // Reduced retries
@@ -46,6 +47,24 @@ const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH ||
 
 console.log(`Chunked PDF Generator defaults: CPUs=${cpuCount}, Parallel=${DEFAULT_MAX_PARALLEL}, ChunkSize=${DEFAULT_CHUNK_SIZE_MB}MB${LOW_MEMORY_MODE ? ' [LOW MEMORY MODE]' : ''}`);
 console.log(`Environment: ${isDocker ? 'Docker' : 'Local'}, Chrome: ${CHROME_PATH || 'bundled'}`);
+
+if (!global.gc) {
+    console.log('Tip: run Node with --expose-gc for better memory reclamation');
+}
+
+const LOG_MEMORY = process.env.LOG_MEMORY === 'true' || process.env.DEBUG_MEMORY === 'true';
+
+function bytesToMb(bytes) {
+    return (bytes / 1024 / 1024).toFixed(1);
+}
+
+function logMemory(label) {
+    if (!LOG_MEMORY) return;
+    const m = process.memoryUsage();
+    console.log(
+        `[mem] ${label} rss=${bytesToMb(m.rss)}MB heapUsed=${bytesToMb(m.heapUsed)}MB heapTotal=${bytesToMb(m.heapTotal)}MB external=${bytesToMb(m.external)}MB arrayBuffers=${bytesToMb(m.arrayBuffers || 0)}MB`
+    );
+}
 
 // Browser pool removed - each worker reuses a single lightweight browser + page
 
@@ -89,6 +108,45 @@ async function launchBrowser() {
     return puppeteer.launch(launchOptions);
 }
 
+function isJsEnabled(config) {
+    const value = config?.jsEnable ?? config?.jsEnabled;
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'string') return value.toLowerCase() === 'true';
+    return false;
+}
+
+async function preparePageForChunking(page, config) {
+    page.setDefaultTimeout(90000);
+    page.setDefaultNavigationTimeout(90000);
+    await page.setViewport({ width: 800, height: 600, deviceScaleFactor: 1 });
+
+    // Request interception is one of the biggest levers for memory and speed.
+    // Keep CSS + fonts; allow scripts only if JS is explicitly enabled.
+    const allowScripts = isJsEnabled(config);
+    await page.setRequestInterception(true);
+    page.removeAllListeners('request');
+    page.on('request', (request) => {
+        const url = request.url();
+        if (url.startsWith('file://') || url.startsWith('data:')) {
+            request.continue();
+            return;
+        }
+
+        const resourceType = request.resourceType();
+        if (resourceType === 'document' || resourceType === 'stylesheet' || resourceType === 'font') {
+            request.continue();
+            return;
+        }
+
+        if (allowScripts && resourceType === 'script') {
+            request.continue();
+            return;
+        }
+
+        request.abort();
+    });
+}
+
 async function generatePdf() {
     const configPath = process.argv[2];
     
@@ -98,6 +156,7 @@ async function generatePdf() {
     }
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    logMemory('after config load');
     // Apply per-request tuning overrides if provided
     CURRENT_CHUNK_SIZE_MB = config.chunkSizeMb && config.chunkSizeMb > 0 ? config.chunkSizeMb : DEFAULT_CHUNK_SIZE_MB;
     CURRENT_MAX_PARALLEL = config.parallelism && config.parallelism > 0 ? config.parallelism : DEFAULT_MAX_PARALLEL;
@@ -120,6 +179,7 @@ async function generatePdf() {
     const htmlSizeMB = (htmlStats.size / 1024 / 1024).toFixed(2);
     
     console.log(`HTML size: ${htmlSizeMB}MB`);
+    logMemory('after stat');
     
     // For smaller files, use single-pass generation
     if (parseFloat(htmlSizeMB) < 10) {
@@ -136,9 +196,11 @@ async function generatePdf() {
         global.gc();
         console.log('Garbage collection triggered');
     }
+    logMemory('before read html');
     
     // Read HTML content - we need it for splitting but will free it ASAP
     let htmlContent = fs.readFileSync(htmlPath, 'utf8');
+    logMemory('after read html');
     console.log('Validating and splitting HTML at safe boundaries...');
     
     const startTime = Date.now();
@@ -146,6 +208,7 @@ async function generatePdf() {
     // Split HTML into chunks at SAFE boundaries only
     const chunks = splitHtmlSafely(htmlContent);
     console.log(`Split into ${chunks.length} chunks (validated)`);
+    logMemory('after split');
     
     // *** MEMORY OPTIMIZATION: Free the original HTML from memory ***
     htmlContent = null;
@@ -153,6 +216,7 @@ async function generatePdf() {
         global.gc();
         console.log('Memory freed after splitting');
     }
+    logMemory('after null html + gc');
     
     // Create temp directory for chunk PDFs
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pdf-chunks-'));
@@ -176,6 +240,7 @@ async function generatePdf() {
             global.gc();
             console.log('Chunk memory freed');
         }
+        logMemory('after writing chunk htmls');
         
         const workers = Math.max(1, Math.min(CURRENT_MAX_PARALLEL, chunkFiles.length));
         console.log(`Processing ${chunkFiles.length} chunks with ${workers} worker(s) (chunkSize=${CURRENT_CHUNK_SIZE_MB}MB)...`);
@@ -185,13 +250,22 @@ async function generatePdf() {
         const queue = [...chunkFiles];
 
         const runWorker = async () => {
-            // Reuse a single lightweight browser per worker; pages are created per chunk for safety
+            // Reuse a single lightweight browser + single page (tab) per worker to minimize RAM churn.
             let browser = await launchBrowser();
+            let page = null;
+            try {
+                page = await browser.newPage();
+                await preparePageForChunking(page, config);
+            } catch (e) {
+                try { if (page) await page.close(); } catch (_) {}
+                try { if (browser) await browser.close(); } catch (_) {}
+                throw e;
+            }
             while (queue.length > 0) {
                 const chunk = queue.shift();
                 if (!chunk) break;
                 try {
-                    await generateChunkPdf(chunk.htmlPath, chunk.pdfPath, config, 0, browser, null);
+                    await generateChunkPdf(chunk.htmlPath, chunk.pdfPath, config, 0, browser, page);
                     chunkPdfs[chunk.index] = chunk.pdfPath;
                     completed++;
                     // Delete HTML file immediately after processing to free memory
@@ -211,8 +285,11 @@ async function generatePdf() {
                         if (!browser.isConnected()) {
                             try { await browser.close(); } catch (e) {}
                             browser = await launchBrowser();
+                            try { if (page) await page.close(); } catch (e) {}
+                            page = await browser.newPage();
+                            await preparePageForChunking(page, config);
                         }
-                        await generateChunkPdf(chunk.htmlPath, chunk.pdfPath, config, 0, browser, null);
+                        await generateChunkPdf(chunk.htmlPath, chunk.pdfPath, config, 0, browser, page);
                         chunkPdfs[chunk.index] = chunk.pdfPath;
                         completed++;
                     } catch (retryError) {
@@ -221,11 +298,13 @@ async function generatePdf() {
                     }
                 }
             }
+            try { if (page) await page.close(); } catch (e) {}
             try { await browser.close(); } catch (e) {}
         };
 
         const workerPromises = Array.from({ length: workers }, () => runWorker());
         await Promise.all(workerPromises);
+        logMemory('after rendering chunks');
 
         const processTime = (Date.now() - processStart) / 1000;
         console.log(`All ${chunkFiles.length} chunks processed in ${processTime.toFixed(1)}s (${(chunkFiles.length/processTime).toFixed(1)} chunks/sec)`)
@@ -238,6 +317,7 @@ async function generatePdf() {
         }
         
         await mergePdfs(validPdfs, outputPath);
+        logMemory('after merge');
         
         const totalTime = (Date.now() - startTime) / 1000;
         const stats = fs.statSync(outputPath);
@@ -257,6 +337,7 @@ async function generatePdf() {
         if (global.gc) {
             global.gc();
         }
+        logMemory('final');
     }
 }
 
@@ -359,21 +440,11 @@ function splitTableByRows(bodyContent, headContent, styles, chunkSizeBytes) {
         }
     }
     
-    // Get all rows (excluding header)
-    const allRows = [];
+    // Iterate rows sequentially instead of materializing all rows in memory.
     const rowRegex = /<tr[^>]*>[\s\S]*?<\/tr>/gi;
     let match;
     let isFirst = !thead; // Skip first row if using it as header
-    
-    while ((match = rowRegex.exec(bodyContent)) !== null) {
-        if (isFirst) {
-            isFirst = false;
-            continue;
-        }
-        allRows.push(match[0]);
-    }
-    
-    console.log(`Extracted ${allRows.length} data rows from table`);
+    let dataRowCount = 0;
     
     // Calculate overhead size (table structure we add to each chunk)
     const tableStructure = tableOpen + colgroup + (thead || headerRow);
@@ -383,16 +454,22 @@ function splitTableByRows(bodyContent, headContent, styles, chunkSizeBytes) {
     // Group rows into chunks
     let currentRows = [];
     let currentSize = 0;
-    
-    for (const row of allRows) {
+
+    while ((match = rowRegex.exec(bodyContent)) !== null) {
+        if (isFirst) {
+            isFirst = false;
+            continue;
+        }
+
+        const row = match[0];
+        dataRowCount++;
         const rowSize = Buffer.byteLength(row, 'utf8');
-        
+
         if (currentSize + rowSize > availableSize && currentRows.length > 0) {
-            // Create chunk with current rows
-            const chunkBody = tableOpen + colgroup + (thead || headerRow) + 
+            const chunkBody = tableOpen + colgroup + (thead || headerRow) +
                              '<tbody>' + currentRows.join('\n') + '</tbody></table>';
             chunks.push(createChunkHtml(chunkBody, headContent, styles));
-            
+
             currentRows = [row];
             currentSize = rowSize;
         } else {
@@ -408,6 +485,7 @@ function splitTableByRows(bodyContent, headContent, styles, chunkSizeBytes) {
         chunks.push(createChunkHtml(chunkBody, headContent, styles));
     }
     
+    console.log(`Extracted ${dataRowCount} data rows from table`);
     console.log(`Split table into ${chunks.length} chunks`);
     
     // Validate
@@ -428,14 +506,16 @@ function splitTableByRows(bodyContent, headContent, styles, chunkSizeBytes) {
  * Properly tracks nesting to never split mid-element.
  */
 function extractTopLevelElements(bodyContent) {
+    // IMPORTANT: Avoid building strings char-by-char (O(n^2) behavior).
+    // Track indices and slice from the original bodyContent instead.
     const elements = [];
-    let currentPos = 0;
-    let currentElement = '';
     let depth = 0;
     let inTag = false;
     let tagName = '';
     let isClosingTag = false;
     let isSelfClosing = false;
+    let elementStart = 0;
+    let sawNonWhitespaceAtDepth0 = false;
     
     // Self-closing tags that don't need matching close tags
     const voidElements = new Set([
@@ -444,47 +524,72 @@ function extractTopLevelElements(bodyContent) {
     ]);
     
     const content = bodyContent;
-    
-    for (let i = 0; i < content.length; i++) {
+    const len = content.length;
+
+    // Start from first non-whitespace to avoid empty elements.
+    while (elementStart < len && /\s/.test(content[elementStart])) elementStart++;
+
+    for (let i = elementStart; i < len; i++) {
         const char = content[i];
-        currentElement += char;
-        
+
+        if (depth === 0 && !inTag && !sawNonWhitespaceAtDepth0 && !/\s/.test(char)) {
+            sawNonWhitespaceAtDepth0 = true;
+        }
+
         if (char === '<') {
             inTag = true;
             tagName = '';
             isClosingTag = content[i + 1] === '/';
             isSelfClosing = false;
-        } else if (inTag) {
-            if (char === '>') {
-                inTag = false;
-                isSelfClosing = content[i - 1] === '/' || voidElements.has(tagName.toLowerCase());
-                
-                if (isClosingTag) {
-                    depth--;
-                } else if (!isSelfClosing && tagName && !tagName.startsWith('!')) {
-                    depth++;
+            continue;
+        }
+
+        if (!inTag) continue;
+
+        if (char === '>') {
+            inTag = false;
+            isSelfClosing = content[i - 1] === '/' || voidElements.has(tagName.toLowerCase());
+
+            if (isClosingTag) {
+                depth = Math.max(0, depth - 1);
+            } else if (!isSelfClosing && tagName && !tagName.startsWith('!')) {
+                depth += 1;
+            }
+
+            if (depth === 0) {
+                const raw = content.slice(elementStart, i + 1);
+                if (sawNonWhitespaceAtDepth0) {
+                    elements.push(raw.trim());
                 }
-                
-                // When we return to depth 0, we have a complete top-level element
-                if (depth === 0 && currentElement.trim()) {
-                    elements.push(currentElement.trim());
-                    currentElement = '';
-                }
-            } else if (char === ' ' || char === '\n' || char === '\t' || char === '/') {
-                // Tag name ends at space or self-close marker
-            } else if (!isClosingTag || char !== '/') {
-                if (tagName.length < 20) { // Reasonable tag name length
-                    tagName += char;
-                }
+                sawNonWhitespaceAtDepth0 = false;
+
+                elementStart = i + 1;
+                while (elementStart < len && /\s/.test(content[elementStart])) elementStart++;
+                i = elementStart - 1;
+            }
+
+            continue;
+        }
+
+        if (char === ' ' || char === '\n' || char === '\t' || char === '/') {
+            continue;
+        }
+
+        if (!isClosingTag || char !== '/') {
+            if (tagName.length < 20) {
+                tagName += char;
             }
         }
     }
-    
-    // Handle any remaining content
-    if (currentElement.trim()) {
-        elements.push(currentElement.trim());
+
+    // Remaining tail content (e.g., text nodes not wrapped in an element)
+    if (elementStart < len) {
+        const tail = content.slice(elementStart);
+        if (tail.trim()) {
+            elements.push(tail.trim());
+        }
     }
-    
+
     return elements;
 }
 
@@ -580,28 +685,18 @@ async function generateChunkPdf(htmlPath, outputPath, config, retryCount = 0, sh
     }
     
     let browser = sharedBrowser;
-    let page = sharedPage; // we pass null to force per-chunk page creation
+    let page = sharedPage;
     const ownsBrowser = !browser;
     try {
         if (!browser) {
             browser = await puppeteer.launch(launchOptions);
         }
-        // Always create a fresh page per chunk to avoid reused session issues
-        page = await browser.newPage();
-        page.setDefaultTimeout(90000);
-        await page.setViewport({ width: 800, height: 600, deviceScaleFactor: 1 });
-        
-        // MEMORY FIX: Disable images and other heavy resources
-        await page.setRequestInterception(true);
-        page.on('request', (request) => {
-            const resourceType = request.resourceType();
-            // Only allow document and stylesheet, block everything else
-            if (['document', 'stylesheet'].includes(resourceType)) {
-                request.continue();
-            } else {
-                request.abort();
-            }
-        });
+        // If no shared page is provided (e.g., single-pass fallback), create and configure one.
+        const ownsPage = !page;
+        if (!page) {
+            page = await browser.newPage();
+            await preparePageForChunking(page, config);
+        }
         
         // Navigate from a blank state to limit history/memory
         try { await page.goto('about:blank'); } catch (e) {}
@@ -629,14 +724,16 @@ async function generateChunkPdf(htmlPath, outputPath, config, retryCount = 0, sh
             console.warn(`Chunk failed, retry ${retryCount + 1}/${MAX_RETRIES}: ${error.message}`);
             // Wait before retry
             await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
-            return generateChunkPdf(htmlPath, outputPath, config, retryCount + 1, browser, page);
+            // If we got a page crash or navigation error, discard the page and recreate on retry.
+            try { if (page && !sharedPage) await page.close(); } catch (_) {}
+            return generateChunkPdf(htmlPath, outputPath, config, retryCount + 1, browser, sharedPage);
         }
         
         throw error;
     } finally {
-        // MEMORY FIX: Aggressive cleanup (without closing shared instances)
-        if (page) {
-            try { 
+        // Cleanup only if we own the page/browser. When a shared page is used, the worker closes it.
+        if (page && !sharedPage) {
+            try {
                 await page.removeAllListeners();
                 await page.close();
             } catch (e) {}

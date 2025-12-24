@@ -162,6 +162,11 @@ public class PdfGenerationHelper {
             return;
         }
 
+        // IMPORTANT: Never dump full HTML by default.
+        // Large reports can be 10s-100s of MB and will explode logs and memory.
+        // To explicitly enable full HTML logging, set: LOG_RENDERED_HTML=true
+        boolean allowFullHtmlLog = "true".equalsIgnoreCase(System.getenv("LOG_RENDERED_HTML"));
+
         int length = htmlContent != null ? htmlContent.length() : 0;
         if (htmlContent == null) {
             logger.info("Final HTML (context={}, id={}) is <null>", context, identifier);
@@ -169,15 +174,19 @@ public class PdfGenerationHelper {
         }
 
         if (logger.isInfoEnabled()) {
-            logger.info("=== Final HTML (context={}, id={}, length={} chars) ===\n{}\n=== End Final HTML (context={}, id={}) ===",
-                    context, identifier, length, htmlContent, context, identifier);
-        } else if (logger.isDebugEnabled()) {
-            int maxPreview = 20000;
-            String printable = htmlContent.length() > maxPreview
-                    ? htmlContent.substring(0, maxPreview) + "\n...[truncated]"
-                    : htmlContent;
-            logger.debug("Final HTML preview (context={}, id={}): {}", context, identifier, printable);
+            logger.info("Final HTML rendered (context={}, id={}, length={} chars)", context, identifier, length);
+            if (allowFullHtmlLog && logger.isDebugEnabled()) {
+                logger.debug("Final HTML (context={}, id={}): {}", context, identifier, htmlContent);
+            }
+            return;
         }
+
+        // DEBUG-only small preview (safe by default)
+        int maxPreview = 2000;
+        String printable = htmlContent.length() > maxPreview
+                ? htmlContent.substring(0, maxPreview) + "\n...[truncated]"
+                : htmlContent;
+        logger.debug("Final HTML preview (context={}, id={}, length={} chars): {}", context, identifier, length, printable);
     }
 
     /**

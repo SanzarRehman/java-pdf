@@ -76,7 +76,7 @@ RUN mkdir -p /tmp/pdf-generation && chmod 777 /tmp/pdf-generation
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8081/api/health || exit 1
+    CMD curl -f http://localhost:8081/api/v1.0/health || exit 1
 
 # Expose port
 EXPOSE 8081

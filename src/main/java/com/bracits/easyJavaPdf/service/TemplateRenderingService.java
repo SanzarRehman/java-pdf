@@ -24,8 +24,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * Renders Thymeleaf templates using data supplied with {@link PdfGenerationRequest}.
@@ -116,25 +114,33 @@ public class TemplateRenderingService {
     public String renderTemplate(String templateContent, Map<String, Object> model, boolean isTemplateName) {
         try {
             Context context = buildContext(model);
-            
-            // Log the template content before rendering
-            logger.info("========== TEMPLATE CONTENT BEFORE RENDERING ==========");
-            logger.info("Is Template Name: {}", isTemplateName);
-            if (isTemplateName) {
-                logger.info("Template Name: {}", templateContent);
-            } else {
-                logger.info("Template HTML Content:\n{}", templateContent);
+
+            // IMPORTANT: Avoid logging full HTML/template at INFO.
+            // Large templates can be 10s-100s of MB and will explode logs + memory.
+            boolean logTemplateBody = "true".equalsIgnoreCase(System.getenv("LOG_TEMPLATE_BODY"));
+            boolean logRenderedBody = "true".equalsIgnoreCase(System.getenv("LOG_RENDERED_HTML"));
+
+            int templateLen = templateContent != null ? templateContent.length() : 0;
+            int modelSize = model != null ? model.size() : 0;
+            logger.debug("Rendering Thymeleaf (isTemplateName={}, templateLength={}, modelSize={})",
+                    isTemplateName, templateLen, modelSize);
+
+            if (logTemplateBody && logger.isDebugEnabled()) {
+                logger.debug("Template body (isTemplateName={}): {}", isTemplateName, templateContent);
+                logger.debug("Model data: {}", model);
             }
-            logger.info("Model Data: {}", model);
-            logger.info("=======================================================");
-            
+
             String renderedHtml = templateEngine.process(templateContent, context);
-            
-            // Log the rendered HTML
-            logger.info("========== RENDERED HTML OUTPUT ==========");
-            logger.info("{}", renderedHtml);
-            logger.info("==========================================");
-            
+
+            if (logger.isInfoEnabled()) {
+                int renderedLen = renderedHtml != null ? renderedHtml.length() : 0;
+                logger.info("Rendered Thymeleaf HTML (length={} chars)", renderedLen);
+            }
+
+            if (logRenderedBody && logger.isDebugEnabled()) {
+                logger.debug("Rendered HTML: {}", renderedHtml);
+            }
+
             return renderedHtml;
         } catch (Exception e) {
             throw new PdfGenerationException("Failed to render Thymeleaf template", e);

@@ -208,42 +208,47 @@ async function generatePdf() {
 
         console.log(`DOM loaded in ${Date.now() - startLoad}ms`);
 
-        // Wait for page to be fully loaded
-        await page.evaluate(() => {
-            return new Promise((resolve) => {
-                if (document.readyState === 'complete') {
-                    resolve();
-                } else {
-                    window.addEventListener('load', resolve);
-                }
-            });
-        });
+        // Avoid waiting on the full window 'load' event by default.
+        // For large pages (many images/fonts), waiting for 'load' can be very slow.
+        // Instead, use bounded waits that cover the common cases.
 
-        console.log(`Page fully loaded in ${Date.now() - startLoad}ms`);
+        const fastMode = config.fastMode === true;
 
-        // Wait for fonts to load (with short timeout - don't block too long)
+        // Fonts (bounded)
         try {
             await Promise.race([
-                page.evaluate(() => document.fonts.ready),
-                new Promise(resolve => setTimeout(resolve, 3000))
+                page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve())),
+                new Promise(resolve => setTimeout(resolve, fastMode ? 500 : 2000))
             ]);
         } catch (e) {
-            console.log('Font loading skipped:', e.message);
+            // ignore
         }
 
-        // Performance: Optimize images before PDF generation
-        await page.evaluate(() => {
-            // Lazy load images that aren't visible
-            const images = document.querySelectorAll('img');
-            images.forEach(img => {
-                if (!img.complete) {
-                    img.loading = 'eager'; // Force load
+        // Images (bounded)
+        try {
+            await page.evaluate(() => {
+                const imgs = Array.from(document.images || []);
+                for (const img of imgs) {
+                    try { img.loading = 'eager'; } catch (_) {}
                 }
             });
-        });
 
-        // Small delay for any remaining async operations
-        await new Promise(resolve => setTimeout(resolve, 500));
+            await Promise.race([
+                page.waitForFunction(
+                    () => {
+                        const imgs = Array.from(document.images || []);
+                        return imgs.every(i => i.complete);
+                    },
+                    { timeout: fastMode ? 500 : 3000 }
+                ),
+                new Promise(resolve => setTimeout(resolve, fastMode ? 500 : 3000))
+            ]);
+        } catch (e) {
+            // ignore
+        }
+
+        // Small delay for any remaining microtasks/async layout
+        await new Promise(resolve => setTimeout(resolve, fastMode ? 50 : 150));
 
         // PDF options
         const pdfOptions = {

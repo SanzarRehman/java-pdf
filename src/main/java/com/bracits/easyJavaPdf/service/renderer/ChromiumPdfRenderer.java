@@ -12,8 +12,12 @@ import org.springframework.stereotype.Component;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
+import java.lang.management.MemoryUsage;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +25,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.concurrent.*;
 
 /**
@@ -58,6 +64,10 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
 
     private final ObjectMapper objectMapper;
     private ExecutorService executorService;
+    private Semaphore renderSemaphore;
+
+    private static final Pattern HEAD_OPEN_TAG = Pattern.compile("(?i)<head\\b[^>]*>");
+    private static final Pattern HTML_OPEN_TAG = Pattern.compile("(?i)<html\\b[^>]*>");
 
     public ChromiumPdfRenderer(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -73,6 +83,10 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             t.setDaemon(true);
             return t;
         });
+
+        // Enforce a global concurrency cap for Chromium rendering.
+        // Without this, concurrent HTTP requests can spawn too many Node/Chromium processes.
+        this.renderSemaphore = new Semaphore(workers);
     }
 
     @PreDestroy
@@ -105,15 +119,21 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         Path tempOutputFile = null;
         Path tempConfigFile = null;
 
+        boolean permitAcquired = false;
+
         try {
+            if (renderSemaphore != null) {
+                renderSemaphore.acquire();
+                permitAcquired = true;
+            }
+
             // Create temporary files
             tempHtmlFile = Files.createTempFile("chromium-render-", ".html");
             tempOutputFile = Files.createTempFile("chromium-output-", ".pdf");
             tempConfigFile = Files.createTempFile("chromium-config-", ".json");
 
-            // Prepare HTML with embedded CSS
-            String fullHtml = prepareHtmlWithCss(htmlContent, cssContent);
-            Files.writeString(tempHtmlFile, fullHtml, StandardCharsets.UTF_8);
+            // Prepare HTML with embedded CSS without duplicating large strings in memory.
+            writeHtmlWithCss(tempHtmlFile, htmlContent, cssContent);
 
             // Check file size to determine which script to use
             long htmlSizeBytes = Files.size(tempHtmlFile);
@@ -132,6 +152,7 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             Path scriptPath = useChunked ? resolveChunkedPuppeteerScript() : resolvePuppeteerScript();
 
             // Execute Puppeteer
+            logPreChromiumLaunch(scriptPath, tempConfigFile, htmlSizeBytes, useChunked);
             executePuppeteer(scriptPath, tempConfigFile);
 
             // Read and return the generated PDF
@@ -151,6 +172,10 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         } finally {
             // Cleanup temporary files
             cleanup(tempHtmlFile, tempOutputFile, tempConfigFile);
+
+            if (permitAcquired && renderSemaphore != null) {
+                renderSemaphore.release();
+            }
         }
     }
 
@@ -176,26 +201,48 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         return false;
     }
 
-    private String prepareHtmlWithCss(String htmlContent, String cssContent) {
+    private void writeHtmlWithCss(Path targetFile, String htmlContent, String cssContent) throws IOException {
+        if (htmlContent == null) {
+            Files.writeString(targetFile, "", StandardCharsets.UTF_8);
+            return;
+        }
+
         if (cssContent == null || cssContent.isBlank()) {
-            return htmlContent;
+            Files.writeString(targetFile, htmlContent, StandardCharsets.UTF_8);
+            return;
         }
 
-        // If HTML already has <head>, inject CSS there
-        if (htmlContent.toLowerCase().contains("<head>")) {
-            return htmlContent.replaceFirst("(?i)<head>",
-                    "<head><style>" + cssContent + "</style>");
-        }
+        // Stream-write to avoid building a second huge HTML string.
+        try (BufferedWriter writer = Files.newBufferedWriter(targetFile, StandardCharsets.UTF_8)) {
+            Matcher headMatcher = HEAD_OPEN_TAG.matcher(htmlContent);
+            if (headMatcher.find()) {
+                int insertPos = headMatcher.end();
+                writer.write(htmlContent, 0, insertPos);
+                writer.write("<style>");
+                writer.write(cssContent);
+                writer.write("</style>");
+                writer.write(htmlContent, insertPos, htmlContent.length() - insertPos);
+                return;
+            }
 
-        // If HTML has <html> but no <head>, add one
-        if (htmlContent.toLowerCase().contains("<html>")) {
-            return htmlContent.replaceFirst("(?i)<html>",
-                    "<html><head><style>" + cssContent + "</style></head>");
-        }
+            Matcher htmlMatcher = HTML_OPEN_TAG.matcher(htmlContent);
+            if (htmlMatcher.find()) {
+                int insertPos = htmlMatcher.end();
+                writer.write(htmlContent, 0, insertPos);
+                writer.write("<head><style>");
+                writer.write(cssContent);
+                writer.write("</style></head>");
+                writer.write(htmlContent, insertPos, htmlContent.length() - insertPos);
+                return;
+            }
 
-        // Wrap in complete HTML document
-        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>"
-                + cssContent + "</style></head><body>" + htmlContent + "</body></html>";
+            // Wrap in complete HTML document
+            writer.write("<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>");
+            writer.write(cssContent);
+            writer.write("</style></head><body>");
+            writer.write(htmlContent);
+            writer.write("</body></html>");
+        }
     }
 
     private Map<String, Object> buildConfig(Path htmlFile, Path outputFile,
@@ -396,6 +443,8 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
 
         Process process = pb.start();
 
+        boolean logStdout = "true".equalsIgnoreCase(System.getenv("LOG_PUPPETEER_STDOUT"));
+
         // Read output
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(
@@ -403,7 +452,14 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
-                logger.debug("Puppeteer: {}", line);
+                // Make memory diagnostics visible by default.
+                if (line.startsWith("[mem]")) {
+                    logger.info("Puppeteer {}", line);
+                } else if (logStdout) {
+                    logger.info("Puppeteer: {}", line);
+                } else {
+                    logger.debug("Puppeteer: {}", line);
+                }
             }
         }
 
@@ -418,6 +474,131 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             throw new PdfGenerationException("Chromium PDF generation failed with exit code " + exitCode +
                     ": " + output.toString().trim());
         }
+    }
+
+    private void logPreChromiumLaunch(Path scriptPath, Path configFile, long htmlSizeBytes, boolean useChunked) {
+        logger.info("==================== CHROMIUM LAUNCH ====================" );
+        logger.info("About to spawn Node/Chromium via Puppeteer");
+        logger.info("chunked={} htmlSize={} nodePath={} timeoutSeconds={} script={} config={}",
+                useChunked,
+                formatBytes(htmlSizeBytes),
+                nodePath,
+                timeoutSeconds,
+                safePath(scriptPath),
+                safePath(configFile));
+
+        logMemorySnapshot("pre-chromium");
+        logger.info("=========================================================" );
+    }
+
+    private void logMemorySnapshot(String phase) {
+        try {
+            MemoryMXBean memoryMxBean = ManagementFactory.getMemoryMXBean();
+            MemoryUsage heap = memoryMxBean.getHeapMemoryUsage();
+            MemoryUsage nonHeap = memoryMxBean.getNonHeapMemoryUsage();
+
+            logger.info("[mem][{}] jvm.heap.used={} committed={} max={}",
+                    phase,
+                    formatBytes(heap.getUsed()),
+                    formatBytes(heap.getCommitted()),
+                    formatBytes(heap.getMax()));
+            logger.info("[mem][{}] jvm.nonheap.used={} committed={} max={}",
+                    phase,
+                    formatBytes(nonHeap.getUsed()),
+                    formatBytes(nonHeap.getCommitted()),
+                    formatBytes(nonHeap.getMax()));
+
+            Runtime runtime = Runtime.getRuntime();
+            logger.info("[mem][{}] runtime.free={} total={} max={}",
+                    phase,
+                    formatBytes(runtime.freeMemory()),
+                    formatBytes(runtime.totalMemory()),
+                    formatBytes(runtime.maxMemory()));
+
+            // Docker/Linux: show cgroup memory usage + limits when present.
+            logCgroupMemoryIfPresent(phase);
+        } catch (Exception e) {
+            logger.warn("[mem][{}] Failed to collect memory snapshot: {}", phase, e.getMessage());
+        }
+    }
+
+    private void logCgroupMemoryIfPresent(String phase) {
+        // cgroup v2
+        Path v2Current = Path.of("/sys/fs/cgroup/memory.current");
+        Path v2Max = Path.of("/sys/fs/cgroup/memory.max");
+        if (Files.exists(v2Current) && Files.exists(v2Max)) {
+            try {
+                String currentRaw = Files.readString(v2Current, StandardCharsets.UTF_8).trim();
+                String maxRaw = Files.readString(v2Max, StandardCharsets.UTF_8).trim();
+
+                Long current = tryParseLong(currentRaw);
+                Long max = tryParseLong(maxRaw);
+
+                logger.info("[mem][{}] cgroupv2.current={} cgroupv2.max={}",
+                        phase,
+                        current == null ? currentRaw : formatBytes(current),
+                        max == null ? maxRaw : formatBytes(max));
+                return;
+            } catch (Exception ignored) {
+                // Fall through to v1.
+            }
+        }
+
+        // cgroup v1
+        Path v1Usage = Path.of("/sys/fs/cgroup/memory/memory.usage_in_bytes");
+        Path v1Limit = Path.of("/sys/fs/cgroup/memory/memory.limit_in_bytes");
+        if (Files.exists(v1Usage) && Files.exists(v1Limit)) {
+            try {
+                String usageRaw = Files.readString(v1Usage, StandardCharsets.UTF_8).trim();
+                String limitRaw = Files.readString(v1Limit, StandardCharsets.UTF_8).trim();
+
+                Long usage = tryParseLong(usageRaw);
+                Long limit = tryParseLong(limitRaw);
+
+                logger.info("[mem][{}] cgroupv1.usage={} cgroupv1.limit={}",
+                        phase,
+                        usage == null ? usageRaw : formatBytes(usage),
+                        limit == null ? limitRaw : formatBytes(limit));
+            } catch (Exception ignored) {
+                // ignore
+            }
+        }
+    }
+
+    private static Long tryParseLong(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private static String safePath(Path path) {
+        if (path == null) {
+            return "<null>";
+        }
+        try {
+            return path.toAbsolutePath().toString();
+        } catch (Exception e) {
+            return path.toString();
+        }
+    }
+
+    private static String formatBytes(long bytes) {
+        if (bytes < 0) {
+            return "unknown";
+        }
+        double value = (double) bytes;
+        String[] units = {"B", "KB", "MB", "GB", "TB"};
+        int unitIndex = 0;
+        while (value >= 1024.0 && unitIndex < units.length - 1) {
+            value /= 1024.0;
+            unitIndex++;
+        }
+        return String.format("%.2f%s", value, units[unitIndex]);
     }
 
     private void cleanup(Path... files) {
