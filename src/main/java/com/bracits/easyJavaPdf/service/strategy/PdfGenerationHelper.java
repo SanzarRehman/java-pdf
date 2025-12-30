@@ -190,6 +190,36 @@ public class PdfGenerationHelper {
     }
 
     /**
+     * Logs the final rendered HTML when it exists as a file.
+     * Avoids loading very large HTML files into memory.
+     */
+    public void logRenderedHtmlFile(String context, String identifier, Path htmlFile) {
+        if (!logger.isInfoEnabled() && !logger.isDebugEnabled()) {
+            return;
+        }
+
+        if (htmlFile == null || !Files.exists(htmlFile)) {
+            logger.info("Final HTML file (context={}, id={}) is <missing>", context, identifier);
+            return;
+        }
+
+        try {
+            long sizeBytes = Files.size(htmlFile);
+            logger.info("Final HTML rendered (context={}, id={}, sizeBytes={})", context, identifier, sizeBytes);
+
+            // Only load content into memory for small files.
+            long maxInlineBytes = 2L * 1024 * 1024; // 2MB
+            if (sizeBytes <= maxInlineBytes) {
+                String html = Files.readString(htmlFile, StandardCharsets.UTF_8);
+                logRenderedHtml(context, identifier, html);
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to log HTML file info (context={}, id={}, path={}): {}",
+                    context, identifier, htmlFile, e.getMessage());
+        }
+    }
+
+    /**
      * Builds a safe filename for a report.
      */
     public String buildReportFileName(String report) {

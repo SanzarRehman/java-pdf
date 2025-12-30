@@ -208,6 +208,16 @@ async function generatePdf() {
 
         console.log(`DOM loaded in ${Date.now() - startLoad}ms`);
 
+        // Optional: inject CSS provided via config without rewriting HTML.
+        if (config.cssContent && String(config.cssContent).trim().length > 0) {
+            try {
+                console.log(`Injecting cssContent (${String(config.cssContent).length} chars)`);
+                await page.addStyleTag({ content: String(config.cssContent) });
+            } catch (e) {
+                console.warn(`Failed to inject cssContent: ${e && e.message ? e.message : e}`);
+            }
+        }
+
         // Avoid waiting on the full window 'load' event by default.
         // For large pages (many images/fonts), waiting for 'load' can be very slow.
         // Instead, use bounded waits that cover the common cases.

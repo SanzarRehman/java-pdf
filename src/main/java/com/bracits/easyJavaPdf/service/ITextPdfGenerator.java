@@ -104,16 +104,17 @@ public class ITextPdfGenerator implements PdfGenerator {
                 htmlFile, cssFile, effectiveRenderer);
         
         try {
-            String htmlContent = readFileContent(htmlFile);
-            String cssContent = cssFile != null ? readFileContent(cssFile) : "";
             Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
             // Check if Chromium renderer should be used
             if (shouldUseChromiumRenderer(effectiveRenderer)) {
                 logger.info("Using Chromium/Puppeteer renderer for PDF generation");
-                return chromiumPdfRenderer.render(htmlContent, cssContent, fontFiles, 
-                        password, orientation, resourceRoot, tuning);
+            return chromiumPdfRenderer.renderFromFile(htmlFile, cssFile, fontFiles,
+                password, orientation, resourceRoot, tuning);
             }
+
+            String htmlContent = readFileContent(htmlFile);
+            String cssContent = cssFile != null ? readFileContent(cssFile) : "";
             
             return generatePdfInternal(htmlContent, cssContent, headerHtml, footerHtml,
                 banglaFooterHtml, fontFiles, password, jsEnable, resourceRoot, orientation, forceBrowserMode, tuning);

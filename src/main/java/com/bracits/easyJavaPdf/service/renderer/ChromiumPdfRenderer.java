@@ -18,6 +18,11 @@ import java.io.InputStreamReader;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryUsage;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -50,6 +55,9 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
     @Value("${pdf.chromium.timeout-seconds:600}")
     private int timeoutSeconds;
 
+    @Value("${pdf.chromium.renderer-server-url:}")
+    private String rendererServerUrl;
+
     @Value("${pdf.chromium.puppeteer-script:classpath:scripts/puppeteer-pdf.js}")
     private String puppeteerScriptPath;
 
@@ -62,9 +70,23 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
     @Value("${pdf.chromium.chunked-threshold-mb:10}")
     private int chunkedThresholdMb;
 
+    /**
+     * Global cap for total Chromium processes spawned concurrently by this JVM.
+     * For chunked mode, permits are weighted by per-request parallelism.
+     */
+    @Value("${pdf.chromium.max-processes:2}")
+    private int maxChromiumProcesses;
+
+    /**
+     * Default per-request parallelism for chunked Chromium pipeline when no tuning is provided.
+     */
+    @Value("${pdf.chromium.chunked-default-parallelism:1}")
+    private int chunkedDefaultParallelism;
+
     private final ObjectMapper objectMapper;
     private ExecutorService executorService;
     private Semaphore renderSemaphore;
+    private int maxChromiumPermits;
 
     private static final Pattern HEAD_OPEN_TAG = Pattern.compile("(?i)<head\\b[^>]*>");
     private static final Pattern HTML_OPEN_TAG = Pattern.compile("(?i)<html\\b[^>]*>");
@@ -78,6 +100,9 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         // Create thread pool for parallel PDF generation
         int workers = Math.max(1, Math.min(parallelWorkers, Runtime.getRuntime().availableProcessors()));
         logger.info("Initializing Chromium PDF renderer with {} parallel workers", workers);
+
+        int permits = Math.max(1, maxChromiumProcesses);
+        this.maxChromiumPermits = permits;
         this.executorService = Executors.newFixedThreadPool(workers, r -> {
             Thread t = new Thread(r, "chromium-pdf-worker");
             t.setDaemon(true);
@@ -85,8 +110,82 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         });
 
         // Enforce a global concurrency cap for Chromium rendering.
-        // Without this, concurrent HTTP requests can spawn too many Node/Chromium processes.
-        this.renderSemaphore = new Semaphore(workers);
+        // For chunked mode, we acquire multiple permits (weighted by parallelism).
+        this.renderSemaphore = new Semaphore(permits);
+    }
+
+    /**
+     * File-based Chromium render path.
+     * Avoids loading large HTML files into JVM memory; Puppeteer reads the HTML from disk.
+     */
+    public byte[] renderFromFile(Path htmlFile, Path cssFile, List<Path> fontFiles,
+                                 String password, PageOrientation orientation, Path resourceBasePath,
+                                 RendererTuning tuning) {
+
+        if (htmlFile == null) {
+            throw new PdfGenerationException("HTML file is required for Chromium rendering");
+        }
+
+        Path tempOutputFile = null;
+        Path tempConfigFile = null;
+
+        boolean permitAcquired = false;
+        int permitsHeld = 0;
+
+        try {
+            long htmlSizeBytes = Files.size(htmlFile);
+            long htmlSizeMb = htmlSizeBytes / (1024 * 1024);
+            boolean useChunked = htmlSizeMb >= chunkedThresholdMb;
+
+            if (useChunked) {
+                logger.info("Large HTML detected ({}MB), using chunked parallel PDF generation", htmlSizeMb);
+            }
+
+            int effectiveParallelism = useChunked ? resolveEffectiveParallelism(tuning) : 1;
+            if (renderSemaphore != null) {
+                renderSemaphore.acquire(effectiveParallelism);
+                permitAcquired = true;
+                permitsHeld = effectiveParallelism;
+            }
+
+            tempOutputFile = Files.createTempFile("chromium-output-", ".pdf");
+            tempConfigFile = Files.createTempFile("chromium-config-", ".json");
+
+            Map<String, Object> config = buildConfig(htmlFile, tempOutputFile, orientation, password, tuning, useChunked, effectiveParallelism);
+
+            if (cssFile != null && Files.exists(cssFile)) {
+                String cssContent = Files.readString(cssFile, StandardCharsets.UTF_8);
+                if (cssContent != null && !cssContent.isBlank()) {
+                    config.put("cssContent", cssContent);
+                }
+            }
+
+            Files.writeString(tempConfigFile, objectMapper.writeValueAsString(config), StandardCharsets.UTF_8);
+
+            Path scriptPath = useChunked ? resolveChunkedPuppeteerScript() : resolvePuppeteerScript();
+            logPreChromiumLaunch(scriptPath, tempConfigFile, htmlSizeBytes, useChunked);
+            executePuppeteer(scriptPath, tempConfigFile);
+
+            if (!Files.exists(tempOutputFile) || Files.size(tempOutputFile) == 0) {
+                throw new PdfGenerationException("Chromium PDF generation produced no output");
+            }
+
+            byte[] pdfBytes = Files.readAllBytes(tempOutputFile);
+            logger.info("Chromium PDF generation completed, size: {} bytes", pdfBytes.length);
+            return pdfBytes;
+
+        } catch (IOException e) {
+            throw new PdfGenerationException("Failed to generate PDF with Chromium", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PdfGenerationException("Chromium PDF generation was interrupted", e);
+        } finally {
+            cleanup(tempOutputFile, tempConfigFile);
+
+            if (permitAcquired && renderSemaphore != null && permitsHeld > 0) {
+                renderSemaphore.release(permitsHeld);
+            }
+        }
     }
 
     @PreDestroy
@@ -120,13 +219,9 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         Path tempConfigFile = null;
 
         boolean permitAcquired = false;
+        int permitsHeld = 0;
 
         try {
-            if (renderSemaphore != null) {
-                renderSemaphore.acquire();
-                permitAcquired = true;
-            }
-
             // Create temporary files
             tempHtmlFile = Files.createTempFile("chromium-render-", ".html");
             tempOutputFile = Files.createTempFile("chromium-output-", ".pdf");
@@ -145,7 +240,14 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             }
 
             // Prepare configuration
-            Map<String, Object> config = buildConfig(tempHtmlFile, tempOutputFile, orientation, password, tuning);
+            int effectiveParallelism = useChunked ? resolveEffectiveParallelism(tuning) : 1;
+            if (renderSemaphore != null) {
+                renderSemaphore.acquire(effectiveParallelism);
+                permitAcquired = true;
+                permitsHeld = effectiveParallelism;
+            }
+
+            Map<String, Object> config = buildConfig(tempHtmlFile, tempOutputFile, orientation, password, tuning, useChunked, effectiveParallelism);
             Files.writeString(tempConfigFile, objectMapper.writeValueAsString(config), StandardCharsets.UTF_8);
 
             // Get the appropriate Puppeteer script path
@@ -173,8 +275,8 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             // Cleanup temporary files
             cleanup(tempHtmlFile, tempOutputFile, tempConfigFile);
 
-            if (permitAcquired && renderSemaphore != null) {
-                renderSemaphore.release();
+            if (permitAcquired && renderSemaphore != null && permitsHeld > 0) {
+                renderSemaphore.release(permitsHeld);
             }
         }
     }
@@ -247,7 +349,9 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
 
     private Map<String, Object> buildConfig(Path htmlFile, Path outputFile,
                                             PageOrientation orientation, String password,
-                                            RendererTuning tuning) {
+                                            RendererTuning tuning,
+                                            boolean useChunked,
+                                            int effectiveParallelism) {
         Map<String, Object> config = new HashMap<>();
         config.put("htmlPath", htmlFile.toAbsolutePath().toString());
         config.put("outputPath", outputFile.toAbsolutePath().toString());
@@ -282,7 +386,6 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         // Apply optional tuning overrides for chunked renderer
         if (tuning != null) {
             Integer chunkSize = tuning.getChunkSizeMb();
-            Integer parallelism = tuning.getParallelism();
 
             // Guardrails: avoid extreme values that can explode memory
             if (chunkSize != null && chunkSize > 0) {
@@ -292,16 +395,38 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
                 }
                 config.put("chunkSizeMb", clampedChunk);
             }
-            if (parallelism != null && parallelism > 0) {
-                int clampedParallel = Math.min(parallelism, 8);
-                if (clampedParallel != parallelism) {
-                    logger.info("Clamping parallelism from {} to {} for safety", parallelism, clampedParallel);
-                }
-                config.put("parallelism", clampedParallel);
-            }
+        }
+
+        // Ensure chunked parallelism is explicit and aligned with semaphore weighting.
+        if (useChunked) {
+            config.put("parallelism", Math.max(1, effectiveParallelism));
         }
 
         return config;
+    }
+
+    private int resolveEffectiveParallelism(RendererTuning tuning) {
+        // Prefer explicit request tuning, but always clamp to safe bounds and container capacity.
+        int requested = 0;
+        if (tuning != null && tuning.getParallelism() != null && tuning.getParallelism() > 0) {
+            requested = tuning.getParallelism();
+        }
+
+        int defaultParallel = Math.min(Math.max(1, chunkedDefaultParallelism), Math.max(1, maxChromiumPermits));
+        int effective = requested > 0 ? requested : defaultParallel;
+
+        // Hard cap to avoid runaway memory; also cap to our global permits.
+        int clamped = effective;
+        clamped = Math.min(clamped, 8);
+        clamped = Math.min(clamped, Math.max(1, maxChromiumPermits));
+
+        if (requested > 0 && clamped != requested) {
+            logger.info(
+                    "Clamping requested chunked parallelism from {} to {} (pdf.chromium.max-processes={}, chunked-default-parallelism={})",
+                    requested, clamped, maxChromiumPermits, chunkedDefaultParallelism);
+        }
+
+        return Math.max(1, clamped);
     }
 
     private Path resolvePuppeteerScript() throws IOException {
@@ -431,6 +556,11 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
     }
 
     private void executePuppeteer(Path scriptPath, Path configFile) throws IOException, InterruptedException {
+        if (rendererServerUrl != null && !rendererServerUrl.isBlank()) {
+            executeViaRendererServer(scriptPath, configFile);
+            return;
+        }
+
         List<String> command = new ArrayList<>();
         command.add(nodePath);
         command.add(scriptPath.toAbsolutePath().toString());
@@ -474,6 +604,60 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             throw new PdfGenerationException("Chromium PDF generation failed with exit code " + exitCode +
                     ": " + output.toString().trim());
         }
+    }
+
+    private void executeViaRendererServer(Path scriptPath, Path configFile) {
+        try {
+            String base = rendererServerUrl.endsWith("/")
+                    ? rendererServerUrl.substring(0, rendererServerUrl.length() - 1)
+                    : rendererServerUrl;
+            URI uri = URI.create(base + "/render");
+
+            String scriptName = scriptPath != null && scriptPath.getFileName() != null
+                    ? scriptPath.getFileName().toString()
+                    : "puppeteer-pdf.js";
+
+            // Keep payload tiny: both processes share the same filesystem inside the container.
+            String jsonPayload = "{\"configPath\":\"" + escapeJson(configFile.toAbsolutePath().toString()) +
+                    "\",\"scriptName\":\"" + escapeJson(scriptName) + "\"}";
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(5))
+                    .build();
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(uri)
+                    .timeout(Duration.ofSeconds(Math.max(10, timeoutSeconds)))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                logger.debug("Renderer-server completed OK (status={})", response.statusCode());
+                return;
+            }
+
+            String body = response.body() != null ? response.body().trim() : "";
+            throw new PdfGenerationException("Renderer-server failed (status=" + response.statusCode() + "): " + body);
+        } catch (PdfGenerationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new PdfGenerationException("Failed to call renderer-server", e);
+        }
+    }
+
+    private static String escapeJson(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t");
     }
 
     private void logPreChromiumLaunch(Path scriptPath, Path configFile, long htmlSizeBytes, boolean useChunked) {

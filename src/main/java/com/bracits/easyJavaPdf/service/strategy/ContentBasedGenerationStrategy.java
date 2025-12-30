@@ -96,9 +96,11 @@ public class ContentBasedGenerationStrategy implements PdfGenerationStrategy {
                 cssContent = new String(request.getStyle().getBytes());
             }
 
-            // Resolve model and render Thymeleaf if necessary
-            Map<String, Object> templateModel = helper.getTemplateRenderingService().resolveModel(request);
-            htmlContent = helper.renderThymeleafIfNecessary(htmlContent, request, templateModel);
+            // Resolve model and render Thymeleaf only when explicitly enabled.
+            if (request.isThymeleafTemplate()) {
+                Map<String, Object> templateModel = helper.getTemplateRenderingService().resolveModel(request);
+                htmlContent = helper.renderThymeleafIfNecessary(htmlContent, request, templateModel);
+            }
             helper.logRenderedHtml("content", helper.resolveHtmlIdentifier(null, request), htmlContent);
 
             // Generate PDF using content-based method

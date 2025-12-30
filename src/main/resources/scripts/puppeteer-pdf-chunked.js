@@ -705,6 +705,15 @@ async function generateChunkPdf(htmlPath, outputPath, config, retryCount = 0, sh
             timeout: 60000
         });
 
+        // Optional: inject CSS provided via config without rewriting HTML.
+        if (config.cssContent && String(config.cssContent).trim().length > 0) {
+            try {
+                await page.addStyleTag({ content: String(config.cssContent) });
+            } catch (e) {
+                console.warn(`Failed to inject cssContent for chunk: ${e && e.message ? e.message : e}`);
+            }
+        }
+
         // Minimal wait
         await new Promise(resolve => setTimeout(resolve, 200));
 
@@ -789,6 +798,15 @@ async function generateSinglePdf(config) {
             timeout: 600000
         });
         console.log(`DOM loaded in ${Date.now() - startLoad}ms`);
+
+        // Optional: inject CSS provided via config without rewriting HTML.
+        if (config.cssContent && String(config.cssContent).trim().length > 0) {
+            try {
+                await page.addStyleTag({ content: String(config.cssContent) });
+            } catch (e) {
+                console.warn(`Failed to inject cssContent: ${e && e.message ? e.message : e}`);
+            }
+        }
 
         const startPdf = Date.now();
         await page.pdf({

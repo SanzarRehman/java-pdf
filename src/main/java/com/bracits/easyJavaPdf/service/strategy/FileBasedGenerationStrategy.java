@@ -93,14 +93,13 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                 cssFile = helper.createPlaceholderCss(requestTempDir);
             }
 
-            // Resolve model and render Thymeleaf if necessary
-            Map<String, Object> templateModel = helper.getTemplateRenderingService().resolveModel(request);
-            helper.renderThymeleafTemplateToFile(htmlFile, request, templateModel);
+            // Resolve model and render Thymeleaf only when explicitly enabled.
+            if (request.isThymeleafTemplate()) {
+                Map<String, Object> templateModel = helper.getTemplateRenderingService().resolveModel(request);
+                helper.renderThymeleafTemplateToFile(htmlFile, request, templateModel);
+            }
             
-            String finalHtml = htmlFile != null && Files.exists(htmlFile)
-                    ? Files.readString(htmlFile, StandardCharsets.UTF_8)
-                    : null;
-            helper.logRenderedHtml("file", helper.resolveHtmlIdentifier(htmlFile, request), finalHtml);
+                helper.logRenderedHtmlFile("file", helper.resolveHtmlIdentifier(htmlFile, request), htmlFile);
 
             // Handle asset files (fonts, images, etc.)
             if (request.getAsset() != null) {

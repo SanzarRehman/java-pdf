@@ -51,7 +51,20 @@ public class TemplateRenderingService {
             return false;
         }
 
-        if (request.isThymeleafTemplate() || hasDataModel(request) || StringUtils.hasText(request.getData())) {
+        // Default behavior: Thymeleaf rendering is opt-in (explicit flag).
+        // This avoids accidental rendering when raw HTML contains sequences like "${" or "th:".
+        if (request.isThymeleafTemplate()) {
+            return true;
+        }
+
+        // Legacy behavior can be enabled for backwards compatibility.
+        // NOTE: Validator already requires thymeleafTemplate=true when providing data/dataModel.
+        boolean legacyAutoDetect = "true".equalsIgnoreCase(System.getenv("THYMELEAF_AUTO_DETECT"));
+        if (!legacyAutoDetect) {
+            return false;
+        }
+
+        if (hasDataModel(request) || StringUtils.hasText(request.getData())) {
             return true;
         }
 

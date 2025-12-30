@@ -42,6 +42,7 @@ RUN apk update && apk add --no-cache \
     ca-certificates \
     # Utilities
     curl \
+    dumb-init \
     # dbus for some Chrome features (helps prevent crashes)
     dbus \
     && rm -rf /var/cache/apk/*
@@ -54,6 +55,15 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     NODE_PATH=/app/node_modules \
     PDF_SCRIPTS_PATH=/app/scripts
 
+# Prefer renderer-server (in-container) over spawning node per request
+ENV PDF_CHROMIUM_RENDERER_SERVER_URL=http://127.0.0.1:3001 \
+    RENDERER_SERVER_HOST=127.0.0.1 \
+    RENDERER_SERVER_PORT=3001 \
+    RENDERER_POOL_SIZE=1 \
+    PDF_CHROMIUM_PARALLEL_WORKERS=2 \
+    PDF_CHROMIUM_MAX_PROCESSES=4 \
+    PDF_CHROMIUM_CHUNKED_DEFAULT_PARALLELISM=1
+
 # Create app directory
 WORKDIR /app
 
@@ -64,9 +74,14 @@ RUN npm ci --omit=dev || npm install --omit=dev
 # Copy Puppeteer scripts
 COPY src/main/resources/scripts/ ./scripts/
 
+# Docker entrypoint to run renderer-server + Spring Boot
+COPY docker/entrypoint.sh /app/entrypoint.sh
+
 # Make scripts executable and set up symlinks for module resolution
 RUN chmod +x ./scripts/*.js && \
     ln -s /app/node_modules /app/scripts/node_modules
+
+RUN chmod +x /app/entrypoint.sh
 
 # Copy the built JAR from builder stage
 COPY --from=builder /app/build/libs/*.jar app.jar
@@ -89,4 +104,4 @@ ENV JAVA_OPTS="-XX:+UseContainerSupport \
     -Djava.awt.headless=true"
 
 # Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["dumb-init", "--", "/app/entrypoint.sh"]
