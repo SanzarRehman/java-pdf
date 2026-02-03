@@ -720,59 +720,39 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     /**
-     * Wraps HTML content with CSS styling and applies defensive measures against margin collapse.
+     * Wraps HTML content with CSS styling - preserves original HTML structure as much as possible.
      */
     private String wrapHtmlWithCss(String htmlContent, String cssContent, boolean sanitize) {
         // Clean and normalize the HTML content
         String cleanHtmlContent = htmlContent != null ? htmlContent.trim() : "";
 
         if (sanitize) {
-            // Apply defensive HTML processing to prevent margin collapse issues
+            // Apply minimal HTML processing
             cleanHtmlContent = sanitizeHtmlForMarginCollapse(cleanHtmlContent);
         }
         
-        // If the content is already a complete HTML document, return it with CSS injected
+        // If the content is already a complete HTML document, inject CSS without wrapping
         if (cleanHtmlContent.toLowerCase().contains("<html") && cleanHtmlContent.toLowerCase().contains("</html>")) {
-            // Insert CSS into existing HTML structure
+            // Insert CSS into existing HTML structure - don't add wrapper divs
             if (cleanHtmlContent.toLowerCase().contains("<head>")) {
                 return cleanHtmlContent.replaceFirst("(?i)<head>", "<head><style>" + cssContent + "</style>");
             } else if (cleanHtmlContent.toLowerCase().contains("<html>")) {
                 return cleanHtmlContent.replaceFirst("(?i)<html>", "<html><head><style>" + cssContent + "</style></head>");
+            } else {
+                // Has <html but no <head>, add head after html tag
+                return cleanHtmlContent.replaceFirst("(?i)(<html[^>]*>)", "$1<head><style>" + cssContent + "</style></head>");
             }
         }
         
-        // Wrap partial HTML content with defensive structure
-        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>" + cssContent + "</style></head><body><div class=\"pdf-content-wrapper\">" + cleanHtmlContent + "</div></body></html>";
+        // For partial HTML (no html tags), wrap minimally - just add doctype and basic structure
+        return "<!DOCTYPE html><html><head><meta charset=\"UTF-8\"><style>" + cssContent + "</style></head><body>" + cleanHtmlContent + "</body></html>";
     }
 
     private static final String MARGIN_SAFE_STYLE_BLOCK = """
         <style id=\"margin-collapse-fallback\">
-            .pdf-content-wrapper.margin-safe,
-            .pdf-content-wrapper.margin-safe * {
-                margin-top: 0 !important;
-                margin-bottom: 0 !important;
-            }
-
-            .pdf-content-wrapper.margin-safe section,
-            .pdf-content-wrapper.margin-safe header,
-            .pdf-content-wrapper.margin-safe footer,
-            .pdf-content-wrapper.margin-safe article,
-            .pdf-content-wrapper.margin-safe .section {
-                padding-top: 1.25rem !important;
-                padding-bottom: 1.25rem !important;
-                border-top: 0.1pt solid transparent !important;
-                border-bottom: 0.1pt solid transparent !important;
-            }
-
-            .pdf-content-wrapper.margin-safe h1,
-            .pdf-content-wrapper.margin-safe h2,
-            .pdf-content-wrapper.margin-safe h3,
-            .pdf-content-wrapper.margin-safe h4,
-            .pdf-content-wrapper.margin-safe h5,
-            .pdf-content-wrapper.margin-safe h6,
-            .pdf-content-wrapper.margin-safe p {
-                padding-top: 0.35rem !important;
-                padding-bottom: 0.35rem !important;
+            /* Minimal fallback styles - only applied when margin-safe class is used */
+            .pdf-content-wrapper.margin-safe {
+                display: block;
             }
         </style>
         """;
@@ -851,32 +831,23 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     /**
-     * Sanitizes HTML content to prevent margin collapse issues in iText.
+     * Sanitizes HTML content - minimal processing to preserve original styling.
+     * Only removes truly problematic elements that break iText rendering.
      */
     private String sanitizeHtmlForMarginCollapse(String htmlContent) {
         if (htmlContent == null || htmlContent.trim().isEmpty()) {
             return htmlContent;
         }
         
-        logger.debug("Applying HTML sanitization to prevent margin collapse issues");
+        logger.debug("Applying minimal HTML sanitization for iText compatibility");
         
         String sanitized = htmlContent;
         
-        // Replace problematic list structures that can cause margin collapse
+        // Only wrap structures that need containment, do NOT strip style attributes
         sanitized = sanitized
-            // Wrap list items in divs to prevent margin collapse
+            // Wrap list items in divs to prevent margin collapse (if needed)
             .replaceAll("(<li[^>]*>)", "$1<div class=\"li-wrapper\">")
-            .replaceAll("(</li>)", "</div>$1")
-            // Add wrapper divs around complex nested structures
-            .replaceAll("(<(?:section|article|aside|nav)[^>]*>)", "$1<div class=\"section-wrapper\">")
-            .replaceAll("(</(?:section|article|aside|nav)>)", "</div>$1")
-            // Simplify complex margin-causing elements
-            .replaceAll("(<(?:blockquote|figure|figcaption)[^>]*>)", "<div class=\"block-wrapper\">")
-            .replaceAll("(</(?:blockquote|figure|figcaption)>)", "</div>")
-            // Remove problematic attributes that can cause layout issues
-            .replaceAll("\\s+style\\s*=\\s*[\"'][^\"']*(?:margin|padding|height|position|transform|animation)[^\"']*[\"']", "")
-            // Remove class attributes that might reference problematic CSS
-            .replaceAll("\\s+class\\s*=\\s*[\"'][^\"']*(?:animation|transition|transform|flex|grid)[^\"']*[\"']", "");
+            .replaceAll("(</li>)", "</div>$1");
         
         return sanitized;
     }

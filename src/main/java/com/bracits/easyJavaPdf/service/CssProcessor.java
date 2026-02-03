@@ -116,29 +116,16 @@ public class CssProcessor {
     }
 
     /**
-     * Removes CSS properties that can cause margin collapse issues in iText.
+     * Removes CSS properties that cause critical issues in iText.
+     * Preserves font-weight, font-style, margin, and other styling properties.
      */
     private String removeMarginCollapseProperties(String cssContent) {
-        // Remove properties that can cause margin collapse issues
+        // Only remove properties that cause actual rendering failures in iText
+        // Preserve: font-weight, font-style, margin, padding, line-height, etc.
         return cssContent
-
-            .replaceAll("list-style[^:]*:[^;]*;", "")
-
-            .replaceAll("margin-(?:top|bottom)\\s*:[^;]*;", "")
-
-            .replaceAll("line-height\\s*:\\s*[^;]*;", "line-height: 1.4;")
-
-            .replaceAll("vertical-align\\s*:[^;]*;", "")
-
-            .replaceAll("overflow[^:]*:[^;]*;", "")
-
-            .replaceAll("(?:min-|max-)?height\\s*:[^;]*;", "")
-
-            .replaceAll("position\\s*:\\s*(?:relative|absolute|fixed|sticky)[^;]*;", "")
-
-            .replaceAll("z-index\\s*:[^;]*;", "")
-
-            .replaceAll("display\\s*:\\s*(?:inline-block|table|table-cell|table-row)[^;]*;", "");
+            // Remove only truly problematic properties that break iText
+            .replaceAll("position\\s*:\\s*(?:fixed|sticky)[^;]*;", "")
+            .replaceAll("z-index\\s*:[^;]*;", "");
     }
 
     /**
@@ -223,30 +210,25 @@ public class CssProcessor {
     }
 
     /**
-     * Returns safe default CSS for PDF generation with defensive styles.
+     * Returns safe default CSS for PDF generation with minimal interference.
+     * Does NOT add any @page rule - lets HTML render naturally like in a browser.
      */
     private String getDefaultPageCss(PageOrientation orientation, boolean hasPageRule) {
         StringBuilder builder = new StringBuilder();
 
-        if (!hasPageRule) {
+        // Only add @page rule if orientation is explicitly requested
+        if (!hasPageRule && orientation != null) {
             if (orientation == PageOrientation.LANDSCAPE || orientation == PageOrientation.SEASCAPE) {
-                builder.append("@page { size: A4 landscape; margin: 2cm; } ");
-            } else {
-                builder.append("@page { size: A4; margin: 2cm; } ");
+                builder.append("@page { size: A4 landscape; } ");
             }
+            // For portrait/default, don't add @page - let it render naturally
         }
 
-        builder.append("* { box-sizing: border-box; margin: 0 !important; padding: 0; } ")
-               .append("body { margin: 0 !important; padding: 0 !important; line-height: 1.4 !important; } ")
-               .append("html { margin: 0 !important; padding: 0 !important; } ")
-               .append("p, div, h1, h2, h3, h4, h5, h6 { margin-top: 0 !important; margin-bottom: 0.5em !important; } ")
-               .append("p:last-child, div:last-child { margin-bottom: 0 !important; } ")
-               .append("ul, ol { margin: 0 !important; padding-left: 1.5em !important; } ")
-               .append("li { margin: 0 !important; padding: 0.2em 0 !important; } ")
-               .append(".pdf-content-wrapper { margin: 0 !important; padding: 0 !important; } ")
-               .append(".li-wrapper { margin: 0 !important; padding: 0 !important; display: block !important; } ")
-               .append(".section-wrapper { margin: 0 !important; padding: 0 !important; display: block !important; } ")
-               .append(".block-wrapper { margin: 0.5em 0 !important; padding: 0.5em !important; display: block !important; }");
+        // Minimal helper classes only
+        builder.append(".pdf-content-wrapper { display: block; } ")
+               .append(".li-wrapper { display: block; } ")
+               .append(".section-wrapper { display: block; } ")
+               .append(".block-wrapper { display: block; }");
 
         return builder.toString();
     }

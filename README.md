@@ -130,7 +130,7 @@ Convert HTML files into PDF documents, supporting additional styles, fonts, and 
 | `asset[]`      | file or file[]   | Optional       | Assets referenced by the HTML (images, CSS, fonts). Filenames must match the references exactly. |
 | `renderer`     | string           | Optional       | Rendering engine: `itext` (default) or `chromium`/`puppeteer`. |
 | `chunkSizeMb`  | number           | Optional       | Chunk size hint (MB) for large HTML. For Chromium chunked mode and iText chunked mode. Defaults to ~5 MB when chunking applies. |
-| `parallelism`  | number           | Optional       | Parallel chunk workers (Chromium only). Defaults to 8 when chunking applies. |
+| `parallelism`  | number           | Optional       | Parallel chunk workers (Chromium only). If omitted, defaults to 1. If provided, may be clamped by the server-wide `pdf.chromium.max-processes`. |
 
 #### Using report templates
 
@@ -186,7 +186,7 @@ The resulting PDF will render the `<nav>` section as a visible contents page whi
 #### Renderer and chunking defaults
 
 - Default renderer: `itext` (fast, low-footprint). Set `renderer=chromium` for browser-accurate output.
-- Chunked processing (Chromium): triggered automatically when HTML ≥ 10 MB; defaults to `chunkSizeMb≈5` and `parallelism≈8` unless overridden by request params.
+- Chunked processing (Chromium): triggered automatically when HTML ≥ 10 MB; defaults to `chunkSizeMb≈5` and `parallelism=1` unless overridden by request params (and may be clamped by server limits).
 - Chunked processing (iText): opt-in via `chunkSizeMb`; splits HTML into pieces and merges PDFs sequentially (parallelism ignored for iText).
 
 ---
