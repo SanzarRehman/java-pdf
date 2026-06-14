@@ -49,6 +49,86 @@ const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH ||
 console.log(`Platform: ${os.platform()}, CPUs: ${cpuCount}, Memory: ${Math.round(os.totalmem() / 1024 / 1024 / 1024)}GB`);
 console.log(`Environment: ${isDocker ? 'Docker' : 'Local'}, Chrome: ${CHROME_PATH || 'bundled'}`);
 
+// Paper width in CSS pixels (96px/in) for supported page formats, portrait + landscape.
+const PAPER_WIDTH_IN = {
+    A3: { portrait: 11.69, landscape: 16.54 },
+    A4: { portrait: 8.27, landscape: 11.69 },
+    A5: { portrait: 5.83, landscape: 8.27 },
+    LETTER: { portrait: 8.5, landscape: 11 },
+    LEGAL: { portrait: 8.5, landscape: 14 },
+};
+
+/** Parse a CSS margin string (e.g. "20px", "0.5in") into CSS pixels. */
+function parsePxMargin(value, fallback) {
+    if (value == null) return fallback;
+    const m = String(value).match(/([\d.]+)\s*(px|in|cm|mm)?/i);
+    if (!m) return fallback;
+    const num = parseFloat(m[1]);
+    if (isNaN(num)) return fallback;
+    switch ((m[2] || 'px').toLowerCase()) {
+        case 'in': return num * 96;
+        case 'cm': return num * 37.7952755906;
+        case 'mm': return num * 3.7795275591;
+        default: return num;
+    }
+}
+
+/**
+ * Compute a print scale that emulates wkhtmltopdf "smart shrinking": shrink content so
+ * over-wide elements (e.g. wide tables) fit within the printable page width.
+ * Returns a scale in Chromium's allowed range [0.1, 2.0]. Shrink-only (never enlarges).
+ */
+async function computeFitScale(page, config) {
+    // Explicit override always wins.
+    if (typeof config.scale === 'number' && config.scale > 0) {
+        const s = Math.min(2, Math.max(0.1, config.scale));
+        console.log(`Using explicit scale override: ${s}`);
+        return s;
+    }
+
+    // Default ON unless explicitly disabled.
+    if (config.fitToWidth === false) {
+        return 1;
+    }
+
+    try {
+        // Measure under print layout so the result matches the generated PDF.
+        await page.emulateMediaType('print');
+
+        const landscape = config.landscape || false;
+        const format = (config.format || 'A4').toUpperCase();
+        const paper = PAPER_WIDTH_IN[format] || PAPER_WIDTH_IN.A4;
+        const widthIn = landscape ? paper.landscape : paper.portrait;
+
+        const marginLeftPx = parsePxMargin(config.margin && config.margin.left, 20);
+        const marginRightPx = parsePxMargin(config.margin && config.margin.right, 20);
+        const printableWidthPx = (widthIn * 96) - marginLeftPx - marginRightPx;
+
+        const contentWidthPx = await page.evaluate(() => {
+            const docEl = document.documentElement;
+            const body = document.body;
+            let max = Math.max(
+                docEl ? docEl.scrollWidth : 0,
+                body ? body.scrollWidth : 0
+            );
+            for (const t of document.querySelectorAll('table')) {
+                max = Math.max(max, t.scrollWidth, t.offsetWidth);
+            }
+            return max;
+        });
+
+        let scale = 1;
+        if (contentWidthPx > printableWidthPx && contentWidthPx > 0) {
+            scale = Math.max(0.1, Math.min(1, printableWidthPx / contentWidthPx));
+        }
+        console.log(`Fit-to-width: printableWidth=${printableWidthPx.toFixed(1)}px contentWidth=${contentWidthPx}px scale=${scale.toFixed(4)}`);
+        return scale;
+    } catch (e) {
+        console.warn(`Fit-to-width computation failed, using scale=1: ${e && e.message ? e.message : e}`);
+        return 1;
+    }
+}
+
 async function generatePdf() {
     const configPath = process.argv[2];
     
@@ -260,11 +340,15 @@ async function generatePdf() {
         // Small delay for any remaining microtasks/async layout
         await new Promise(resolve => setTimeout(resolve, fastMode ? 50 : 150));
 
+        // Auto fit-to-width (wkhtmltopdf smart-shrinking equivalent).
+        const scale = await computeFitScale(page, config);
+
         // PDF options
         const pdfOptions = {
             path: config.outputPath,
             format: config.format || 'A4',
             landscape: config.landscape || false,
+            scale: scale,
             printBackground: config.printBackground !== false,
             preferCSSPageSize: config.preferCSSPageSize || false,
             displayHeaderFooter: false,

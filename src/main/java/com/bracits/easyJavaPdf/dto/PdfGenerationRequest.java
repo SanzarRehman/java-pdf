@@ -128,4 +128,17 @@ public class PdfGenerationRequest {
      * - "chromium" or "puppeteer": Use headless Chromium/Puppeteer for rendering
      */
     private String renderer;
+
+    /**
+     * Optional toggle for auto fit-to-width (wkhtmltopdf "smart shrinking" equivalent), where
+     * over-wide content is shrunk to fit the printable page width. Chromium renderer only.
+     * If null, the configured default (pdf.chromium.fit-to-width) applies.
+     */
+    private Boolean fitToWidth;
+
+    /**
+     * Optional explicit print scale override (Chromium range 0.1-2.0). When set, it takes
+     * precedence over auto fit-to-width. Chromium renderer only.
+     */
+    private Double scale;
 }

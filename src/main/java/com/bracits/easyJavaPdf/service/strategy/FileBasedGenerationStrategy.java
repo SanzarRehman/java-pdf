@@ -39,12 +39,15 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
     }
 
     private RendererTuning buildTuning(com.bracits.easyJavaPdf.dto.PdfGenerationRequest request) {
-        if (request.getChunkSizeMb() == null && request.getParallelism() == null) {
+        if (request.getChunkSizeMb() == null && request.getParallelism() == null
+                && request.getFitToWidth() == null && request.getScale() == null) {
             return null;
         }
         return RendererTuning.builder()
                 .chunkSizeMb(request.getChunkSizeMb())
                 .parallelism(request.getParallelism())
+                .fitToWidth(request.getFitToWidth())
+                .scale(request.getScale())
                 .build();
     }
 

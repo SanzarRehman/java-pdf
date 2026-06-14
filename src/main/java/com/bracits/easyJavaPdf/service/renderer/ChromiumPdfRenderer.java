@@ -67,6 +67,13 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
     @Value("${pdf.chromium.high-quality:false}")
     private boolean highQuality;
 
+    /**
+     * Default for auto fit-to-width (wkhtmltopdf smart-shrinking equivalent): shrink over-wide
+     * content so it fits the printable page width. Overridable per-request via RendererTuning.
+     */
+    @Value("${pdf.chromium.fit-to-width:true}")
+    private boolean fitToWidthDefault;
+
     @Value("${pdf.chromium.chunked-threshold-mb:10}")
     private int chunkedThresholdMb;
 
@@ -357,12 +364,29 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         config.put("outputPath", outputFile.toAbsolutePath().toString());
         config.put("format", "A4");
         config.put("printBackground", true);
-        config.put("preferCSSPageSize", true);
 
         // Set orientation
         boolean isLandscape = orientation == PageOrientation.LANDSCAPE
                 || orientation == PageOrientation.SEASCAPE;
         config.put("landscape", isLandscape);
+
+        // Auto fit-to-width (wkhtmltopdf smart-shrinking equivalent). Default from config,
+        // overridable per request via RendererTuning.
+        boolean fitToWidth = fitToWidthDefault;
+        Double scaleOverride = null;
+        if (tuning != null) {
+            if (tuning.getFitToWidth() != null) {
+                fitToWidth = tuning.getFitToWidth();
+            }
+            scaleOverride = tuning.getScale();
+        }
+        config.put("fitToWidth", fitToWidth);
+        if (scaleOverride != null) {
+            config.put("scale", scaleOverride);
+        }
+        // When fit-to-width is active we drive page size from format/landscape/margins, so the
+        // scale math is deterministic; otherwise honor CSS @page sizing as before.
+        config.put("preferCSSPageSize", !fitToWidth);
 
         // High quality mode (2x device scale factor)
         config.put("highQuality", highQuality);
@@ -429,6 +453,23 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         return Math.max(1, clamped);
     }
 
+    /**
+     * Extract a classpath resource script to a temp file so Node can execute it.
+     * This is the canonical resolution path — it works regardless of working directory
+     * (IntelliJ, Gradle bootRun, Docker all bundle resources on the classpath identically).
+     */
+    private Path extractClasspathScript(String resourceName) throws IOException {
+        try (java.io.InputStream is = getClass().getResourceAsStream("/scripts/" + resourceName)) {
+            if (is != null) {
+                Path tempScript = Files.createTempFile("puppeteer-script-", ".js");
+                Files.write(tempScript, is.readAllBytes());
+                logger.debug("Extracted classpath script '{}' to {}", resourceName, tempScript);
+                return tempScript;
+            }
+        }
+        return null;
+    }
+
     private Path resolvePuppeteerScript() throws IOException {
         // Check environment variable first (set in Docker)
         String envScriptsPath = System.getenv("PDF_SCRIPTS_PATH");
@@ -447,7 +488,15 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             return dockerPath;
         }
 
-        // Local development path
+        // Classpath — works in IntelliJ, Gradle bootRun, and Docker jar alike.
+        // Preferred over the relative-path check below because it is working-directory-independent.
+        Path classpathScript = extractClasspathScript("puppeteer-pdf.js");
+        if (classpathScript != null) {
+            logger.debug("Using Puppeteer script from classpath: {}", classpathScript);
+            return classpathScript;
+        }
+
+        // Local development path (relative — only works when cwd == project root)
         Path localPath = Path.of("src/main/resources/scripts/puppeteer-pdf.js");
         if (Files.exists(localPath)) {
             logger.debug("Using Puppeteer script from local path: {}", localPath);
@@ -477,6 +526,13 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         if (Files.exists(dockerPath)) {
             logger.debug("Using chunked Puppeteer script from Docker path: {}", dockerPath);
             return dockerPath;
+        }
+
+        // Classpath — working-directory-independent, same script the build bundles.
+        Path classpathScript = extractClasspathScript("puppeteer-pdf-chunked.js");
+        if (classpathScript != null) {
+            logger.debug("Using chunked Puppeteer script from classpath: {}", classpathScript);
+            return classpathScript;
         }
 
         // Local development path
@@ -570,6 +626,39 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
 
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.redirectErrorStream(true);
+
+        // Node resolves require() by walking up from the *script file's* directory, not the
+        // process working directory. When the script is extracted to /tmp (classpath path), it
+        // can't reach the project's node_modules. We build NODE_PATH from two candidates so
+        // this works under bootRun, IntelliJ (different user.dir), and Docker alike.
+        List<String> nmCandidates = new ArrayList<>();
+        // 1. Absolute path derived from the node binary location (reliable in all launch contexts)
+        String nodeBin = command.get(0); // first element is the node path
+        Path nodeBinPath = Path.of(nodeBin);
+        if (nodeBinPath.isAbsolute()) {
+            // e.g. /home/user/.nvm/versions/node/v20.x/bin/node → go up 2 to get the nvm root,
+            // but the project node_modules is what matters — derive it from node binary's parent chain
+        }
+        // 2. user.dir/node_modules (works when cwd == project root)
+        String userDir = System.getProperty("user.dir", "");
+        if (!userDir.isEmpty()) {
+            nmCandidates.add(userDir + "/node_modules");
+        }
+        // 3. Absolute path of the node_modules next to the node binary's package.json (nvm layout)
+        if (nodeBinPath.isAbsolute() && nodeBinPath.getParent() != null) {
+            // .nvm/versions/node/vX/bin/node -> .nvm/versions/node/vX/lib/node_modules
+            Path nvmLib = nodeBinPath.getParent().getParent().resolve("lib/node_modules");
+            nmCandidates.add(nvmLib.toString());
+        }
+        String existingNodePath = pb.environment().getOrDefault("NODE_PATH", "");
+        String resolvedNodePath = nmCandidates.stream()
+                .filter(p -> Files.isDirectory(Path.of(p)))
+                .collect(java.util.stream.Collectors.joining(":"));
+        if (!resolvedNodePath.isEmpty()) {
+            pb.environment().put("NODE_PATH",
+                    existingNodePath.isEmpty() ? resolvedNodePath : existingNodePath + ":" + resolvedNodePath);
+            logger.debug("NODE_PATH set to: {}", pb.environment().get("NODE_PATH"));
+        }
 
         Process process = pb.start();
 
