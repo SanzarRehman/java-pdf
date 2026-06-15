@@ -56,7 +56,8 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PDF_SCRIPTS_PATH=/app/scripts
 
 # Prefer renderer-server (in-container) over spawning node per request
-ENV PDF_CHROMIUM_RENDERER_SERVER_URL=http://127.0.0.1:3001 \
+ENV PDF_CHROMIUM_NODE_PATH=/usr/bin/node \
+    PDF_CHROMIUM_RENDERER_SERVER_URL=http://127.0.0.1:3001 \
     RENDERER_SERVER_HOST=127.0.0.1 \
     RENDERER_SERVER_PORT=3001 \
     RENDERER_POOL_SIZE=1 \
