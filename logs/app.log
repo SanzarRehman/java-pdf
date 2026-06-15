@@ -1,0 +1,90 @@
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by net.rubygrapefruit.platform.internal.NativeLibraryLoader in an unnamed module (file:/home/sakibuihaque/.gradle/wrapper/dists/gradle-8.11.1-bin/bpt9gzteqjrbo1mjrsomdt32c/gradle-8.11.1/lib/native-platform-0.22-milestone-26.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.11.1/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :generateEffectiveLombokConfig UP-TO-DATE
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :resolveMainClassName
+
+> Task :bootRun
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.1)
+
+2026-06-14T13:40:29.108+06:00  INFO 18514 --- [easyJavaPdf] [           main] c.b.easyJavaPdf.EasyJavaPdfApplication   : Starting EasyJavaPdfApplication using Java 21.0.2 with PID 18514 (/home/sakibuihaque/Projects/dummy/pdf-service/java-pdf/build/classes/java/main started by sakibuihaque in /home/sakibuihaque/Projects/dummy/pdf-service/java-pdf)
+2026-06-14T13:40:29.127+06:00  INFO 18514 --- [easyJavaPdf] [           main] c.b.easyJavaPdf.EasyJavaPdfApplication   : No active profile set, falling back to 1 default profile: "default"
+2026-06-14T13:40:34.538+06:00  INFO 18514 --- [easyJavaPdf] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8081 (http)
+2026-06-14T13:40:34.577+06:00  INFO 18514 --- [easyJavaPdf] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-06-14T13:40:34.582+06:00  INFO 18514 --- [easyJavaPdf] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.34]
+2026-06-14T13:40:34.769+06:00  INFO 18514 --- [easyJavaPdf] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-06-14T13:40:34.772+06:00  INFO 18514 --- [easyJavaPdf] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 5319 ms
+2026-06-14T13:40:35.301+06:00  INFO 18514 --- [easyJavaPdf] [           main] c.b.e.s.renderer.ChromiumPdfRenderer     : Initializing Chromium PDF renderer with 2 parallel workers
+2026-06-14T13:40:35.623+06:00  INFO 18514 --- [easyJavaPdf] [           main] c.b.easyJavaPdf.service.PdfService       : Initialized PdfService with 3 generation strategies
+2026-06-14T13:40:35.842+06:00  INFO 18514 --- [easyJavaPdf] [           main] c.b.e.s.renderer.PdfRendererFactory      : Available PDF renderers: [flyingsaucer, chromium, itext]
+2026-06-14T13:40:37.408+06:00  INFO 18514 --- [easyJavaPdf] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8081 (http) with context path '/'
+2026-06-14T13:40:37.442+06:00  INFO 18514 --- [easyJavaPdf] [           main] c.b.easyJavaPdf.EasyJavaPdfApplication   : Started EasyJavaPdfApplication in 10.428 seconds (process running for 12.536)
+2026-06-14T13:40:54.109+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-06-14T13:40:54.110+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-06-14T13:40:54.117+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 6 ms
+2026-06-14T13:40:54.456+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-1] c.b.e.controller.HtmlToPdfController     : Received PDF generation request
+2026-06-14T13:40:54.469+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-1] c.b.easyJavaPdf.service.PdfService       : Starting PDF generation from request
+2026-06-14T13:40:54.486+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-2] c.b.e.s.strategy.PdfGenerationHelper     : Final HTML rendered (context=file, id=index.html, sizeBytes=1820215)
+2026-06-14T13:40:54.496+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-2] c.b.e.s.strategy.PdfGenerationHelper     : Final HTML rendered (context=file, id=index.html, length=1820215 chars)
+2026-06-14T13:40:54.497+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-2] c.b.e.s.s.FileBasedGenerationStrategy    : Starting async PDF generation for file: /tmp/pdf-request7242564109080131832/index.html with renderer: chromium
+2026-06-14T13:40:54.530+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.service.ITextPdfGenerator          : Using Chromium/Puppeteer renderer for PDF generation
+2026-06-14T13:40:54.670+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : ==================== CHROMIUM LAUNCH ====================
+2026-06-14T13:40:54.670+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : About to spawn Node/Chromium via Puppeteer
+2026-06-14T13:40:54.675+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : chunked=false htmlSize=1.74MB nodePath=node timeoutSeconds=600 script=/tmp/puppeteer-script-16162027584203514248.js config=/tmp/chromium-config-8774249278188884081.json
+2026-06-14T13:40:54.678+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : [mem][pre-chromium] jvm.heap.used=41.06MB committed=88.00MB max=7.76GB
+2026-06-14T13:40:54.678+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : [mem][pre-chromium] jvm.nonheap.used=46.17MB committed=50.06MB max=unknown
+2026-06-14T13:40:54.679+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : [mem][pre-chromium] runtime.free=45.74MB total=88.00MB max=7.76GB
+2026-06-14T13:40:54.680+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : =========================================================
+2026-06-14T13:41:13.247+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : Chromium PDF generation completed, size: 7965741 bytes
+2026-06-14T13:41:13.257+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-2] c.b.e.s.s.FileBasedGenerationStrategy    : PDF generation completed successfully in 18760 ms, size: 7965741 bytes
+2026-06-14T13:41:13.262+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-1] c.b.e.controller.HtmlToPdfController     : PDF generation completed successfully, size: 7965741 bytes
+2026-06-14T13:41:58.899+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-3] c.b.e.controller.HtmlToPdfController     : Received PDF generation request
+2026-06-14T13:41:58.900+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-3] c.b.easyJavaPdf.service.PdfService       : Starting PDF generation from request
+2026-06-14T13:41:58.909+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-4] c.b.e.s.strategy.PdfGenerationHelper     : Final HTML rendered (context=file, id=index.html, sizeBytes=1820215)
+2026-06-14T13:41:58.914+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-4] c.b.e.s.strategy.PdfGenerationHelper     : Final HTML rendered (context=file, id=index.html, length=1820215 chars)
+2026-06-14T13:41:58.915+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-4] c.b.e.s.s.FileBasedGenerationStrategy    : Starting async PDF generation for file: /tmp/pdf-request2217332914172390820/index.html with renderer: chromium
+2026-06-14T13:41:58.929+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.service.ITextPdfGenerator          : Using Chromium/Puppeteer renderer for PDF generation
+2026-06-14T13:41:58.935+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : ==================== CHROMIUM LAUNCH ====================
+2026-06-14T13:41:58.935+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : About to spawn Node/Chromium via Puppeteer
+2026-06-14T13:41:58.935+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : chunked=false htmlSize=1.74MB nodePath=node timeoutSeconds=600 script=/tmp/puppeteer-script-15046920937659752486.js config=/tmp/chromium-config-7350936286797515912.json
+2026-06-14T13:41:58.936+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : [mem][pre-chromium] jvm.heap.used=49.06MB committed=88.00MB max=7.76GB
+2026-06-14T13:41:58.937+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : [mem][pre-chromium] jvm.nonheap.used=46.54MB committed=50.38MB max=unknown
+2026-06-14T13:41:58.938+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : [mem][pre-chromium] runtime.free=31.65MB total=88.00MB max=7.76GB
+2026-06-14T13:41:58.939+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : =========================================================
+2026-06-14T13:42:13.517+06:00  INFO 18514 --- [easyJavaPdf] [onPool-worker-1] c.b.e.s.renderer.ChromiumPdfRenderer     : Chromium PDF generation completed, size: 7965741 bytes
+2026-06-14T13:42:13.523+06:00  INFO 18514 --- [easyJavaPdf] [pool-1-thread-4] c.b.e.s.s.FileBasedGenerationStrategy    : PDF generation completed successfully in 14608 ms, size: 7965741 bytes
+2026-06-14T13:42:13.524+06:00  INFO 18514 --- [easyJavaPdf] [nio-8081-exec-3] c.b.e.controller.HtmlToPdfController     : PDF generation completed successfully, size: 7965741 bytes
+2026-06-14T13:43:58.783+06:00  INFO 18514 --- [easyJavaPdf] [ionShutdownHook] o.s.b.w.e.tomcat.GracefulShutdown        : Commencing graceful shutdown. Waiting for active requests to complete
+2026-06-14T13:43:58.797+06:00  INFO 18514 --- [easyJavaPdf] [tomcat-shutdown] o.s.b.w.e.tomcat.GracefulShutdown        : Graceful shutdown complete
+
+> Task :bootRun FAILED
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':bootRun'.
+> Process 'command '/home/sakibuihaque/.sdkman/candidates/java/21.0.2-open/bin/java'' finished with non-zero exit value 143
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 4m 5s
+5 actionable tasks: 2 executed, 3 up-to-date
