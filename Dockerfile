@@ -14,6 +14,19 @@ COPY . .
 # Build the application (skip tests for faster build)
 RUN ./gradlew bootJar -x test --no-daemon
 
+# Stage 1.5: Download Microsoft Core Fonts on Debian (ttf-mscorefonts-installer not available on Alpine)
+FROM debian:bullseye-slim AS font-downloader
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
+    echo "deb http://deb.debian.org/debian bullseye contrib" >> /etc/apt/sources.list && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        fontconfig \
+        libfreetype6 \
+        ttf-mscorefonts-installer \
+        xfonts-75dpi \
+        xfonts-base && \
+    rm -rf /var/lib/apt/lists/*
+
 # Stage 2: Production image
 FROM eclipse-temurin:21-jre-alpine
 
@@ -46,6 +59,10 @@ RUN apk update && apk add --no-cache \
     # dbus for some Chrome features (helps prevent crashes)
     dbus \
     && rm -rf /var/cache/apk/*
+
+# Copy Microsoft Core Fonts (Arial, Times New Roman, etc.) from Debian stage into Alpine
+COPY --from=font-downloader /usr/share/fonts/truetype/msttcorefonts/ /usr/share/fonts/msttcorefonts/
+RUN fc-cache -f -v
 
 # Set Puppeteer environment variables - Alpine uses 'chromium' not 'chromium-browser'
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
