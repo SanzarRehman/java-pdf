@@ -74,6 +74,14 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
     @Value("${pdf.chromium.fit-to-width:true}")
     private boolean fitToWidthDefault;
 
+    /**
+     * Fixed print scale applied when fit-to-width is off and no explicit per-request scale is set.
+     * Defaults to the legacy wkhtmltopdf ("wk" driver) intrinsic zoom (~0.726x) so Chromium output
+     * matches that reference. Content is not reflowed, so over-wide content still overflows/clips.
+     */
+    @Value("${pdf.chromium.default-scale:0.726}")
+    private double defaultScale;
+
     @Value("${pdf.chromium.chunked-threshold-mb:10}")
     private int chunkedThresholdMb;
 
@@ -383,6 +391,10 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         config.put("fitToWidth", fitToWidth);
         if (scaleOverride != null) {
             config.put("scale", scaleOverride);
+        } else if (!fitToWidth) {
+            // Fit-to-width off and no explicit scale: apply the fixed wk-equivalent zoom so the
+            // output matches the legacy wkhtmltopdf reference. Over-wide content still overflows.
+            config.put("scale", defaultScale);
         }
         // When fit-to-width is active we drive page size from format/landscape/margins, so the
         // scale math is deterministic; otherwise honor CSS @page sizing as before.
