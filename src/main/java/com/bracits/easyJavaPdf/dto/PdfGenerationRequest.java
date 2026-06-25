@@ -111,6 +111,11 @@ public class PdfGenerationRequest {
     private String pageOrientation;
 
     /**
+     * Optional paper size (A4, A3, A5, LETTER, LEGAL). If null, defaults to A4.
+     */
+    private String pageSize;
+
+    /**
      * Optional chunk size in MB for Chromium chunked renderer. If null, defaults are used.
      */
     private Integer chunkSizeMb;

@@ -370,7 +370,12 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         Map<String, Object> config = new HashMap<>();
         config.put("htmlPath", htmlFile.toAbsolutePath().toString());
         config.put("outputPath", outputFile.toAbsolutePath().toString());
-        config.put("format", "A4");
+        // Paper size: per-request via RendererTuning, defaulting to A4.
+        com.bracits.easyJavaPdf.model.PaperSize paperSize =
+                (tuning != null && tuning.getPageSize() != null)
+                        ? tuning.getPageSize()
+                        : com.bracits.easyJavaPdf.model.PaperSize.A4;
+        config.put("format", paperSize.toPuppeteerFormat());
         config.put("printBackground", true);
 
         // Set orientation
@@ -397,8 +402,11 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             config.put("scale", defaultScale);
         }
         // When fit-to-width is active we drive page size from format/landscape/margins, so the
-        // scale math is deterministic; otherwise honor CSS @page sizing as before.
-        config.put("preferCSSPageSize", !fitToWidth);
+        // scale math is deterministic; otherwise honor CSS @page sizing as before. However, when
+        // the caller explicitly requested a paper size, that size must win over any CSS @page rule,
+        // so we never prefer the CSS page size in that case.
+        boolean explicitPageSize = tuning != null && tuning.getPageSize() != null;
+        config.put("preferCSSPageSize", !fitToWidth && !explicitPageSize);
 
         // High quality mode (2x device scale factor)
         config.put("highQuality", highQuality);

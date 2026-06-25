@@ -7,6 +7,7 @@ import com.bracits.easyJavaPdf.handler.Footer;
 import com.bracits.easyJavaPdf.handler.Header;
 import com.bracits.easyJavaPdf.handler.QRCodeTagWorkerFactory;
 import com.bracits.easyJavaPdf.model.PageOrientation;
+import com.bracits.easyJavaPdf.model.PaperSize;
 import com.bracits.easyJavaPdf.service.renderer.ChromiumPdfRenderer;
 import com.bracits.easyJavaPdf.service.renderer.RendererTuning;
 import com.itextpdf.html2pdf.ConverterProperties;
@@ -211,8 +212,11 @@ public class ITextPdfGenerator implements PdfGenerator {
         String headerHtml, String footerHtml, String banglaFooterHtml,
         List<Path> fontFiles, String password, String jsEnable, Path resourceRoot,
         PageOrientation orientation, boolean forceBrowserMode, RendererTuning tuning) {
-        
-        HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation, forceBrowserMode);
+
+        PaperSize paperSize = (tuning != null && tuning.getPageSize() != null)
+                ? tuning.getPageSize() : PaperSize.A4;
+
+        HtmlProcessingResult htmlResult = processHtmlContent(htmlContent, cssContent, jsEnable, orientation, forceBrowserMode, paperSize);
 
         Exception lastException = null;
         for (HtmlVariant variant : htmlResult.getHtmlVariants()) {
@@ -251,6 +255,7 @@ public class ITextPdfGenerator implements PdfGenerator {
                     banglaFooterHtml,
                     password,
                     orientation,
+                    paperSize,
                     tuning.getChunkSizeMb()
             );
         } else {
@@ -261,7 +266,8 @@ public class ITextPdfGenerator implements PdfGenerator {
                     footerHtml,
                     banglaFooterHtml,
                     password,
-                    orientation
+                    orientation,
+                    paperSize
             );
         }
 
@@ -285,7 +291,7 @@ public class ITextPdfGenerator implements PdfGenerator {
      * Processes HTML content by applying CSS and optionally executing JavaScript.
      */
     private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable,
-            PageOrientation orientation, boolean forceBrowserMode) {
+            PageOrientation orientation, boolean forceBrowserMode, PaperSize paperSize) {
         if (forceBrowserMode) {
             logger.debug("Force browser mode enabled; bypassing CSS sanitization and margin-safe variants");
             String cssToApply = cssContent != null ? cssContent : "";
@@ -308,7 +314,7 @@ public class ITextPdfGenerator implements PdfGenerator {
             return new HtmlProcessingResult(variants);
         }
 
-        String processedCss = cssProcessor.processCss(cssContent, orientation);
+        String processedCss = cssProcessor.processCss(cssContent, orientation, paperSize);
         String sanitizedHtml = wrapHtmlWithCss(htmlContent, processedCss, true);
         String rawHtml = wrapHtmlWithCss(htmlContent, processedCss, false);
 
@@ -336,12 +342,13 @@ public class ITextPdfGenerator implements PdfGenerator {
             String footerHtml,
             String banglaFooterHtml,
             String password,
-            PageOrientation orientation) throws Exception {
+            PageOrientation orientation,
+            PaperSize paperSize) throws Exception {
 
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             PdfWriter writer = createPdfWriter(outputStream, password);
             try (PdfDocument pdfDocument = new PdfDocument(writer)) {
-                configureDefaultPageSize(pdfDocument, orientation);
+                configureDefaultPageSize(pdfDocument, orientation, paperSize);
                 configureEventHandlers(pdfDocument, headerHtml, footerHtml, banglaFooterHtml);
 
                 logger.debug("Converting HTML to PDF with bookmark support");
@@ -367,13 +374,14 @@ public class ITextPdfGenerator implements PdfGenerator {
             String banglaFooterHtml,
             String password,
             PageOrientation orientation,
+            PaperSize paperSize,
             int chunkSizeMb) throws Exception {
 
         double effectiveChunkMb = Math.max(0.1, chunkSizeMb);
         List<String> chunks = splitHtmlIntoChunks(html, effectiveChunkMb);
         if (chunks.isEmpty()) {
             logger.warn("Chunk splitter produced no chunks; falling back to single-pass conversion");
-            return convertHtmlToPdf(html, converterProperties, headerHtml, footerHtml, banglaFooterHtml, password, orientation);
+            return convertHtmlToPdf(html, converterProperties, headerHtml, footerHtml, banglaFooterHtml, password, orientation, paperSize);
         }
 
         logger.info("iText chunked mode: {} chunk(s) at ~{} MB each", chunks.size(), effectiveChunkMb);
@@ -385,7 +393,7 @@ public class ITextPdfGenerator implements PdfGenerator {
 
             for (int i = 0; i < chunks.size(); i++) {
                 String chunkHtml = chunks.get(i);
-                byte[] chunkPdf = convertHtmlToPdf(chunkHtml, converterProperties, headerHtml, footerHtml, banglaFooterHtml, password, orientation);
+                byte[] chunkPdf = convertHtmlToPdf(chunkHtml, converterProperties, headerHtml, footerHtml, banglaFooterHtml, password, orientation, paperSize);
                 try (PdfDocument src = new PdfDocument(new PdfReader(new ByteArrayInputStream(chunkPdf)))) {
                     merger.merge(src, 1, src.getNumberOfPages());
                 }
@@ -546,14 +554,15 @@ public class ITextPdfGenerator implements PdfGenerator {
         logger.debug("Applied {} orientation ({}°) to {} pages", orientation.name(), rotation, totalPages);
     }
 
-    private void configureDefaultPageSize(PdfDocument pdfDocument, PageOrientation orientation) {
+    private void configureDefaultPageSize(PdfDocument pdfDocument, PageOrientation orientation, PaperSize paperSize) {
         if (pdfDocument == null || pdfDocument.isClosed() || orientation == null) {
             return;
         }
 
+        PageSize base = (paperSize != null ? paperSize.toITextPageSize() : PageSize.A4);
         PageSize targetSize = switch (orientation) {
-            case LANDSCAPE, SEASCAPE -> PageSize.A4.rotate();
-            default -> PageSize.A4;
+            case LANDSCAPE, SEASCAPE -> base.rotate();
+            default -> base;
         };
 
         PageSize currentDefault = pdfDocument.getDefaultPageSize();

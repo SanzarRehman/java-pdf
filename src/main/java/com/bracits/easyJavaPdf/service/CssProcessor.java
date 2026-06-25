@@ -1,6 +1,7 @@
 package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.model.PageOrientation;
+import com.bracits.easyJavaPdf.model.PaperSize;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -52,30 +53,35 @@ public class CssProcessor {
      * @return sanitized CSS content safe for PDF generation
      */
     public String processCss(String cssContent, PageOrientation orientation) {
+        return processCss(cssContent, orientation, PaperSize.A4);
+    }
+
+    public String processCss(String cssContent, PageOrientation orientation, PaperSize paperSize) {
+        PaperSize effectiveSize = paperSize != null ? paperSize : PaperSize.A4;
         boolean hasPageRule = containsPageRule(cssContent);
         if (cssContent == null || cssContent.trim().isEmpty()) {
-            return getDefaultPageCss(orientation, hasPageRule);
+            return getDefaultPageCss(orientation, hasPageRule, effectiveSize);
         }
 
         logger.debug("Processing CSS content for PDF generation safety");
 
         try {
             String sanitized = sanitizeCss(cssContent);
-            String orientationRule = buildOrientationCss(orientation);
+            String orientationRule = buildOrientationCss(orientation, effectiveSize);
             StringBuilder resultBuilder = new StringBuilder();
-            appendCssChunk(resultBuilder, getDefaultPageCss(orientation, hasPageRule));
+            appendCssChunk(resultBuilder, getDefaultPageCss(orientation, hasPageRule, effectiveSize));
             appendCssChunk(resultBuilder, orientationRule);
             appendCssChunk(resultBuilder, sanitized);
             String result = resultBuilder.toString().trim();
 
-            logger.debug("CSS processing completed, original length: {}, processed length: {}", 
+            logger.debug("CSS processing completed, original length: {}, processed length: {}",
                         cssContent.length(), result.length());
 
             return result;
 
         } catch (Exception e) {
             logger.warn("Error during CSS processing, returning safe defaults", e);
-            return getDefaultPageCss(orientation, hasPageRule);
+            return getDefaultPageCss(orientation, hasPageRule, effectiveSize);
         }
     }
 
@@ -213,13 +219,13 @@ public class CssProcessor {
      * Returns safe default CSS for PDF generation with minimal interference.
      * Does NOT add any @page rule - lets HTML render naturally like in a browser.
      */
-    private String getDefaultPageCss(PageOrientation orientation, boolean hasPageRule) {
+    private String getDefaultPageCss(PageOrientation orientation, boolean hasPageRule, PaperSize paperSize) {
         StringBuilder builder = new StringBuilder();
 
         // Only add @page rule if orientation is explicitly requested
         if (!hasPageRule && orientation != null) {
             if (orientation == PageOrientation.LANDSCAPE || orientation == PageOrientation.SEASCAPE) {
-                builder.append("@page { size: A4 landscape; } ");
+                builder.append("@page { size: ").append(paperSize.toCssPageSize()).append(" landscape; } ");
             }
             // For portrait/default, don't add @page - let it render naturally
         }
@@ -240,14 +246,15 @@ public class CssProcessor {
         return cssContent.toLowerCase().contains("@page");
     }
 
-    private String buildOrientationCss(PageOrientation orientation) {
+    private String buildOrientationCss(PageOrientation orientation, PaperSize paperSize) {
         if (orientation == null) {
             return "";
         }
 
+        String size = paperSize.toCssPageSize();
         return switch (orientation) {
-            case LANDSCAPE -> "@media print { @page { size: A4 landscape; } }";
-            case SEASCAPE -> "@media print { @page { size: A4 landscape; } }";
+            case LANDSCAPE -> "@media print { @page { size: " + size + " landscape; } }";
+            case SEASCAPE -> "@media print { @page { size: " + size + " landscape; } }";
             default -> "";
         };
     }

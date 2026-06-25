@@ -1,5 +1,6 @@
 package com.bracits.easyJavaPdf.service.renderer;
 
+import com.bracits.easyJavaPdf.model.PaperSize;
 import lombok.Builder;
 import lombok.Value;
 
@@ -9,6 +10,8 @@ import lombok.Value;
 @Value
 @Builder
 public class RendererTuning {
+    /** Paper size (A4, LETTER, etc.) for the generated PDF. Null = renderer default (A4). */
+    PaperSize pageSize;
     /** Chunk size in MB for chunked Chromium pipeline. */
     Integer chunkSizeMb;
     /** Parallelism (number of concurrent chunk workers) for chunked Chromium pipeline. */

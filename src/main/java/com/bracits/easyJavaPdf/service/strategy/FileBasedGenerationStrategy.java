@@ -3,6 +3,7 @@ package com.bracits.easyJavaPdf.service.strategy;
 import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.dto.PdfResponse;
 import com.bracits.easyJavaPdf.model.PageOrientation;
+import com.bracits.easyJavaPdf.model.PaperSize;
 import com.bracits.easyJavaPdf.service.PdfGenerator;
 import com.bracits.easyJavaPdf.service.renderer.RendererTuning;
 import org.slf4j.Logger;
@@ -39,8 +40,10 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
     }
 
     private RendererTuning buildTuning(com.bracits.easyJavaPdf.dto.PdfGenerationRequest request) {
+        PaperSize pageSize = PaperSize.parse(request.getPageSize()).orElse(null);
         if (request.getChunkSizeMb() == null && request.getParallelism() == null
-                && request.getFitToWidth() == null && request.getScale() == null) {
+                && request.getFitToWidth() == null && request.getScale() == null
+                && pageSize == null) {
             return null;
         }
         return RendererTuning.builder()
@@ -48,6 +51,7 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                 .parallelism(request.getParallelism())
                 .fitToWidth(request.getFitToWidth())
                 .scale(request.getScale())
+                .pageSize(pageSize)
                 .build();
     }
 

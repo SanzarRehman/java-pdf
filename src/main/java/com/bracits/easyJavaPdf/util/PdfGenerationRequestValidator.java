@@ -2,6 +2,7 @@ package com.bracits.easyJavaPdf.util;
 
 import com.bracits.easyJavaPdf.dto.PdfGenerationRequest;
 import com.bracits.easyJavaPdf.model.PageOrientation;
+import com.bracits.easyJavaPdf.model.PaperSize;
 import com.bracits.easyJavaPdf.exception.ValidationException;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -46,6 +47,7 @@ public final class PdfGenerationRequestValidator {
         validatePassword(request.getPassword());
     validateJsEnabledFlag(request.isJsEnable());
     validateOrientation(request.getPageOrientation());
+    validatePageSize(request.getPageSize());
         validateThymeleafConfiguration(request);
         
 
@@ -309,6 +311,17 @@ public final class PdfGenerationRequestValidator {
         if (PageOrientation.parse(orientation).isEmpty()) {
             throw new ValidationException("Invalid pageOrientation value. Supported values: " +
                     String.join(", ", PageOrientation.supportedNames()));
+        }
+    }
+
+    private static void validatePageSize(String pageSize) {
+        if (pageSize == null || pageSize.trim().isEmpty()) {
+            return;
+        }
+
+        if (PaperSize.parse(pageSize).isEmpty()) {
+            throw new ValidationException("Invalid pageSize value. Supported values: " +
+                    String.join(", ", PaperSize.supportedNames()));
         }
     }
 
