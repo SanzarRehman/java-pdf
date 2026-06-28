@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "pdf-lib": "^1.17.1",
-    "puppeteer-core": "^23.0.0"
+    "puppeteer-core": "^23.11.1"
   },
   "engines": {
     "node": ">=18.0.0"

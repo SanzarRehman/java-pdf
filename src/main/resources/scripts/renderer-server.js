@@ -29,7 +29,19 @@ try {
 
 const PORT = Number(process.env.RENDERER_SERVER_PORT || 3001);
 const HOST = process.env.RENDERER_SERVER_HOST || '127.0.0.1';
-const POOL_SIZE = Math.max(1, Number(process.env.RENDERER_POOL_SIZE || 2));
+
+// Low-RAM mode: ONE shared browser + a small set of REUSED pages (navigated, not
+// recreated), with concurrency capped low. This is the single biggest memory win.
+// CONCURRENCY = how many renders run at once = number of reusable pages kept alive.
+// Clamped to 1-2 on purpose (a queue of 1-2 renders is the recommended cap).
+const CONCURRENCY = Math.min(2, Math.max(1,
+  Number(process.env.RENDERER_CONCURRENCY || process.env.RENDERER_POOL_SIZE || 2)));
+// Recycle a reused page after this many renders to fight leak creep.
+const PAGE_RECYCLE_AFTER = Math.max(1, Number(process.env.RENDERER_PAGE_RECYCLE_AFTER || 200));
+// Recycle the whole browser after this many total renders (defends against deeper leaks).
+const BROWSER_RECYCLE_AFTER = Math.max(1, Number(process.env.RENDERER_BROWSER_RECYCLE_AFTER || 1000));
+// Back-compat alias used in log output.
+const POOL_SIZE = CONCURRENCY;
 
 // Paper width in inches for supported page formats, portrait + landscape.
 // Mirrors puppeteer-pdf.js so the pooled server produces identical output.
@@ -243,20 +255,62 @@ class AsyncPool {
   }
 }
 
-const pool = new AsyncPool(POOL_SIZE);
-const browsers = [];
-let browserIndex = 0;
+const pool = new AsyncPool(CONCURRENCY);
 
-async function getBrowser() {
-  if (browsers.length < POOL_SIZE) {
-    const browser = await puppeteer.launch(buildLaunchOptions());
-    browsers.push(browser);
-    return browser;
+// ---- Single shared browser (item 1: reuse one browser instance) ----
+let sharedBrowser = null;
+let browserLaunching = null;
+let totalRenders = 0;          // lifetime renders, drives browser recycling
+
+async function getSharedBrowser() {
+  if (sharedBrowser) return sharedBrowser;
+  if (browserLaunching) return browserLaunching;     // coalesce concurrent launches
+  browserLaunching = (async () => {
+    const b = await puppeteer.launch(buildLaunchOptions());
+    b.on('disconnected', () => { if (sharedBrowser === b) { sharedBrowser = null; freePages.length = 0; } });
+    sharedBrowser = b;
+    browserLaunching = null;
+    return b;
+  })();
+  return browserLaunching;
+}
+
+// ---- Reusable page pool (item 1: reuse pages across jobs instead of new/close) ----
+// Pages are navigated to new content per job and returned to the free list, NOT closed.
+// Each page tracks a use-count and is recycled after PAGE_RECYCLE_AFTER renders.
+const freePages = [];          // [{ page, uses }]
+
+async function acquirePage() {
+  // Periodic whole-browser recycle to defend against leak creep.
+  if (totalRenders > 0 && totalRenders % BROWSER_RECYCLE_AFTER === 0 && sharedBrowser) {
+    const old = sharedBrowser;
+    sharedBrowser = null;
+    freePages.length = 0;
+    try { await old.close(); } catch (_) {}
   }
 
-  const browser = browsers[browserIndex % browsers.length];
-  browserIndex++;
-  return browser;
+  const browser = await getSharedBrowser();
+  let slot = freePages.pop();
+  if (slot && slot.uses >= PAGE_RECYCLE_AFTER) {
+    try { await slot.page.close(); } catch (_) {}
+    slot = null;
+  }
+  if (!slot) {
+    slot = { page: await browser.newPage(), uses: 0 };
+  }
+  return slot;
+}
+
+async function releasePage(slot) {
+  if (!slot || !slot.page) return;
+  slot.uses++;
+  try {
+    // Drop the heavy DOM/JS of the finished doc so the idle page holds minimal RAM.
+    await slot.page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 });
+    freePages.push(slot);
+  } catch (_) {
+    try { await slot.page.close(); } catch (__) {}
+  }
 }
 
 async function renderSingle(configPath) {
@@ -272,8 +326,8 @@ async function renderSingle(configPath) {
     throw new Error('Config must include htmlPath and outputPath');
   }
 
-  const browser = await getBrowser();
-  const page = await browser.newPage();
+  const slot = await acquirePage();
+  const page = slot.page;
 
   try {
     await preparePage(page, config);
@@ -318,11 +372,9 @@ async function renderSingle(configPath) {
     const stats = fs.statSync(config.outputPath);
     return { bytes: stats.size };
   } finally {
-    try {
-      await page.close();
-    } catch (_) {
-      // ignore
-    }
+    // Item 1: reuse the page across jobs (return to pool) instead of closing it.
+    totalRenders++;
+    await releasePage(slot);
   }
 }
 

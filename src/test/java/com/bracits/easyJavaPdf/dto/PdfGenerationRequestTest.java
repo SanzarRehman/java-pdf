@@ -152,7 +152,12 @@ class PdfGenerationRequestTest {
             true,
             "{\"foo\":\"bar\"}",
             mockDataModelFile,
-            "LANDSCAPE"
+            "LANDSCAPE",
+            10,
+            2,
+            "chromium",
+            Boolean.TRUE,
+            1.0
         );
 
         assertEquals(mockHtmlFile, request.getHtml());
@@ -173,6 +178,11 @@ class PdfGenerationRequestTest {
         assertEquals("{\"foo\":\"bar\"}", request.getDataModel());
         assertEquals(mockDataModelFile, request.getDataModelFile());
         assertEquals("LANDSCAPE", request.getPageOrientation());
+        assertEquals(10, request.getChunkSizeMb());
+        assertEquals(2, request.getParallelism());
+        assertEquals("chromium", request.getRenderer());
+        assertEquals(Boolean.TRUE, request.getFitToWidth());
+        assertEquals(1.0, request.getScale());
     }
 
     @Test
