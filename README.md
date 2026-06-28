@@ -28,6 +28,95 @@ See the [LICENSE](LICENSE) file for details.
 docker run -p 8081:8081 sanzar686/easyjavapdf
 ```
 
+---
+## Running & Tuning in Docker
+
+All tuning is via environment variables passed to `docker run -e KEY=VALUE` (or
+`environment:` in compose / your CI/CD deploy manifest). No rebuild needed — the same
+image is tuned at runtime.
+
+### Recommended commands by size
+
+The single most important rule: **scale render concurrency *with* container memory.**
+Each concurrent Chromium render of a heavy document can spike ~0.5–1 GB on top of a
+~0.7 GB JVM+Node baseline.
+
+```bash
+# Small / default — fits ~2 GB (good for most workloads)
+docker run -p 8081:8081 -m 2g sanzar686/easyjavapdf      # concurrency 2 (image default)
+
+# Medium — more throughput, needs ~4 GB
+docker run -p 8081:8081 -m 4g \
+  -e RENDERER_CONCURRENCY=4 \
+  -e PDF_EXECUTOR_CORE_SIZE=4 -e PDF_EXECUTOR_MAX_SIZE=4 \
+  -e PDF_CHROMIUM_PARALLEL_WORKERS=4 -e PDF_CHROMIUM_MAX_PROCESSES=4 \
+  sanzar686/easyjavapdf
+
+# High — max practical Chromium parallelism (6), needs ~6 GB
+docker run -p 8081:8081 -m 6g \
+  -e RENDERER_CONCURRENCY=6 \
+  -e PDF_EXECUTOR_CORE_SIZE=6 -e PDF_EXECUTOR_MAX_SIZE=6 \
+  -e PDF_CHROMIUM_PARALLEL_WORKERS=6 -e PDF_CHROMIUM_MAX_PROCESSES=6 \
+  sanzar686/easyjavapdf
+```
+
+> ⚠️ **Always set `-m <limit>`** (or `mem_limit` / k8s `resources.limits.memory`).
+> Without it the JVM and Chromium grow toward host RAM. `-m` also lets the JVM
+> right-size itself.
+
+### Tuning variables
+
+| Env var | Default | What it does |
+|---------|---------|--------------|
+| `RENDERER_CONCURRENCY` | `2` | Parallel renders (warm Chromium tabs). Clamp 1–8. **The main throughput/RAM dial.** |
+| `PDF_EXECUTOR_CORE_SIZE` / `PDF_EXECUTOR_MAX_SIZE` | `2` | Java worker threads. **Keep equal to `RENDERER_CONCURRENCY`.** |
+| `PDF_EXECUTOR_QUEUE_CAPACITY` | `20` | Requests queued before load-shedding. Capacity = `MAX_SIZE + QUEUE`; beyond that → **HTTP 503 + `Retry-After`**. |
+| `PDF_CHROMIUM_PARALLEL_WORKERS` / `PDF_CHROMIUM_MAX_PROCESSES` | `2` | Downstream render-slot caps. Keep aligned with `RENDERER_CONCURRENCY`. |
+| `RENDERER_COMPRESS` | `off` | `auto`/`on` enables a qpdf post-compress pass. Off by default (redundant — output is already lean). |
+| `PDF_RENDERER` | `chromium` | Default renderer (`chromium` = browser-accurate; `itext` = lighter, lower fidelity). Override per request with the `renderer` form field. |
+| `JAVA_OPTS` | `-Xms128m -Xmx1024m …` | JVM heap. Raise `-Xmx` only for very large multipart uploads. |
+| `SERVER_PORT` | `8081` | App port inside the container. |
+
+### Throughput / RAM / load-shedding cheat-sheet
+
+- **Concurrency** sets parallelism *and* memory need (see table above).
+- **Queue** sets how many extra requests wait vs. fail fast: beyond
+  `PDF_EXECUTOR_MAX_SIZE + PDF_EXECUTOR_QUEUE_CAPACITY`, callers get an instant **503**
+  (`Retry-After: 5`) instead of a long wait — wire your client/LB to retry on 503.
+- **Output size** is already minimal (accessible-PDF tagging is disabled by default). Enable
+  `RENDERER_COMPRESS=auto` only if you need a few % smaller PDFs at some CPU cost.
+
+### compose / k8s snippets
+
+```yaml
+# docker-compose
+services:
+  easyjavapdf:
+    image: sanzar686/easyjavapdf
+    ports: ["8081:8081"]
+    mem_limit: 4g
+    environment:
+      RENDERER_CONCURRENCY: "4"
+      PDF_EXECUTOR_CORE_SIZE: "4"
+      PDF_EXECUTOR_MAX_SIZE: "4"
+      PDF_CHROMIUM_PARALLEL_WORKERS: "4"
+      PDF_CHROMIUM_MAX_PROCESSES: "4"
+```
+
+```yaml
+# kubernetes (excerpt)
+resources:
+  limits:   { memory: "4Gi", cpu: "4" }
+  requests: { memory: "2Gi", cpu: "1" }
+env:
+  - { name: RENDERER_CONCURRENCY, value: "4" }
+  - { name: PDF_EXECUTOR_CORE_SIZE, value: "4" }
+  - { name: PDF_EXECUTOR_MAX_SIZE, value: "4" }
+  - { name: PDF_CHROMIUM_PARALLEL_WORKERS, value: "4" }
+  - { name: PDF_CHROMIUM_MAX_PROCESSES, value: "4" }
+```
+
+---
 ## API Usage
 
 ### 1. **Merge PDF Files**
@@ -185,7 +274,7 @@ The resulting PDF will render the `<nav>` section as a visible contents page whi
 
 #### Renderer and chunking defaults
 
-- Default renderer: `itext` (fast, low-footprint). Set `renderer=chromium` for browser-accurate output.
+- Default renderer: `chromium` (browser-accurate; configurable via `PDF_RENDERER`). Set `renderer=itext` per request for a lighter, lower-fidelity path.
 - Chunked processing (Chromium): triggered automatically when HTML ≥ 10 MB; defaults to `chunkSizeMb≈5` and `parallelism=1` unless overridden by request params (and may be clamped by server limits).
 - Chunked processing (iText): opt-in via `chunkSizeMb`; splits HTML into pieces and merges PDFs sequentially (parallelism ignored for iText).
 
