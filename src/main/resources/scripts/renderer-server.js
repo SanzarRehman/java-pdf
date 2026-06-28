@@ -30,11 +30,11 @@ try {
 const PORT = Number(process.env.RENDERER_SERVER_PORT || 3001);
 const HOST = process.env.RENDERER_SERVER_HOST || '127.0.0.1';
 
-// Low-RAM mode: ONE shared browser + a small set of REUSED pages (navigated, not
-// recreated), with concurrency capped low. This is the single biggest memory win.
-// CONCURRENCY = how many renders run at once = number of reusable pages kept alive.
-// Clamped to 1-2 on purpose (a queue of 1-2 renders is the recommended cap).
-const CONCURRENCY = Math.min(2, Math.max(1,
+// ONE shared browser + a set of REUSED pages (navigated, not recreated). CONCURRENCY =
+// how many renders run at once = number of reusable pages kept alive. Each parallel
+// render costs ~1GB RAM, so size to the RAM/throughput trade-off you want. Capped at 8
+// (Chromium parallelism has diminishing returns; Gotenberg caps at 6). Default 2.
+const CONCURRENCY = Math.min(8, Math.max(1,
   Number(process.env.RENDERER_CONCURRENCY || process.env.RENDERER_POOL_SIZE || 2)));
 // Recycle a reused page after this many renders to fight leak creep.
 const PAGE_RECYCLE_AFTER = Math.max(1, Number(process.env.RENDERER_PAGE_RECYCLE_AFTER || 200));
@@ -42,6 +42,10 @@ const PAGE_RECYCLE_AFTER = Math.max(1, Number(process.env.RENDERER_PAGE_RECYCLE_
 const BROWSER_RECYCLE_AFTER = Math.max(1, Number(process.env.RENDERER_BROWSER_RECYCLE_AFTER || 1000));
 // Back-compat alias used in log output.
 const POOL_SIZE = CONCURRENCY;
+
+// Post-render PDF compression via qpdf: 'auto'/'on' = compress if qpdf present,
+// 'off' = skip. Safe no-op when qpdf is missing (local dev).
+const COMPRESS = (process.env.RENDERER_COMPRESS || 'auto').toLowerCase();
 
 // Paper width in inches for supported page formats, portrait + landscape.
 // Mirrors puppeteer-pdf.js so the pooled server produces identical output.
@@ -313,6 +317,31 @@ async function releasePage(slot) {
   }
 }
 
+// Post-compress a generated PDF with qpdf (recompress flate + object streams).
+// Safe no-op when qpdf is missing (spawn 'error') or RENDERER_COMPRESS=off, so it
+// never breaks local dev. qpdf exit 0 = clean, 3 = warnings-but-output-produced.
+function compressPdf(file) {
+  return new Promise((resolve) => {
+    if (COMPRESS === 'off') return resolve(false);
+    const tmp = `${file}.qpdf.tmp`;
+    const args = ['--object-streams=generate', '--compress-streams=y', '--recompress-flate', '--', file, tmp];
+    let child;
+    try {
+      child = spawn('qpdf', args, { stdio: 'ignore' });
+    } catch (_) {
+      return resolve(false);
+    }
+    child.on('error', () => resolve(false)); // qpdf not installed
+    child.on('close', (code) => {
+      if ((code === 0 || code === 3) && fs.existsSync(tmp)) {
+        try { fs.renameSync(tmp, file); return resolve(true); } catch (_) {}
+      }
+      try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch (_) {}
+      resolve(false);
+    });
+  });
+}
+
 async function renderSingle(configPath) {
   if (!configPath || typeof configPath !== 'string') {
     throw new Error('configPath is required');
@@ -364,13 +393,21 @@ async function renderSingle(configPath) {
       landscape: !!config.landscape,
       printBackground: config.printBackground !== false,
       preferCSSPageSize: !!config.preferCSSPageSize,
+      // Tagged (accessible) PDF defaults to true in puppeteer and embeds a structure
+      // tree — for huge tables that bloats output massively. Off by default (opt-in
+      // via config.tagged=true), matching Gotenberg's --disable-pdf-tagging.
+      tagged: config.tagged === true,
       scale: fitScale,
       margin: config.margin || { top: '20px', right: '20px', bottom: '20px', left: '20px' },
       timeout: 600000,
     });
 
+    const rawBytes = fs.statSync(config.outputPath).size;
+    // Optional post-compress pass (qpdf): recompress/object-stream the PDF.
+    // No-op if qpdf is absent (e.g. local dev) or RENDERER_COMPRESS=off.
+    await compressPdf(config.outputPath);
     const stats = fs.statSync(config.outputPath);
-    return { bytes: stats.size };
+    return { bytes: stats.size, rawBytes };
   } finally {
     // Item 1: reuse the page across jobs (return to pool) instead of closing it.
     totalRenders++;

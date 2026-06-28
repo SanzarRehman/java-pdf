@@ -188,27 +188,24 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
                 htmlFile, requestRenderer != null ? requestRenderer : "default");
         long startTime = System.currentTimeMillis();
 
-        CompletableFuture<byte[]> pdfFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                // Check if pdfGenerator is ITextPdfGenerator to use renderer-aware method
-                if (pdfGenerator instanceof com.bracits.easyJavaPdf.service.ITextPdfGenerator) {
-                    com.bracits.easyJavaPdf.service.ITextPdfGenerator itextGen = 
-                        (com.bracits.easyJavaPdf.service.ITextPdfGenerator) pdfGenerator;
-                    return itextGen.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, 
-                        forceBrowserMode, requestRenderer, tuning);
-                } else {
-                    // Fallback to standard interface method
-                    return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                            banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
-                }
-            } catch (Exception e) {
-                logger.error("PDF generation failed for report: {}", htmlFile, e);
-                throw new RuntimeException("Failed to generate PDF from report: " + htmlFile, e);
+        // Run synchronously on the calling worker thread (see FileBasedGenerationStrategy):
+        // the previous nested supplyAsync(...).get() caused thread-pool starvation deadlock.
+        byte[] pdfBytes;
+        try {
+            // Check if pdfGenerator is ITextPdfGenerator to use renderer-aware method
+            if (pdfGenerator instanceof com.bracits.easyJavaPdf.service.ITextPdfGenerator itextGen) {
+                pdfBytes = itextGen.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+                    banglaFooterHtml, fontFiles, password, jsEnable, orientation,
+                    forceBrowserMode, requestRenderer, tuning);
+            } else {
+                // Fallback to standard interface method
+                pdfBytes = pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
             }
-        });
-
-        byte[] pdfBytes = pdfFuture.get();
+        } catch (Exception e) {
+            logger.error("PDF generation failed for report: {}", htmlFile, e);
+            throw new RuntimeException("Failed to generate PDF from report: " + htmlFile, e);
+        }
         
         long duration = System.currentTimeMillis() - startTime;
         logger.info("Report PDF generation completed successfully in {} ms, size: {} bytes", 

@@ -170,27 +170,26 @@ public class FileBasedGenerationStrategy implements PdfGenerationStrategy {
                 htmlFile, requestRenderer != null ? requestRenderer : "default");
         long startTime = System.currentTimeMillis();
 
-        CompletableFuture<byte[]> pdfFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                // Check if pdfGenerator is ITextPdfGenerator to use renderer-aware method
-                if (pdfGenerator instanceof com.bracits.easyJavaPdf.service.ITextPdfGenerator) {
-                    com.bracits.easyJavaPdf.service.ITextPdfGenerator itextGen = 
-                        (com.bracits.easyJavaPdf.service.ITextPdfGenerator) pdfGenerator;
-                    return itextGen.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, 
-                        forceBrowserMode, requestRenderer, tuning);
-                } else {
-                    // Fallback to standard interface method
-                    return pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
-                            banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
-                }
-            } catch (Exception e) {
-                logger.error("PDF generation failed for file: {}", htmlFile, e);
-                throw new RuntimeException("Failed to generate PDF from HTML file: " + htmlFile, e);
+        // Run synchronously on the calling worker thread. Previously this wrapped the
+        // work in CompletableFuture.supplyAsync(...).get(); combined with the @Async +
+        // supplyAsync layers above, that nested blocking caused thread-pool starvation
+        // deadlock under concurrency. Concurrency is now bounded by the executor pool.
+        byte[] pdfBytes;
+        try {
+            // Check if pdfGenerator is ITextPdfGenerator to use renderer-aware method
+            if (pdfGenerator instanceof com.bracits.easyJavaPdf.service.ITextPdfGenerator itextGen) {
+                pdfBytes = itextGen.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+                    banglaFooterHtml, fontFiles, password, jsEnable, orientation,
+                    forceBrowserMode, requestRenderer, tuning);
+            } else {
+                // Fallback to standard interface method
+                pdfBytes = pdfGenerator.generatePdf(htmlFile, cssFile, headerHtml, footerHtml,
+                        banglaFooterHtml, fontFiles, password, jsEnable, orientation, forceBrowserMode);
             }
-        });
-
-        byte[] pdfBytes = pdfFuture.get();
+        } catch (Exception e) {
+            logger.error("PDF generation failed for file: {}", htmlFile, e);
+            throw new RuntimeException("Failed to generate PDF from HTML file: " + htmlFile, e);
+        }
         
         long duration = System.currentTimeMillis() - startTime;
         logger.info("PDF generation completed successfully in {} ms, size: {} bytes", 

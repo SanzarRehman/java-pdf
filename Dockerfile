@@ -49,6 +49,8 @@ RUN apk update && apk add --no-cache \
     font-noto-cjk \
     # PDF utilities for merging
     poppler-utils \
+    # qpdf for post-render PDF compression (recompress flate + object streams)
+    qpdf \
     # Additional dependencies for Chromium
     nss \
     harfbuzz \
@@ -72,14 +74,25 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     NODE_PATH=/app/node_modules \
     PDF_SCRIPTS_PATH=/app/scripts
 
-# Prefer renderer-server (in-container) over spawning node per request
+# Prefer renderer-server (in-container) over spawning node per request.
+# Concurrency knobs are ALL aligned (render slots = Java workers = renderer pages), so the
+# executor is the single admission point. Default 2 fits a ~2GB container for heavy docs.
+# RAM RULE: each concurrent render of a heavy doc can spike ~0.5-1GB of Chromium on top of
+# the ~0.7GB JVM+Node baseline. Scale concurrency WITH memory: conc 2 -> -m 2g, conc 4 ->
+# -m 4g, etc. Bump RENDERER_CONCURRENCY + PDF_EXECUTOR_* + PARALLEL_WORKERS/MAX_PROCESSES together.
+# qpdf compression is OFF: the tagged:false fix already yields Gotenberg-sized output,
+# so qpdf is redundant and only adds CPU/latency.
 ENV PDF_CHROMIUM_NODE_PATH=/usr/bin/node \
     PDF_CHROMIUM_RENDERER_SERVER_URL=http://127.0.0.1:3001 \
     RENDERER_SERVER_HOST=127.0.0.1 \
     RENDERER_SERVER_PORT=3001 \
-    RENDERER_POOL_SIZE=1 \
+    RENDERER_CONCURRENCY=2 \
+    RENDERER_COMPRESS=off \
+    PDF_EXECUTOR_CORE_SIZE=2 \
+    PDF_EXECUTOR_MAX_SIZE=2 \
+    PDF_EXECUTOR_QUEUE_CAPACITY=20 \
     PDF_CHROMIUM_PARALLEL_WORKERS=2 \
-    PDF_CHROMIUM_MAX_PROCESSES=4 \
+    PDF_CHROMIUM_MAX_PROCESSES=2 \
     PDF_CHROMIUM_CHUNKED_DEFAULT_PARALLELISM=1
 
 # Create app directory
@@ -114,10 +127,15 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose port
 EXPOSE 8081
 
-# JVM optimizations for container environment
-ENV JAVA_OPTS="-XX:+UseContainerSupport \
-    -XX:MaxRAMPercentage=75.0 \
+# JVM tuning. The JVM here is an orchestrator — Chromium (separate process) does the
+# heavy rendering — so the heap need is small. MaxRAMPercentage=75% with no container
+# memory limit made the JVM balloon toward host RAM (~6GB+ observed) because G1 grabs
+# and keeps heap it doesn't need. An explicit, modest -Xmx bounds the footprint
+# regardless of host/container size, leaving RAM for Node + Chromium. Override via
+# JAVA_OPTS for very large multipart uploads (spring.servlet.multipart.max-file-size).
+ENV JAVA_OPTS="-Xms128m -Xmx1024m \
     -XX:+UseG1GC \
+    -XX:MaxGCPauseMillis=200 \
     -XX:+UseStringDeduplication \
     -Djava.awt.headless=true"
 

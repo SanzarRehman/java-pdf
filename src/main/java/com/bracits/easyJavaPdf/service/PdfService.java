@@ -9,7 +9,6 @@ import com.bracits.easyJavaPdf.service.strategy.PdfGenerationStrategy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
@@ -41,10 +40,18 @@ public class PdfService {
    * Generates PDF from a PdfGenerationRequest DTO.
    * Selects appropriate strategy and delegates generation.
    */
-  @Async
+  /**
+   * Submits the work to the bounded executor (the single async boundary) and returns
+   * a future the caller blocks on. NOT {@code @Async}: a second Spring-managed async
+   * layer on the same pool previously nested with this {@code supplyAsync} and the
+   * strategy's inner async, causing starvation deadlock under concurrency.
+   *
+   * <p>If the executor is saturated, {@code supplyAsync} rejects synchronously
+   * (TaskRejectedException / RejectedExecutionException) so the controller returns 503.
+   */
   public CompletableFuture<PdfResponse> generatePdf(PdfGenerationRequest request) {
     logger.info("Starting PDF generation from request");
-    
+
     return CompletableFuture.supplyAsync(() -> {
       try {
         PageOrientation orientation = resolveOrientation(request);
