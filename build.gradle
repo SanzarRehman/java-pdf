@@ -39,7 +39,7 @@ dependencies {
 	implementation 'io.github.bonigarcia:webdrivermanager:5.6.4'
 
 	// Playwright for Java — third renderer option (JVM-native CDP, no Node sidecar).
-	implementation 'com.microsoft.playwright:playwright:1.52.0'
+	implementation 'com.microsoft.playwright:playwright:1.60.0'
 }
 
 tasks.named('test') {

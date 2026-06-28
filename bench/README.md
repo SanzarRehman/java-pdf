@@ -76,13 +76,52 @@ RENDERER=chromium   ./bench/concurrency-test.sh
  RESULT (playwright)
 ------------------------------------------------------------
   success:     20 / 20   (HTTP 200)
-  wall clock:  16.5 s   (burst start -> all done)
-  throughput:  1.21 req/s
-  latency:     min 1.3  p50 8.7  p90 14.0  max 16.5  (s)
-  RAM:         peak 1716 MiB   avg 839 MiB
-  CPU:         peak 627%   avg 153%   (100% = 1 core)
+  wall clock:  8.6 s   (burst start -> all done)
+  throughput:  2.33 req/s
+  latency:     min 1.7  p50 4.9  p90 8.5  max 8.5  (s)
+  RAM:         peak 3042 MiB   avg 2576 MiB
+  CPU:         peak 831%   avg 794%   (100% = 1 core)
 ------------------------------------------------------------
 ```
+
+## Benchmark results
+
+Measured on this repo with **Playwright Java 1.60.0**, system Chromium, Docker
+(`--cpus=8 -m 6g`, `RENDERER_CONCURRENCY=4`), 20 concurrent requests. Reproduce with:
+
+```bash
+CPUS=8 MEMORY=6g RENDERER_CONCURRENCY=4 ./bench/build-and-run.sh
+RENDERER=<engine> ./bench/concurrency-test.sh                 # heavy table (1300×16)
+HTML_FILE=/path/cert.html RENDERER=<engine> ./bench/concurrency-test.sh   # light doc
+```
+
+**Heavy doc** — synthetic 1300-row × 16-col landscape table, 20 concurrent:
+
+| Renderer    | Wall  | Throughput  | p50   | p90   | RAM peak  | CPU avg |
+|-------------|-------|-------------|-------|-------|-----------|---------|
+| playwright  | 8.6 s | 2.33 req/s  | 4.9 s | 8.5 s | **3042 MiB** | 794%   |
+| chromium    | 10.7 s| 1.87 req/s  | 3.6 s | 10.0 s| 6144 MiB* | 606%   |
+| itext       | 8.5 s | 2.35 req/s  | 5.3 s | 8.5 s | 6134 MiB* | 544%   |
+
+`*` chromium and itext saturated the 6 GiB container limit; Playwright peaked at ~3 GiB —
+**~2× lower RAM** for the same throughput. (iText is fast here but loses fidelity on
+flex/grid layouts; see renderer notes below.)
+
+**Light doc** — 1-page certificate, 20 concurrent:
+
+| Renderer    | Wall  | Throughput   | p50   | p90   |
+|-------------|-------|--------------|-------|-------|
+| itext       | 0.5 s | 38.2 req/s   | 0.3 s | 0.5 s |
+| chromium    | 0.8 s | 24.0 req/s   | 0.5 s | 0.8 s |
+| playwright  | 1.6 s | 12.5 req/s   | 1.0 s | 1.6 s |
+
+> RAM/CPU read `0` for light docs because the burst finishes sub-second — faster than the
+> `docker stats` sampler's first snapshot. Trust the latency/throughput columns there.
+
+**Takeaways:** Playwright is the best engine for **heavy** documents (lowest RAM, top
+throughput); iText wins on **simple** documents (10–50× faster, tiny output) but breaks on
+flex/grid. chromium and Playwright produce pixel-equivalent output — Playwright just costs
+far less RAM under load. Re-run on your own hardware before sizing production.
 
 ## Reading the results
 - **latency under burst = queue wait.** With concurrency C and per-render time R, request k
