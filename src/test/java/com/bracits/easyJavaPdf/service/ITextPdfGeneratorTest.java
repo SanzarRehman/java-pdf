@@ -30,6 +30,9 @@ class ITextPdfGeneratorTest {
     @Mock
     private com.bracits.easyJavaPdf.service.renderer.ChromiumPdfRenderer mockChromiumPdfRenderer;
 
+    @Mock
+    private com.bracits.easyJavaPdf.service.renderer.PlaywrightPdfRenderer mockPlaywrightPdfRenderer;
+
     private ITextPdfGenerator pdfGenerator;
 
     @TempDir
@@ -42,7 +45,7 @@ class ITextPdfGeneratorTest {
             "@page { size: A4; margin: 2cm; } body { margin: 0; padding: 1em; }"
         );
         
-        pdfGenerator = new ITextPdfGenerator(mockCssProcessor, mockChromiumPdfRenderer);
+        pdfGenerator = new ITextPdfGenerator(mockCssProcessor, mockChromiumPdfRenderer, mockPlaywrightPdfRenderer);
     }
 
     @Test

@@ -73,13 +73,16 @@ public class ITextPdfGenerator implements PdfGenerator {
     
     private final CssProcessor cssProcessor;
     private final ChromiumPdfRenderer chromiumPdfRenderer;
+    private final com.bracits.easyJavaPdf.service.renderer.PlaywrightPdfRenderer playwrightPdfRenderer;
 
     @Value("${pdf.renderer:itext}")
     private String configuredRenderer;
 
-    public ITextPdfGenerator(CssProcessor cssProcessor, ChromiumPdfRenderer chromiumPdfRenderer) {
+    public ITextPdfGenerator(CssProcessor cssProcessor, ChromiumPdfRenderer chromiumPdfRenderer,
+                             com.bracits.easyJavaPdf.service.renderer.PlaywrightPdfRenderer playwrightPdfRenderer) {
         this.cssProcessor = cssProcessor;
         this.chromiumPdfRenderer = chromiumPdfRenderer;
+        this.playwrightPdfRenderer = playwrightPdfRenderer;
     }
 
     @Override
@@ -106,7 +109,12 @@ public class ITextPdfGenerator implements PdfGenerator {
         try {
             Path resourceRoot = htmlFile != null ? htmlFile.getParent() : (cssFile != null ? cssFile.getParent() : null);
             
-            // Check if Chromium renderer should be used
+            // Renderer selection: playwright > chromium/puppeteer > iText (default).
+            if (shouldUsePlaywrightRenderer(effectiveRenderer)) {
+                logger.info("Using Playwright renderer for PDF generation");
+                return playwrightPdfRenderer.renderFromFile(htmlFile, cssFile, fontFiles,
+                        password, orientation, resourceRoot, tuning);
+            }
             if (shouldUseChromiumRenderer(effectiveRenderer)) {
                 logger.info("Using Chromium/Puppeteer renderer for PDF generation");
             return chromiumPdfRenderer.renderFromFile(htmlFile, cssFile, fontFiles,
@@ -138,6 +146,19 @@ public class ITextPdfGenerator implements PdfGenerator {
     }
 
     /**
+     * Checks if the Playwright renderer should be used (renderer=playwright).
+     */
+    private boolean shouldUsePlaywrightRenderer(String renderer) {
+        if ("playwright".equalsIgnoreCase(renderer)) {
+            if (playwrightPdfRenderer.isAvailable()) {
+                return true;
+            }
+            logger.warn("Playwright renderer requested but not available. Falling back to iText.");
+        }
+        return false;
+    }
+
+    /**
      * Legacy method for backward compatibility.
      */
     private boolean shouldUseChromiumRenderer() {
@@ -161,12 +182,19 @@ public class ITextPdfGenerator implements PdfGenerator {
         String effectiveRenderer = requestRenderer != null ? requestRenderer : configuredRenderer;
         logger.debug("Starting PDF generation from content strings, renderer: {}", effectiveRenderer);
         
-        // Check if Chromium renderer should be used
+        // Renderer selection: playwright > chromium/puppeteer > iText (default).
+        if (shouldUsePlaywrightRenderer(effectiveRenderer)) {
+            logger.info("Using Playwright renderer for PDF generation from content");
+            Path resourceRoot = fontFiles != null && !fontFiles.isEmpty()
+                    ? fontFiles.get(0).getParent() : null;
+            return playwrightPdfRenderer.render(htmlContent, cssContent, fontFiles,
+                    password, orientation, resourceRoot, tuning);
+        }
         if (shouldUseChromiumRenderer(effectiveRenderer)) {
             logger.info("Using Chromium/Puppeteer renderer for PDF generation from content");
-            Path resourceRoot = fontFiles != null && !fontFiles.isEmpty() 
+            Path resourceRoot = fontFiles != null && !fontFiles.isEmpty()
                     ? fontFiles.get(0).getParent() : null;
-            return chromiumPdfRenderer.render(htmlContent, cssContent, fontFiles, 
+            return chromiumPdfRenderer.render(htmlContent, cssContent, fontFiles,
                     password, orientation, resourceRoot, tuning);
         }
         

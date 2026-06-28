@@ -60,6 +60,8 @@ RUN apk update && apk add --no-cache \
     dumb-init \
     # dbus for some Chrome features (helps prevent crashes)
     dbus \
+    # glibc compat shim — helps the Playwright driver run on musl/Alpine
+    gcompat \
     && rm -rf /var/cache/apk/*
 
 # Copy Microsoft Core Fonts (Arial, Times New Roman, etc.) from Debian stage into Alpine
@@ -94,6 +96,16 @@ ENV PDF_CHROMIUM_NODE_PATH=/usr/bin/node \
     PDF_CHROMIUM_PARALLEL_WORKERS=2 \
     PDF_CHROMIUM_MAX_PROCESSES=2 \
     PDF_CHROMIUM_CHUNKED_DEFAULT_PARALLELISM=1
+
+# Playwright renderer (renderer=playwright). On Alpine, Playwright must use the system
+# musl Node for its driver and the system Chromium binary — its own browser downloads are
+# glibc-based and won't run here. So: point the driver at /usr/bin/node, skip downloads,
+# and launch the already-installed Chromium.
+ENV PLAYWRIGHT_NODEJS_PATH=/usr/bin/node \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
+    PLAYWRIGHT_BROWSERS_PATH=0 \
+    PDF_PLAYWRIGHT_ENABLED=true \
+    PDF_PLAYWRIGHT_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # Create app directory
 WORKDIR /app
