@@ -141,4 +141,16 @@ public class PdfGenerationRequest {
      * precedence over auto fit-to-width. Chromium renderer only.
      */
     private Double scale;
+
+    /**
+     * Optional render mode for the Playwright renderer (renderer=playwright):
+     * <ul>
+     *   <li>{@code "fast"} — reuse a warm browser page across renders (Gotenberg-style):
+     *       lower latency, but higher RAM (the page is recycled every N renders to bound it).</li>
+     *   <li>anything else / null (default) — close the page after each render: lowest RAM,
+     *       slightly slower. Safe default for tight-memory containers.</li>
+     * </ul>
+     * Ignored by the iText and Chromium renderers.
+     */
+    private String mode;
 }

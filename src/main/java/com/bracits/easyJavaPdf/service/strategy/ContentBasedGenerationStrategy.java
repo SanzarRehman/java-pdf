@@ -36,14 +36,17 @@ public class ContentBasedGenerationStrategy implements PdfGenerationStrategy {
 
     private RendererTuning buildTuning(PdfGenerationRequest request) {
         if (request.getChunkSizeMb() == null && request.getParallelism() == null
-                && request.getFitToWidth() == null && request.getScale() == null) {
+                && request.getFitToWidth() == null && request.getScale() == null
+                && request.getMode() == null) {
             return null;
         }
+        Boolean fast = request.getMode() == null ? null : "fast".equalsIgnoreCase(request.getMode());
         return RendererTuning.builder()
                 .chunkSizeMb(request.getChunkSizeMb())
                 .parallelism(request.getParallelism())
                 .fitToWidth(request.getFitToWidth())
                 .scale(request.getScale())
+                .fast(fast)
                 .build();
     }
 

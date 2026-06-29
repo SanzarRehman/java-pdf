@@ -23,4 +23,10 @@ public class RendererTuning {
      * auto fit-to-width. Null = let the renderer compute the scale.
      */
     Double scale;
+    /**
+     * Playwright only: when {@code true} ({@code mode=fast}), reuse a warm page across renders
+     * for lower latency at the cost of higher RAM (page recycled every N renders). Null/false =
+     * close the page after each render (lowest RAM). Ignored by other renderers.
+     */
+    Boolean fast;
 }
