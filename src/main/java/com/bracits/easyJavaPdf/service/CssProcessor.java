@@ -45,6 +45,30 @@ public class CssProcessor {
     private static final Set<String> SUPPORTED_FONT_EXTENSIONS = Set.of("ttf", "otf", "woff", "woff2", "ttc");
 
     /**
+     * Universal "fit tables to the printable page width" rules for the iText renderer.
+     *
+     * <p>Why this is needed: a browser (Chromium) treats the declared column widths
+     * (<code>&lt;col width&gt;</code>, <code>&lt;td style="width:.."&gt;</code>) as hints and shrinks
+     * columns so that a <code>width:100%</code> table never exceeds its container. iText's layout
+     * engine instead honors those declared widths literally, so a table whose columns sum wider than
+     * the page (e.g. PhpSpreadsheet exports declare ~1067pt of columns on a ~560pt-wide portrait page)
+     * is laid out at that oversize width and the fixed PDF page box simply clips the overflowing
+     * columns. Setting <code>table-layout:fixed</code> does NOT help — iText still sizes the table to
+     * the sum of the fixed column widths rather than scaling them down to 100%.
+     *
+     * <p>These <code>!important</code> rules neutralize the fixed column/cell widths (forcing
+     * content-based auto sizing), cap every table at the printable width, and let long unbreakable
+     * tokens wrap. That makes iText fit all columns within the page the same way the browser does.
+     * The rules are generic — they key off the <em>presence</em> of over-wide widths, not any specific
+     * document — so they apply to arbitrary HTML input, not just these reports.
+     */
+    private static final String TABLE_FIT_CSS =
+        " table { max-width: 100% !important; table-layout: auto !important; }"
+        + " colgroup, col { width: auto !important; }"
+        + " td, th { width: auto !important;"
+        + " overflow-wrap: break-word !important; word-break: break-word !important; }";
+
+    /**
      * Processes CSS content by removing problematic rules and properties
      * that cause FileNotFoundException and other PDF generation issues.
      *
@@ -229,6 +253,10 @@ public class CssProcessor {
                .append(".li-wrapper { display: block; } ")
                .append(".section-wrapper { display: block; } ")
                .append(".block-wrapper { display: block; }");
+
+        // Make over-wide tables fit the printable page width (browser-like), instead of
+        // overflowing off the page and being clipped as iText does by default.
+        builder.append(TABLE_FIT_CSS);
 
         return builder.toString();
     }

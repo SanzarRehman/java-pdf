@@ -70,7 +70,16 @@ import com.itextpdf.kernel.pdf.PdfReader;
 public class ITextPdfGenerator implements PdfGenerator {
 
     private static final Logger logger = LoggerFactory.getLogger(ITextPdfGenerator.class);
-    
+
+    /**
+     * Matches a <em>named</em> {@code @page} rule, e.g. {@code @page page0 {} or
+     * {@code @page page0:first {}. Group 1 captures an optional pseudo-class so it can be kept.
+     * Plain {@code @page {} and pseudo-only {@code @page :first {} rules are intentionally NOT
+     * matched (no identifier after {@code @page}), so they are left untouched.
+     */
+    private static final Pattern NAMED_AT_PAGE_RULE =
+            Pattern.compile("(?i)@page\\s+[A-Za-z_][\\w-]*(\\s*:[A-Za-z-]+)?\\s*\\{");
+
     private final CssProcessor cssProcessor;
     private final ChromiumPdfRenderer chromiumPdfRenderer;
     private final com.bracits.easyJavaPdf.service.renderer.PlaywrightPdfRenderer playwrightPdfRenderer;
@@ -314,6 +323,11 @@ public class ITextPdfGenerator implements PdfGenerator {
      */
     private HtmlProcessingResult processHtmlContent(String htmlContent, String cssContent, String jsEnable,
             PageOrientation orientation, boolean forceBrowserMode) {
+        // Make iText honor the HTML's declared @page size/margins: rewrite named @page rules
+        // (e.g. "@page page0 {...}", which iText ignores) into plain "@page {...}" rules.
+        htmlContent = normalizeAtPageRules(htmlContent);
+        cssContent = normalizeAtPageRules(cssContent);
+
         if (forceBrowserMode) {
             logger.debug("Force browser mode enabled; bypassing CSS sanitization and margin-safe variants");
             String cssToApply = cssContent != null ? cssContent : "";
@@ -813,6 +827,41 @@ public class ITextPdfGenerator implements PdfGenerator {
         }
 
         return htmlContent.replaceAll("(?is)<script[^>]*>.*?</script>", "");
+    }
+
+    /**
+     * Rewrites <em>named</em> {@code @page} rules (e.g. {@code @page page0 { size: landscape; margin: 0.25in; }})
+     * into plain {@code @page { ... }} rules so iText honors their page size and margins.
+     *
+     * <p>iText's pdfHTML applies only the unnamed {@code @page} rule; it ignores named {@code @page} rules
+     * and the {@code page: <name>} property that targets them. PhpSpreadsheet (and many spreadsheet/report
+     * exporters) emit exactly that form — {@code @page page0 { size: landscape; ... }} plus
+     * {@code <div style="page: page0">} — so without this rewrite the declared orientation and margins are
+     * silently dropped and the sheet renders as the default portrait A4. An unnamed {@code @page} rule
+     * overrides the default page size set from the request orientation, while documents without any
+     * {@code @page} rule fall back to that request orientation unchanged.
+     *
+     * <p>Any pseudo-class on the rule (e.g. {@code :first}) is preserved.
+     */
+    private String normalizeAtPageRules(String content) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+
+        Matcher matcher = NAMED_AT_PAGE_RULE.matcher(content);
+        if (!matcher.find()) {
+            return content;
+        }
+
+        matcher.reset();
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            String pseudo = matcher.group(1) != null ? matcher.group(1).trim() : "";
+            String replacement = pseudo.isEmpty() ? "@page {" : "@page " + pseudo + " {";
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
     }
 
     private static class HtmlProcessingResult {
