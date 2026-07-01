@@ -14,7 +14,14 @@ import com.itextpdf.html2pdf.HtmlConverter;
 import com.itextpdf.html2pdf.attach.impl.OutlineHandler;
 import com.itextpdf.kernel.pdf.EncryptionConstants;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.geom.Rectangle;
+import com.itextpdf.kernel.pdf.canvas.parser.PdfCanvasProcessor;
+import com.itextpdf.kernel.pdf.canvas.parser.EventType;
+import com.itextpdf.kernel.pdf.canvas.parser.data.IEventData;
+import com.itextpdf.kernel.pdf.canvas.parser.data.TextRenderInfo;
+import com.itextpdf.kernel.pdf.canvas.parser.listener.IEventListener;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.WriterProperties;
 import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
@@ -51,6 +58,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -79,6 +87,21 @@ public class ITextPdfGenerator implements PdfGenerator {
      */
     private static final Pattern NAMED_AT_PAGE_RULE =
             Pattern.compile("(?i)@page\\s+[A-Za-z_][\\w-]*(\\s*:[A-Za-z-]+)?\\s*\\{");
+
+    /**
+     * Matches the {@code pt}/{@code px} value of length properties that must shrink together when the
+     * document is scaled to fit the page width (font-size, cell padding, line-height, explicit row
+     * heights). Widths are intentionally excluded — table/column widths are auto-sized by
+     * {@code TABLE_FIT_CSS}. {@code @page} margins use {@code in}/{@code cm} units and are not matched,
+     * so page margins are preserved.
+     */
+    private static final Pattern SCALABLE_LENGTH = Pattern.compile(
+            "(?i)(font-size|line-height|padding[a-z-]*|height)\\s*:\\s*([0-9]*\\.?[0-9]+)\\s*(pt|px)");
+
+    /** Shrink-only safety factor applied to the computed fit scale (borders/units that don't scale). */
+    private static final double FIT_SCALE_SAFETY = 0.97;
+    /** Never shrink below this, to avoid microscopic text on pathological input. */
+    private static final double MIN_FIT_SCALE = 0.5;
 
     private final CssProcessor cssProcessor;
     private final ChromiumPdfRenderer chromiumPdfRenderer;
@@ -279,9 +302,14 @@ public class ITextPdfGenerator implements PdfGenerator {
 
         byte[] pdfBytes;
 
+        // Auto fit-to-width: shrink the whole document just enough that all columns fit the page
+        // width without breaking words (mirrors Chromium's smart-shrink). No-op when it already fits.
+        double fitScale = computeFitScale(variant.getHtml(), fontFiles, resourceRoot, orientation, tuning);
+        String htmlToRender = fitScale < 0.999 ? scaleHtmlLengths(variant.getHtml(), fitScale) : variant.getHtml();
+
         if (tuning != null && tuning.getChunkSizeMb() != null && tuning.getChunkSizeMb() > 0) {
             pdfBytes = convertHtmlToPdfChunked(
-                    variant.getHtml(),
+                    htmlToRender,
                     converterProperties,
                     headerHtml,
                     footerHtml,
@@ -292,7 +320,7 @@ public class ITextPdfGenerator implements PdfGenerator {
             );
         } else {
             pdfBytes = convertHtmlToPdf(
-                    variant.getHtml(),
+                    htmlToRender,
                     converterProperties,
                     headerHtml,
                     footerHtml,
@@ -862,6 +890,153 @@ public class ITextPdfGenerator implements PdfGenerator {
         }
         matcher.appendTail(result);
         return result.toString();
+    }
+
+    /**
+     * Computes an auto fit-to-width scale so that over-wide content (typically many-column tables)
+     * shrinks to fit the printable page width instead of overflowing/clipping — the same effect as
+     * Chromium's "smart shrinking". Returns {@code 1.0} (no scaling) when the content already fits or
+     * when fit-to-width is disabled.
+     *
+     * <p>It works by doing a lightweight trial conversion (same fonts and page size as the real one,
+     * but without headers/footers/bookmarks/encryption), measuring the widest rendered content, and
+     * comparing it to the printable width. Because iText assigns a table its column widths once for the
+     * whole table, the first couple of pages already reflect the true content width.
+     */
+    private double computeFitScale(String html, List<Path> fontFiles, Path resourceRoot,
+            PageOrientation orientation, RendererTuning tuning) {
+        // Explicit scale override always wins (shrink-only for iText, matching the Chromium path intent).
+        if (tuning != null && tuning.getScale() != null && tuning.getScale() > 0) {
+            return Math.max(MIN_FIT_SCALE, Math.min(1.0, tuning.getScale()));
+        }
+        // Auto fit is on by default; honor an explicit opt-out.
+        if (tuning != null && Boolean.FALSE.equals(tuning.getFitToWidth())) {
+            return 1.0;
+        }
+
+        try {
+            ConverterProperties measureProps = new ConverterProperties();
+            if (resourceRoot != null) {
+                measureProps.setBaseUri(resourceRoot.toUri().toString());
+            }
+            measureProps.setCharset(StandardCharsets.UTF_8.name());
+            if (fontFiles != null && !fontFiles.isEmpty()) {
+                measureProps.setFontProvider(createFontProvider(fontFiles));
+            }
+
+            byte[] probePdf;
+            try (ByteArrayOutputStream probeOut = new ByteArrayOutputStream()) {
+                try (PdfDocument probeDoc = new PdfDocument(new PdfWriter(probeOut))) {
+                    configureDefaultPageSize(probeDoc, orientation);
+                    HtmlConverter.convertToDocument(html, probeDoc, measureProps).close();
+                }
+                probePdf = probeOut.toByteArray();
+            }
+
+            return measureFitScale(probePdf);
+        } catch (Exception e) {
+            logger.warn("Fit-to-width measurement failed; rendering at scale 1.0", e);
+            return 1.0;
+        }
+    }
+
+    /**
+     * Measures the widest drawn content across the trial PDF and derives the shrink-to-fit scale.
+     * Assumes symmetric left/right page margins (the common case, and what CSS {@code @page} margins use).
+     */
+    private double measureFitScale(byte[] pdfBytes) throws IOException {
+        try (PdfDocument pdf = new PdfDocument(new PdfReader(new ByteArrayInputStream(pdfBytes)))) {
+            int pageCount = pdf.getNumberOfPages();
+            // A table's column widths are constant across pages, so the first few pages are enough;
+            // scan a small sample to also cover documents that contain more than one table.
+            int pagesToScan = Math.min(pageCount, 8);
+            double maxRight = -1;
+            double minLeft = Double.MAX_VALUE;
+            double pageWidth = 0;
+            for (int i = 1; i <= pagesToScan; i++) {
+                PdfPage page = pdf.getPage(i);
+                pageWidth = page.getPageSize().getWidth();
+                ContentBoundsListener listener = new ContentBoundsListener();
+                new PdfCanvasProcessor(listener).processPageContent(page);
+                if (listener.maxX > maxRight) {
+                    maxRight = listener.maxX;
+                }
+                if (listener.minX < minLeft) {
+                    minLeft = listener.minX;
+                }
+            }
+
+            if (maxRight <= 0 || minLeft == Double.MAX_VALUE || pageWidth <= 0) {
+                return 1.0;
+            }
+
+            double leftMargin = Math.max(0, minLeft);
+            double availableWidth = pageWidth - 2 * leftMargin;
+            double usedWidth = maxRight - minLeft;
+            if (usedWidth <= availableWidth || availableWidth <= 0) {
+                return 1.0;
+            }
+
+            double scale = (availableWidth / usedWidth) * FIT_SCALE_SAFETY;
+            scale = Math.max(MIN_FIT_SCALE, Math.min(1.0, scale));
+            logger.debug("Auto fit-to-width: pageWidth={} usedWidth={} available={} -> scale={}",
+                    pageWidth, usedWidth, availableWidth, scale);
+            return scale;
+        }
+    }
+
+    /**
+     * Uniformly scales the {@code pt}/{@code px} lengths that control layout size (font-size, padding,
+     * line-height, explicit heights) by {@code scale}. Because table columns are auto-sized from their
+     * content, shrinking the text and padding shrinks the whole table proportionally so it fits the
+     * page — without splitting any words. Page ({@code @page}) margins use inch/cm units and are left
+     * untouched.
+     */
+    private String scaleHtmlLengths(String html, double scale) {
+        if (html == null || html.isEmpty() || scale >= 0.999) {
+            return html;
+        }
+
+        Matcher matcher = SCALABLE_LENGTH.matcher(html);
+        StringBuffer result = new StringBuffer();
+        while (matcher.find()) {
+            double scaled = Double.parseDouble(matcher.group(2)) * scale;
+            String replacement = matcher.group(1) + ": "
+                    + String.format(Locale.US, "%.3f", scaled) + matcher.group(3);
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+        return result.toString();
+    }
+
+    /** Captures the horizontal bounds of drawn text on a page, for fit-to-width measurement. */
+    private static final class ContentBoundsListener implements IEventListener {
+        private double minX = Double.MAX_VALUE;
+        private double maxX = -1;
+
+        @Override
+        public void eventOccurred(IEventData data, EventType type) {
+            if (type != EventType.RENDER_TEXT) {
+                return;
+            }
+            TextRenderInfo renderInfo = (TextRenderInfo) data;
+            for (TextRenderInfo charInfo : renderInfo.getCharacterRenderInfos()) {
+                Rectangle box = charInfo.getBaseline().getBoundingRectangle();
+                double left = box.getX();
+                double right = box.getX() + box.getWidth();
+                if (left < minX) {
+                    minX = left;
+                }
+                if (right > maxX) {
+                    maxX = right;
+                }
+            }
+        }
+
+        @Override
+        public Set<EventType> getSupportedEvents() {
+            return Collections.singleton(EventType.RENDER_TEXT);
+        }
     }
 
     private static class HtmlProcessingResult {

@@ -56,17 +56,21 @@ public class CssProcessor {
      * columns. Setting <code>table-layout:fixed</code> does NOT help — iText still sizes the table to
      * the sum of the fixed column widths rather than scaling them down to 100%.
      *
-     * <p>These <code>!important</code> rules neutralize the fixed column/cell widths (forcing
-     * content-based auto sizing), cap every table at the printable width, and let long unbreakable
-     * tokens wrap. That makes iText fit all columns within the page the same way the browser does.
-     * The rules are generic — they key off the <em>presence</em> of over-wide widths, not any specific
-     * document — so they apply to arbitrary HTML input, not just these reports.
+     * <p>These <code>!important</code> rules neutralize the fixed column/cell widths so iText sizes
+     * each column from its content (its longest word), wrapping at spaces just like the browser, and
+     * cap every table at the printable width. Words are deliberately NOT broken mid-token: only
+     * <code>overflow-wrap:break-word</code> is set (a last resort that triggers solely when a single
+     * token is wider than its own cell), never <code>word-break</code>. When the resulting content is
+     * still wider than the page, the iText generator shrinks the whole document to fit (auto
+     * fit-to-width) — matching how Chromium fits many-column tables — rather than splitting words.
+     *
+     * <p>The rules are generic (they key off the presence of over-wide widths, not any specific
+     * document) so they apply to arbitrary HTML input, not just these reports.
      */
     private static final String TABLE_FIT_CSS =
         " table { max-width: 100% !important; table-layout: auto !important; }"
         + " colgroup, col { width: auto !important; }"
-        + " td, th { width: auto !important;"
-        + " overflow-wrap: break-word !important; word-break: break-word !important; }";
+        + " td, th { width: auto !important; overflow-wrap: break-word !important; }";
 
     /**
      * Processes CSS content by removing problematic rules and properties
