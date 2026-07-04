@@ -74,59 +74,20 @@ function parsePxMargin(value, fallback) {
 }
 
 /**
- * Compute a print scale that emulates wkhtmltopdf "smart shrinking": shrink content so
- * over-wide elements (e.g. wide tables) fit within the printable page width.
- * Returns a scale in Chromium's allowed range [0.1, 2.0]. Shrink-only (never enlarges).
+ * Determine the print scale. Fit-to-width auto-shrinking is not supported; only an
+ * explicit scale override is honored (Chromium's allowed range is [0.1, 2.0]).
  */
 async function computeFitScale(page, config) {
-    // Explicit override always wins.
+    // Print media must be emulated so the layout matches the generated PDF.
+    await page.emulateMediaType('print');
+
     if (typeof config.scale === 'number' && config.scale > 0) {
         const s = Math.min(2, Math.max(0.1, config.scale));
         console.log(`Using explicit scale override: ${s}`);
         return s;
     }
 
-    // Default ON unless explicitly disabled.
-    if (config.fitToWidth === false) {
-        return 1;
-    }
-
-    try {
-        // Measure under print layout so the result matches the generated PDF.
-        await page.emulateMediaType('print');
-
-        const landscape = config.landscape || false;
-        const format = (config.format || 'A4').toUpperCase();
-        const paper = PAPER_WIDTH_IN[format] || PAPER_WIDTH_IN.A4;
-        const widthIn = landscape ? paper.landscape : paper.portrait;
-
-        const marginLeftPx = parsePxMargin(config.margin && config.margin.left, 20);
-        const marginRightPx = parsePxMargin(config.margin && config.margin.right, 20);
-        const printableWidthPx = (widthIn * 96) - marginLeftPx - marginRightPx;
-
-        const contentWidthPx = await page.evaluate(() => {
-            const docEl = document.documentElement;
-            const body = document.body;
-            let max = Math.max(
-                docEl ? docEl.scrollWidth : 0,
-                body ? body.scrollWidth : 0
-            );
-            for (const t of document.querySelectorAll('table')) {
-                max = Math.max(max, t.scrollWidth, t.offsetWidth);
-            }
-            return max;
-        });
-
-        let scale = 1;
-        if (contentWidthPx > printableWidthPx && contentWidthPx > 0) {
-            scale = Math.max(0.1, Math.min(1, printableWidthPx / contentWidthPx));
-        }
-        console.log(`Fit-to-width: printableWidth=${printableWidthPx.toFixed(1)}px contentWidth=${contentWidthPx}px scale=${scale.toFixed(4)}`);
-        return scale;
-    } catch (e) {
-        console.warn(`Fit-to-width computation failed, using scale=1: ${e && e.message ? e.message : e}`);
-        return 1;
-    }
+    return 1;
 }
 
 async function generatePdf() {

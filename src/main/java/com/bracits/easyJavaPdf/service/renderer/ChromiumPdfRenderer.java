@@ -67,13 +67,6 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
     @Value("${pdf.chromium.high-quality:false}")
     private boolean highQuality;
 
-    /**
-     * Default for auto fit-to-width (wkhtmltopdf smart-shrinking equivalent): shrink over-wide
-     * content so it fits the printable page width. Overridable per-request via RendererTuning.
-     */
-    @Value("${pdf.chromium.fit-to-width:true}")
-    private boolean fitToWidthDefault;
-
     @Value("${pdf.chromium.chunked-threshold-mb:10}")
     private int chunkedThresholdMb;
 
@@ -370,23 +363,13 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
                 || orientation == PageOrientation.SEASCAPE;
         config.put("landscape", isLandscape);
 
-        // Auto fit-to-width (wkhtmltopdf smart-shrinking equivalent). Default from config,
-        // overridable per request via RendererTuning.
-        boolean fitToWidth = fitToWidthDefault;
-        Double scaleOverride = null;
-        if (tuning != null) {
-            if (tuning.getFitToWidth() != null) {
-                fitToWidth = tuning.getFitToWidth();
-            }
-            scaleOverride = tuning.getScale();
-        }
-        config.put("fitToWidth", fitToWidth);
+        // Fit-to-width auto-shrinking is not supported by this renderer. Only an explicit
+        // manual scale override (RendererTuning.scale) is honored.
+        Double scaleOverride = tuning != null ? tuning.getScale() : null;
         if (scaleOverride != null) {
             config.put("scale", scaleOverride);
         }
-        // When fit-to-width is active we drive page size from format/landscape/margins, so the
-        // scale math is deterministic; otherwise honor CSS @page sizing as before.
-        config.put("preferCSSPageSize", !fitToWidth);
+        config.put("preferCSSPageSize", true);
 
         // High quality mode (2x device scale factor)
         config.put("highQuality", highQuality);

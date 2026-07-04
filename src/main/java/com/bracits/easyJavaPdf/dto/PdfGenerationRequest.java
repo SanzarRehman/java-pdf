@@ -131,14 +131,15 @@ public class PdfGenerationRequest {
 
     /**
      * Optional toggle for auto fit-to-width (wkhtmltopdf "smart shrinking" equivalent), where
-     * over-wide content is shrunk to fit the printable page width. Chromium renderer only.
-     * If null, the configured default (pdf.chromium.fit-to-width) applies.
+     * over-wide content is shrunk to fit the printable page width. Playwright renderer only
+     * (renderer=chromium never auto-shrinks). If null, the configured default applies.
      */
     private Boolean fitToWidth;
 
     /**
-     * Optional explicit print scale override (Chromium range 0.1-2.0). When set, it takes
-     * precedence over auto fit-to-width. Chromium renderer only.
+     * Optional explicit print scale override (0.1-2.0). Honored by both the chromium and
+     * playwright renderers. For chromium, this is the only way to change the print scale,
+     * since that renderer does not support fit-to-width auto-shrinking.
      */
     private Double scale;
 
