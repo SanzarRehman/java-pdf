@@ -14,10 +14,9 @@ public class RendererTuning {
     /** Parallelism (number of concurrent chunk workers) for chunked Chromium pipeline. */
     Integer parallelism;
     /**
-     * Whether to fit over-wide content to the printable page width. For itext this gates the
-     * Chromium-style column fitting; for playwright the auto-shrink. Ignored by the chromium
-     * renderer, which relies on Chromium's own print shrink-to-fit. Null = enabled (itext) /
-     * configured default (playwright).
+     * Whether to auto-shrink over-wide content to fit the printable page width. Playwright
+     * renderer only; ignored by chromium (native print shrink-to-fit) and itext (always-on
+     * Chromium-parity column fitting). Null = configured default.
      */
     Boolean fitToWidth;
     /**

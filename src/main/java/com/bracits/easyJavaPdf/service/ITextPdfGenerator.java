@@ -306,30 +306,27 @@ public class ITextPdfGenerator implements PdfGenerator {
         // (proportional compression with min-content floors) and rewrite them into the HTML.
         // Fonts stay at their authored size whenever the minimum column widths fit the page;
         // only when they don't is the whole document scaled down — replicating Chromium's own
-        // print shrink-to-fit. When no table could be processed, the legacy measured shrink
-        // runs as a fallback so arbitrary non-table documents keep their old safety net.
-        boolean fitOptOut = tuning != null && Boolean.FALSE.equals(tuning.getFitToWidth());
+        // print shrink-to-fit. This is the renderer's single, always-on layout behavior (like
+        // Chromium's); only an explicit scale override replaces it. When no table could be
+        // processed, the legacy measured shrink runs as the equivalent for arbitrary documents.
         Double explicitScale = (tuning != null && tuning.getScale() != null && tuning.getScale() > 0)
                 ? Math.max(MIN_FIT_SCALE, Math.min(1.0, tuning.getScale()))
                 : null;
 
         String htmlToRender = variant.getHtml();
-        boolean columnsApplied = false;
-        if (!fitOptOut && explicitScale == null) {
+        if (explicitScale != null) {
+            htmlToRender = scaleHtmlLengths(htmlToRender, explicitScale);
+        } else {
             ChromiumTableWidths.Result fit = ChromiumTableWidths.apply(htmlToRender, orientation);
             if (fit != null) {
                 htmlToRender = fit.fontScale < 0.999
                         ? scaleHtmlLengths(fit.html, fit.fontScale)
                         : fit.html;
-                columnsApplied = true;
-            }
-        }
-        if (explicitScale != null) {
-            htmlToRender = scaleHtmlLengths(htmlToRender, explicitScale);
-        } else if (!fitOptOut && !columnsApplied) {
-            double fitScale = computeFitScale(htmlToRender, fontFiles, resourceRoot, orientation, tuning);
-            if (fitScale < 0.999) {
-                htmlToRender = scaleHtmlLengths(htmlToRender, fitScale);
+            } else {
+                double fitScale = computeFitScale(htmlToRender, fontFiles, resourceRoot, orientation);
+                if (fitScale < 0.999) {
+                    htmlToRender = scaleHtmlLengths(htmlToRender, fitScale);
+                }
             }
         }
 
@@ -930,16 +927,7 @@ public class ITextPdfGenerator implements PdfGenerator {
      * whole table, the first couple of pages already reflect the true content width.
      */
     private double computeFitScale(String html, List<Path> fontFiles, Path resourceRoot,
-            PageOrientation orientation, RendererTuning tuning) {
-        // Explicit scale override always wins (shrink-only for iText, matching the Chromium path intent).
-        if (tuning != null && tuning.getScale() != null && tuning.getScale() > 0) {
-            return Math.max(MIN_FIT_SCALE, Math.min(1.0, tuning.getScale()));
-        }
-        // Auto fit is on by default; honor an explicit opt-out.
-        if (tuning != null && Boolean.FALSE.equals(tuning.getFitToWidth())) {
-            return 1.0;
-        }
-
+            PageOrientation orientation) {
         try {
             ConverterProperties measureProps = new ConverterProperties();
             if (resourceRoot != null) {

@@ -130,10 +130,9 @@ public class PdfGenerationRequest {
     private String renderer;
 
     /**
-     * Optional toggle for fit-to-width. For renderer=itext, false disables the Chromium-style
-     * column fitting (over-wide tables then overflow and clip); for renderer=playwright it
-     * toggles the auto-shrink. Ignored by renderer=chromium, which relies on Chromium's own
-     * print shrink-to-fit. If null, fitting is enabled (itext) / configured default (playwright).
+     * Optional toggle for auto fit-to-width. Playwright renderer only. Ignored by
+     * renderer=chromium (relies on Chromium's own print shrink-to-fit) and renderer=itext
+     * (always applies its Chromium-parity column fitting).
      */
     private Boolean fitToWidth;
 
