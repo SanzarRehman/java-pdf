@@ -130,16 +130,16 @@ public class PdfGenerationRequest {
     private String renderer;
 
     /**
-     * Optional toggle for auto fit-to-width (wkhtmltopdf "smart shrinking" equivalent), where
-     * over-wide content is shrunk to fit the printable page width. Playwright renderer only
-     * (renderer=chromium never auto-shrinks). If null, the configured default applies.
+     * Optional toggle for fit-to-width. For renderer=itext, false disables the Chromium-style
+     * column fitting (over-wide tables then overflow and clip); for renderer=playwright it
+     * toggles the auto-shrink. Ignored by renderer=chromium, which relies on Chromium's own
+     * print shrink-to-fit. If null, fitting is enabled (itext) / configured default (playwright).
      */
     private Boolean fitToWidth;
 
     /**
-     * Optional explicit print scale override (0.1-2.0). Honored by both the chromium and
-     * playwright renderers. For chromium, this is the only way to change the print scale,
-     * since that renderer does not support fit-to-width auto-shrinking.
+     * Optional explicit print scale override (0.1-2.0; itext clamps to at most 1.0). Honored by
+     * the itext, chromium and playwright renderers; when set it replaces any automatic fitting.
      */
     private Double scale;
 

@@ -60,9 +60,11 @@ public class CssProcessor {
      * each column from its content (its longest word), wrapping at spaces just like the browser, and
      * cap every table at the printable width. Words are deliberately NOT broken mid-token: only
      * <code>overflow-wrap:break-word</code> is set (a last resort that triggers solely when a single
-     * token is wider than its own cell), never <code>word-break</code>. When the resulting content is
-     * still wider than the page, the iText generator shrinks the whole document to fit (auto
-     * fit-to-width) — matching how Chromium fits many-column tables — rather than splitting words.
+     * token is wider than its own cell), never <code>word-break</code>. Tables the
+     * {@code ChromiumTableWidths} pass processes get explicit per-column widths appended after (and
+     * overriding) these rules, replicating Chromium's column distribution and print shrink-to-fit;
+     * for documents it cannot process, the iText generator's legacy measured shrink remains the
+     * fallback rather than splitting words.
      *
      * <p>The rules are generic (they key off the presence of over-wide widths, not any specific
      * document) so they apply to arbitrary HTML input, not just these reports.

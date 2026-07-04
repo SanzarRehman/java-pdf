@@ -302,10 +302,36 @@ public class ITextPdfGenerator implements PdfGenerator {
 
         byte[] pdfBytes;
 
-        // Auto fit-to-width: shrink the whole document just enough that all columns fit the page
-        // width without breaking words (mirrors Chromium's smart-shrink). No-op when it already fits.
-        double fitScale = computeFitScale(variant.getHtml(), fontFiles, resourceRoot, orientation, tuning);
-        String htmlToRender = fitScale < 0.999 ? scaleHtmlLengths(variant.getHtml(), fitScale) : variant.getHtml();
+        // Fit over-wide tables exactly the way Chromium does: compute per-column widths
+        // (proportional compression with min-content floors) and rewrite them into the HTML.
+        // Fonts stay at their authored size whenever the minimum column widths fit the page;
+        // only when they don't is the whole document scaled down — replicating Chromium's own
+        // print shrink-to-fit. When no table could be processed, the legacy measured shrink
+        // runs as a fallback so arbitrary non-table documents keep their old safety net.
+        boolean fitOptOut = tuning != null && Boolean.FALSE.equals(tuning.getFitToWidth());
+        Double explicitScale = (tuning != null && tuning.getScale() != null && tuning.getScale() > 0)
+                ? Math.max(MIN_FIT_SCALE, Math.min(1.0, tuning.getScale()))
+                : null;
+
+        String htmlToRender = variant.getHtml();
+        boolean columnsApplied = false;
+        if (!fitOptOut && explicitScale == null) {
+            ChromiumTableWidths.Result fit = ChromiumTableWidths.apply(htmlToRender, orientation);
+            if (fit != null) {
+                htmlToRender = fit.fontScale < 0.999
+                        ? scaleHtmlLengths(fit.html, fit.fontScale)
+                        : fit.html;
+                columnsApplied = true;
+            }
+        }
+        if (explicitScale != null) {
+            htmlToRender = scaleHtmlLengths(htmlToRender, explicitScale);
+        } else if (!fitOptOut && !columnsApplied) {
+            double fitScale = computeFitScale(htmlToRender, fontFiles, resourceRoot, orientation, tuning);
+            if (fitScale < 0.999) {
+                htmlToRender = scaleHtmlLengths(htmlToRender, fitScale);
+            }
+        }
 
         if (tuning != null && tuning.getChunkSizeMb() != null && tuning.getChunkSizeMb() > 0) {
             pdfBytes = convertHtmlToPdfChunked(
