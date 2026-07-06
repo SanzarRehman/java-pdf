@@ -28,6 +28,7 @@ import com.itextpdf.kernel.pdf.event.PdfDocumentEvent;
 import com.itextpdf.kernel.pdf.navigation.PdfDestination;
 import com.itextpdf.kernel.pdf.navigation.PdfExplicitDestination;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.font.FontInfo;
 import com.itextpdf.layout.font.FontProvider;
 import com.itextpdf.kernel.pdf.PdfOutline;
 import com.itextpdf.kernel.pdf.action.PdfAction;
@@ -57,7 +58,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -680,37 +684,84 @@ public class ITextPdfGenerator implements PdfGenerator {
 
         // Enable automatic bookmark generation based on heading hierarchy
         converterProperties.setOutlineHandler(OutlineHandler.createStandardHandler());
-        
-        if (fontFiles != null && !fontFiles.isEmpty()) {
-            logger.debug("Setting up font provider with {} fonts", fontFiles.size());
-            FontProvider fontProvider = createFontProvider(fontFiles);
-            converterProperties.setFontProvider(fontProvider);
-        }
-        
+
+        logger.debug("Setting up font provider with {} request font(s) plus host system fonts",
+                fontFiles == null ? 0 : fontFiles.size());
+        converterProperties.setFontProvider(createFontProvider(fontFiles));
+
         return converterProperties;
     }
 
     /**
-     * Creates a font provider with the specified font files.
+     * Creates a font provider with the specified font files, plus every font the host's font
+     * system (fontconfig on Linux) exposes. Chromium resolves families like "Arial"/"Calibri"
+     * through that same font system, so mirroring it here is what lets iText land on the same
+     * font instead of silently falling back to the standard-14 Times/Helvetica.
      */
     private FontProvider createFontProvider(List<Path> fontFiles) {
-//        FontProvider fontProvider = new FontProvider();
-//        for (Path fontFile : fontFiles) {
-//            try {
-//                logger.debug("Adding font: {}", fontFile);
-//                fontProvider.addFont(fontFile.toString());
-//            } catch (Exception e) {
-//                logger.warn("Failed to add font: {}, continuing without it", fontFile, e);
-//            }
-//        }
-
         FontSet fontSet = new FontSet();
-        for (Path fontFile : fontFiles) {
-            fontSet.addFont(fontFile.toString());
+        if (fontFiles != null) {
+            for (Path fontFile : fontFiles) {
+                fontSet.addFont(fontFile.toString());
+            }
         }
-        FontProvider fontProvider = new FontProvider(fontSet);
+        for (FontInfo systemFont : SystemFontsHolder.FONTS) {
+            fontSet.addFont(systemFont);
+        }
+        return new FontProvider(fontSet);
+    }
 
-        return fontProvider;
+    /**
+     * Lazily discovers the host's installed fonts once per JVM lifetime, so every render/measure
+     * pass can reuse the same {@link FontInfo} metadata instead of rescanning the filesystem.
+     */
+    private static final class SystemFontsHolder {
+        private static final Collection<FontInfo> FONTS = load();
+
+        private static Collection<FontInfo> load() {
+            FontSet fontSet = new FontSet();
+            FontProvider bootstrap = new FontProvider(fontSet);
+            int count = bootstrap.addSystemFonts();
+            count += addFontconfigFonts(fontSet);
+            logger.info("Discovered {} host font(s) for iText font matching", count);
+            return fontSet.getFonts();
+        }
+
+        /**
+         * Queries fontconfig directly (the same mechanism Chromium uses to resolve font-family
+         * names on Linux) so iText sees the exact same font files, including ones installed in
+         * non-standard locations that {@link FontProvider#addSystemFonts()} doesn't scan.
+         * No-ops (falls back to whatever addSystemFonts() already found) if fontconfig/fc-list
+         * isn't available, e.g. in a minimal container image.
+         */
+        private static int addFontconfigFonts(FontSet fontSet) {
+            int added = 0;
+            try {
+                Process process = new ProcessBuilder("fc-list", ":", "file")
+                        .redirectErrorStream(true)
+                        .start();
+                try (BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        String path = line.trim();
+                        if (path.endsWith(":")) {
+                            path = path.substring(0, path.length() - 1);
+                        }
+                        if (!path.isEmpty() && fontSet.addFont(path)) {
+                            added++;
+                        }
+                    }
+                }
+                process.waitFor();
+            } catch (IOException e) {
+                logger.debug("fc-list unavailable; relying on addSystemFonts() only", e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                logger.debug("fc-list scan interrupted; relying on addSystemFonts() only", e);
+            }
+            return added;
+        }
     }
 
     /**
@@ -934,9 +985,7 @@ public class ITextPdfGenerator implements PdfGenerator {
                 measureProps.setBaseUri(resourceRoot.toUri().toString());
             }
             measureProps.setCharset(StandardCharsets.UTF_8.name());
-            if (fontFiles != null && !fontFiles.isEmpty()) {
-                measureProps.setFontProvider(createFontProvider(fontFiles));
-            }
+            measureProps.setFontProvider(createFontProvider(fontFiles));
 
             byte[] probePdf;
             try (ByteArrayOutputStream probeOut = new ByteArrayOutputStream()) {
