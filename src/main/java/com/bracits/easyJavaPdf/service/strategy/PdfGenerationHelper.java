@@ -235,6 +235,32 @@ public class PdfGenerationHelper {
     }
 
     /**
+     * Builds a safe response file name from the optional `file_name` request field,
+     * mirroring Python's {@code os.path.splitext(file_name)[0] + ".pdf"}.
+     */
+    public String buildResponseFileName(String fileName, String report) {
+        if (!StringUtils.hasText(fileName)) {
+            return buildReportFileName(report);
+        }
+
+        String trimmed = fileName.trim();
+        int lastSlash = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+        String base = lastSlash >= 0 ? trimmed.substring(lastSlash + 1) : trimmed;
+
+        int dot = base.lastIndexOf('.');
+        if (dot > 0) {
+            base = base.substring(0, dot);
+        }
+
+        String sanitized = base.replaceAll("[^a-zA-Z0-9_.\\-]", "_");
+        if (sanitized.length() > 60) {
+            sanitized = sanitized.substring(0, 60);
+        }
+
+        return sanitized + ".pdf";
+    }
+
+    /**
      * Extracts file extension from filename.
      */
     public String getFileExtension(String filename) {

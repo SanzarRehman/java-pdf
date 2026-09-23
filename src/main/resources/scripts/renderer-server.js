@@ -135,6 +135,7 @@ function buildLaunchOptions() {
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
+      '--allow-file-access-from-files',
       '--disable-dev-shm-usage',
       '--disable-gpu',
       '--disable-software-rasterizer',

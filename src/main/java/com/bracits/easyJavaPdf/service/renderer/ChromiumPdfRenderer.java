@@ -90,6 +90,8 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
 
     private static final Pattern HEAD_OPEN_TAG = Pattern.compile("(?i)<head\\b[^>]*>");
     private static final Pattern HTML_OPEN_TAG = Pattern.compile("(?i)<html\\b[^>]*>");
+    private static final Pattern PAGE_RULE = Pattern.compile("@page\\s*\\{([^}]*)\\}");
+    private static final Pattern PAGE_MARGIN = Pattern.compile("margin\\s*:\\s*([^;}]+)");
 
     public ChromiumPdfRenderer(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -157,6 +159,12 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
                 String cssContent = Files.readString(cssFile, StandardCharsets.UTF_8);
                 if (cssContent != null && !cssContent.isBlank()) {
                     config.put("cssContent", cssContent);
+
+                    Map<String, String> cssMargin = parsePageMargin(cssContent);
+                    if (cssMargin != null) {
+                        logger.info("Honoring @page margin from stylesheet: {}", cssMargin);
+                        config.put("margin", cssMargin);
+                    }
                 }
             }
 
@@ -248,6 +256,13 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
             }
 
             Map<String, Object> config = buildConfig(tempHtmlFile, tempOutputFile, orientation, password, tuning, useChunked, effectiveParallelism);
+
+            Map<String, String> cssMargin = parsePageMargin(cssContent);
+            if (cssMargin != null) {
+                logger.info("Honoring @page margin from stylesheet: {}", cssMargin);
+                config.put("margin", cssMargin);
+            }
+
             Files.writeString(tempConfigFile, objectMapper.writeValueAsString(config), StandardCharsets.UTF_8);
 
             // Get the appropriate Puppeteer script path
@@ -410,6 +425,71 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         }
 
         return config;
+    }
+
+    /**
+     * Parses a bare {@code @page { margin: ... }} rule (not a qualified selector like
+     * {@code @page :first}) and expands the 1-to-4-value CSS shorthand into Puppeteer's
+     * per-side margin map. Returns null when there is no such rule, leaving buildConfig's
+     * 20px default margin intact.
+     */
+    private static Map<String, String> parsePageMargin(String css) {
+        if (css == null || css.isBlank()) {
+            return null;
+        }
+
+        Matcher pageMatcher = PAGE_RULE.matcher(css);
+        if (!pageMatcher.find()) {
+            return null;
+        }
+
+        Matcher marginMatcher = PAGE_MARGIN.matcher(pageMatcher.group(1));
+        if (!marginMatcher.find()) {
+            return null;
+        }
+
+        String[] tokens = marginMatcher.group(1).trim().split("\\s+");
+        String top;
+        String right;
+        String bottom;
+        String left;
+
+        switch (tokens.length) {
+            case 1 -> top = right = bottom = left = normalizeMarginToken(tokens[0]);
+            case 2 -> {
+                top = bottom = normalizeMarginToken(tokens[0]);
+                right = left = normalizeMarginToken(tokens[1]);
+            }
+            case 3 -> {
+                top = normalizeMarginToken(tokens[0]);
+                right = left = normalizeMarginToken(tokens[1]);
+                bottom = normalizeMarginToken(tokens[2]);
+            }
+            case 4 -> {
+                top = normalizeMarginToken(tokens[0]);
+                right = normalizeMarginToken(tokens[1]);
+                bottom = normalizeMarginToken(tokens[2]);
+                left = normalizeMarginToken(tokens[3]);
+            }
+            default -> {
+                return null;
+            }
+        }
+
+        Map<String, String> margin = new HashMap<>();
+        margin.put("top", top);
+        margin.put("right", right);
+        margin.put("bottom", bottom);
+        margin.put("left", left);
+        return margin;
+    }
+
+    private static String normalizeMarginToken(String token) {
+        String trimmed = token.trim();
+        if (trimmed.equals("0") || trimmed.equalsIgnoreCase("auto")) {
+            return "0px";
+        }
+        return trimmed;
     }
 
     private int resolveEffectiveParallelism(RendererTuning tuning) {

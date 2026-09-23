@@ -47,7 +47,9 @@ public final class PdfGenerationRequestValidator {
     validateJsEnabledFlag(request.isJsEnable());
     validateOrientation(request.getPageOrientation());
         validateThymeleafConfiguration(request);
-        
+        validateTemplateName(request.getTemplate());
+        validateFileName(request.getFileName());
+
 
         validateHeaderFooterConsistency(request);
         validateAssetFilesWithHtmlContent(request);
@@ -179,6 +181,60 @@ public final class PdfGenerationRequestValidator {
         String allowedPattern = "^[a-zA-Z0-9_./-]+$";
         if (!trimmed.matches(allowedPattern)) {
             throw new ValidationException("Report template name contains unsupported characters");
+        }
+    }
+
+    /**
+     * Validates the optional named asset folder (Python's `template` parameter).
+     *
+     * @param template the template folder name to validate (can be null)
+     * @throws ValidationException if the template name is invalid
+     */
+    private static void validateTemplateName(String template) {
+        if (!StringUtils.hasText(template)) {
+            return;
+        }
+
+        String trimmed = template.trim();
+
+        if (trimmed.length() > 255) {
+            throw new ValidationException("Template name is too long (maximum 255 characters)");
+        }
+
+        if (trimmed.contains("..") || trimmed.contains("\\") || trimmed.startsWith("/") || trimmed.startsWith(".")) {
+            throw new ValidationException("Template name contains invalid path sequences");
+        }
+
+        String allowedPattern = "^[a-zA-Z0-9_./-]+$";
+        if (!trimmed.matches(allowedPattern)) {
+            throw new ValidationException("Template name contains unsupported characters");
+        }
+    }
+
+    /**
+     * Validates the optional response file name (Python's `file_name` parameter).
+     *
+     * @param fileName the response file name to validate (can be null)
+     * @throws ValidationException if the file name is invalid
+     */
+    private static void validateFileName(String fileName) {
+        if (!StringUtils.hasText(fileName)) {
+            return;
+        }
+
+        String trimmed = fileName.trim();
+
+        if (trimmed.length() > 255) {
+            throw new ValidationException("File name is too long (maximum 255 characters)");
+        }
+
+        if (trimmed.contains("..") || trimmed.contains("\\") || trimmed.startsWith("/") || trimmed.startsWith(".")) {
+            throw new ValidationException("File name contains invalid path sequences");
+        }
+
+        String allowedPattern = "^[a-zA-Z0-9_./-]+$";
+        if (!trimmed.matches(allowedPattern)) {
+            throw new ValidationException("File name contains unsupported characters");
         }
     }
 

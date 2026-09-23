@@ -153,4 +153,23 @@ public class PdfGenerationRequest {
      * Ignored by the iText and Chromium renderers.
      */
     private String mode;
+
+    /**
+     * Optional named asset folder stored under classpath:/templates, copied flat
+     * alongside the resolved report's HTML file (Python's `template` parameter)
+     */
+    private String template;
+
+    /**
+     * Optional response file name, written to the Content-Disposition header (Python's `file_name`)
+     */
+    private String fileName;
+
+    /**
+     * Binding alias: Spring matches multipart/form field names to JavaBean property names,
+     * so a field literally named "file_name" needs a "file_name" write property to bind.
+     */
+    public void setFile_name(String fileName) {
+        this.fileName = fileName;
+    }
 }

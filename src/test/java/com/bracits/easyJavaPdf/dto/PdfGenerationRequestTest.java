@@ -130,6 +130,15 @@ class PdfGenerationRequestTest {
 
         request.setDataModelFile(mockDataModelFile);
         assertEquals(mockDataModelFile, request.getDataModelFile());
+
+        request.setTemplate("id-card");
+        assertEquals("id-card", request.getTemplate());
+
+        request.setFileName("custom-name");
+        assertEquals("custom-name", request.getFileName());
+
+        request.setFile_name("aliased-name");
+        assertEquals("aliased-name", request.getFileName());
     }
 
     @Test
@@ -157,7 +166,10 @@ class PdfGenerationRequestTest {
             2,
             "chromium",
             Boolean.TRUE,
-            1.0
+            1.0,
+            "fast",
+            "id-card",
+            "custom-name"
         );
 
         assertEquals(mockHtmlFile, request.getHtml());
@@ -183,6 +195,9 @@ class PdfGenerationRequestTest {
         assertEquals("chromium", request.getRenderer());
         assertEquals(Boolean.TRUE, request.getFitToWidth());
         assertEquals(1.0, request.getScale());
+        assertEquals("fast", request.getMode());
+        assertEquals("id-card", request.getTemplate());
+        assertEquals("custom-name", request.getFileName());
     }
 
     @Test
@@ -204,5 +219,7 @@ class PdfGenerationRequestTest {
         assertFalse(request.isThymeleafTemplate());
         assertNull(request.getDataModel());
         assertNull(request.getDataModelFile());
+        assertNull(request.getTemplate());
+        assertNull(request.getFileName());
     }
 }

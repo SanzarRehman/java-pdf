@@ -81,7 +81,7 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
         try {
             // Prepare template and copy assets
             ReportTemplateDescriptor descriptor = reportTemplateService.prepareTemplate(
-                    request.getReport(), requestTempDir);
+                    request.getReport(), request.getTemplate(), requestTempDir);
             registerCopiedResources(descriptor);
 
             // Collect font files
@@ -135,7 +135,7 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
             return PdfResponse.builder()
                     .content(pdfBytes)
                     .contentLength((long) pdfBytes.length)
-                    .fileName(helper.buildReportFileName(request.getReport()))
+                    .fileName(helper.buildResponseFileName(request.getFileName(), request.getReport()))
                     .disposition("attachment")
                     .build();
 

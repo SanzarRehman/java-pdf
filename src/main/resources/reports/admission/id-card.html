@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>ID Card</title>
+</head>
+<body>
+<th:block th:each="student : ${students}">
+    <div class="card-body">
+        <div class="back-logo">
+            <img alt="BRAC University Logo" src="logo.svg"/>
+        </div>
+        <div class="brand-band">
+            <img src="brandBandUg.svg" th:src="'brandBand' + ${student['ribbonColor']} + '.svg'"/>
+        </div>
+        <div class="back-details">
+            Please wear this ID card
+            <br/>
+            at all times in a visible manner
+            <br/>
+            when on the campus.
+            <br/>
+            This card is non-transferable.
+            <br/>
+            If found, kindly return to:
+            <br/>
+            <br/>
+            BRAC University
+            <br/>
+            Kha 224, Pragati Sarani,
+            <br/>
+            Merul Badda, Dhaka 1212,
+            <br/>
+            Bangladesh
+            <br/>
+            Tel : +88 09638464646
+            <br/>
+            Email: idcard@bracu.ac.bd
+        </div>
+        <div class="barcode" th:if="${!#strings.isEmpty(student['barcode'])}">
+            <img th:src="${student['barcode']}" alt="barcode"/>
+        </div>
+        <div class="back-footer">
+            <img class="mirror" src="footer.svg"/>
+        </div>
+    </div>
+
+
+    <div class="id-card">
+        <div class="header">
+            <div class="logo">
+                <img alt="BRAC University Logo" src="logo.svg"/>
+            </div>
+            <div class="photo">
+                <!--            <img alt="Student Photo" src="sample_image.jpeg"/>-->
+                <img alt="Student Photo"
+                     th:src="${student['photo_id']}"/>
+            </div>
+        </div>
+        <div class="brand-band">
+            <img class="mirror" src="brandBandUg.svg" th:src="'brandBand' + ${student['ribbonColor']} + '.svg'"/>
+        </div>
+        <div class="name-block">
+            <h1 th:text="${student['full_name']}"></h1>
+        </div>
+        <div class="name-block-details">
+            <h2>
+                <p th:if="${academicDegree != null and #lists.contains(academicDegree, student['academic_type'])}">STUDENT</p>
+            </h2>
+            <h2 th:text="${student['label']}"></h2>
+        </div>
+        <div class="details">
+            <table>
+                <tr>
+                    <th class="first">ID No.</th>
+                    <td class="middle">:</td>
+                    <td class="text-right" th:text="${student['student_id']}"></td>
+                </tr>
+                <tr th:if="${!#strings.isEmpty(student['validity_date'])}">
+                    <th>Validity</th>
+                    <td>:</td>
+                    <td class="text-right" th:text="${student['validity_date']}"></td>
+                </tr>
+                <tr th:if="${!#strings.isEmpty(student['blood_type'])}">
+                    <th>Blood Group</th>
+                    <td>:</td>
+                    <td class="text-right" th:text="${student['blood_type']}"></td>
+                </tr>
+            </table>
+        </div>
+        <div class="footer">
+            <img src="footer.svg" alt="footer"/>
+        </div>
+    </div>
+</th:block>
+</body>
+</html>

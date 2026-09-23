@@ -11,6 +11,7 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -32,6 +33,7 @@ import java.util.stream.Collectors;
 public class ReportTemplateService {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportTemplateService.class);
+    private static final String REPORT_PREFIX = "classpath:/reports/";
     private static final String TEMPLATE_PREFIX = "classpath:/templates/";
 
     private final ResourceLoader resourceLoader;
@@ -43,6 +45,10 @@ public class ReportTemplateService {
     }
 
     public ReportTemplateDescriptor prepareTemplate(String reportName, Path workingDirectory) {
+        return prepareTemplate(reportName, null, workingDirectory);
+    }
+
+    public ReportTemplateDescriptor prepareTemplate(String reportName, String templateName, Path workingDirectory) {
         TemplateResource templateResource = locateTemplate(reportName);
         Path htmlTarget = workingDirectory.resolve(templateResource.relativePath());
         createParentDirectories(htmlTarget);
@@ -52,6 +58,10 @@ public class ReportTemplateService {
         copied.add(htmlTarget);
 
         copied.addAll(copyAssetTree(templateResource.assetBase(), workingDirectory));
+
+        if (StringUtils.hasText(templateName)) {
+            copied.addAll(copyTemplateAssetsFlat(templateName, htmlTarget.getParent()));
+        }
 
         List<Path> fontFiles = copied.stream()
                 .filter(Files::isRegularFile)
@@ -71,14 +81,22 @@ public class ReportTemplateService {
         List<TemplateCandidate> candidates = buildCandidates(normalized);
 
         for (TemplateCandidate candidate : candidates) {
-            Resource resource = resourceLoader.getResource(TEMPLATE_PREFIX + candidate.resourcePath());
+            Resource resource = resourceLoader.getResource(REPORT_PREFIX + candidate.resourcePath());
             if (resource.exists() && resource.isReadable()) {
-                logger.debug("Resolved report template '{}' to resource '{}'", reportName, candidate.resourcePath());
+                logger.debug("Resolved report template '{}' to resource '{}' under {}", reportName, candidate.resourcePath(), REPORT_PREFIX);
                 return new TemplateResource(candidate.templateName(), candidate.resourcePath(), resource, normalized);
             }
         }
 
-        throw new ValidationException("Template '" + reportName + "' not found under classpath:/templates");
+        for (TemplateCandidate candidate : candidates) {
+            Resource resource = resourceLoader.getResource(TEMPLATE_PREFIX + candidate.resourcePath());
+            if (resource.exists() && resource.isReadable()) {
+                logger.debug("Resolved report template '{}' to resource '{}' under {}", reportName, candidate.resourcePath(), TEMPLATE_PREFIX);
+                return new TemplateResource(candidate.templateName(), candidate.resourcePath(), resource, normalized);
+            }
+        }
+
+        throw new ValidationException("Template '" + reportName + "' not found under classpath:/reports or classpath:/templates");
     }
 
     private String normalizeReportName(String reportName) {
@@ -147,6 +165,8 @@ public class ReportTemplateService {
                 }
             }
             return new ArrayList<>(copied);
+        } catch (FileNotFoundException e) {
+            return List.of();
         } catch (IOException e) {
             throw new ValidationException("Failed to copy assets for report template", e);
         }
@@ -165,6 +185,34 @@ public class ReportTemplateService {
             path = url.substring(index + "/templates/".length());
         }
         return path;
+    }
+
+    private List<Path> copyTemplateAssetsFlat(String templateName, Path targetDirectory) {
+        try {
+            Resource[] resources = resourcePatternResolver.getResources(TEMPLATE_PREFIX + templateName + "/**");
+            Set<Path> copied = new LinkedHashSet<>();
+            for (Resource resource : resources) {
+                if (!resource.exists() || !resource.isReadable()) {
+                    continue;
+                }
+
+                String filename = resource.getFilename();
+                if (!StringUtils.hasText(filename)) {
+                    continue;
+                }
+
+                Path target = targetDirectory.resolve(filename);
+                copyResourceTo(resource, target);
+                copied.add(target);
+            }
+
+            if (copied.isEmpty()) {
+                throw new ValidationException("Template '" + templateName + "' not found under classpath:/templates");
+            }
+            return new ArrayList<>(copied);
+        } catch (IOException e) {
+            throw new ValidationException("Failed to copy assets for template '" + templateName + "'", e);
+        }
     }
 
     private void copyResourceTo(Resource resource, Path target) {
