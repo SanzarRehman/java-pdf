@@ -30,6 +30,8 @@ body {
     background-color: #fff;
     box-sizing: border-box;
     font-family: 'CircularStd';
+    display: flow-root;
+    position: relative;
 }
 
 .id-card {
