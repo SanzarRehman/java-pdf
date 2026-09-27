@@ -489,6 +489,17 @@ public class ChromiumPdfRenderer implements HtmlToPdfRenderer {
         if (trimmed.equals("0") || trimmed.equalsIgnoreCase("auto")) {
             return "0px";
         }
+        // Puppeteer's own margin parser (unitToPixels in puppeteer-core/common/util.js) only
+        // recognizes px/in/cm/mm and throws "Failed to parse parameter value" on pt, a common
+        // and otherwise valid CSS unit. Convert pt -> px (1pt = 96/72px) before handoff.
+        if (trimmed.toLowerCase().endsWith("pt")) {
+            try {
+                double points = Double.parseDouble(trimmed.substring(0, trimmed.length() - 2).trim());
+                return (points * 96.0 / 72.0) + "px";
+            } catch (NumberFormatException ignored) {
+                // Not actually a pt length; hand it to Puppeteer unchanged.
+            }
+        }
         return trimmed;
     }
 
