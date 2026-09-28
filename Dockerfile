@@ -15,9 +15,12 @@ COPY . .
 RUN ./gradlew bootJar -x test --no-daemon
 
 # Stage 1.5: Download Microsoft Core Fonts on Debian (ttf-mscorefonts-installer not available on Alpine)
-FROM debian:bullseye-slim AS font-downloader
+# Uses bookworm (current stable) rather than bullseye: bullseye is past its LTS window and
+# deb.debian.org now 404s on several bullseye-security packages (index/pool out of sync as
+# the release gets archived), which broke this stage's apt-get install.
+FROM debian:bookworm-slim AS font-downloader
 RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections && \
-    echo "deb http://deb.debian.org/debian bullseye contrib" >> /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian bookworm contrib" >> /etc/apt/sources.list && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
         fontconfig \
