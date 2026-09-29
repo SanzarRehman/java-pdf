@@ -259,9 +259,14 @@ public class TemplateRenderingService {
     }
 
     private void registerInlineTemplateResolverIfNecessary(SpringTemplateEngine engine) {
-        // Check if StringTemplateResolver is already registered
+        // Exact-class check, not instanceof: ReportTemplateResolver (database-backed report
+        // templates, see planning-db-templates.md) is itself a StringTemplateResolver subclass,
+        // and is already on the engine by the time this constructor runs (Boot wires resolver
+        // beans while building the engine). An instanceof check here would see that subclass and
+        // wrongly skip registering this catch-all resolver, breaking html/htmlContent uploads
+        // and classpath report rendering, which all depend on it.
         boolean hasStringResolver = engine.getTemplateResolvers().stream()
-            .anyMatch(resolver -> resolver instanceof StringTemplateResolver);
+            .anyMatch(resolver -> resolver.getClass() == StringTemplateResolver.class);
 
         if (!hasStringResolver) {
             // Create and configure StringTemplateResolver for inline HTML content

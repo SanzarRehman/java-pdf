@@ -1,8 +1,10 @@
 package com.bracits.easyJavaPdf.service;
 
 import com.bracits.easyJavaPdf.exception.ValidationException;
+import com.bracits.easyJavaPdf.repository.ReportTemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -38,10 +40,13 @@ public class ReportTemplateService {
 
     private final ResourceLoader resourceLoader;
     private final ResourcePatternResolver resourcePatternResolver;
+    private final ObjectProvider<ReportTemplateRepository> reportTemplateRepositoryProvider;
 
-    public ReportTemplateService(ResourceLoader resourceLoader) {
+    public ReportTemplateService(ResourceLoader resourceLoader,
+                                 ObjectProvider<ReportTemplateRepository> reportTemplateRepositoryProvider) {
         this.resourceLoader = resourceLoader;
         this.resourcePatternResolver = new PathMatchingResourcePatternResolver(resourceLoader.getClassLoader());
+        this.reportTemplateRepositoryProvider = reportTemplateRepositoryProvider;
     }
 
     public ReportTemplateDescriptor prepareTemplate(String reportName, Path workingDirectory) {
@@ -49,15 +54,36 @@ public class ReportTemplateService {
     }
 
     public ReportTemplateDescriptor prepareTemplate(String reportName, String templateName, Path workingDirectory) {
-        TemplateResource templateResource = locateTemplate(reportName);
-        Path htmlTarget = workingDirectory.resolve(templateResource.relativePath());
-        createParentDirectories(htmlTarget);
-        copyResourceTo(templateResource.resource(), htmlTarget);
+        String key = normalizeReportName(reportName);
+        ReportTemplateRepository repository = reportTemplateRepositoryProvider.getIfAvailable();
 
+        String resolvedTemplateName;
+        Path htmlTarget;
+        String dbTemplateName = null;
         Set<Path> copied = new LinkedHashSet<>();
+
+        if (repository != null && repository.existsByKey(key)) {
+            // Database branch: the HTML body is not copied to disk here — it is rendered
+            // straight from the database by name (see ReportTemplateResolver) and the result
+            // written to htmlTarget by the caller, exactly where the classpath branch would
+            // have put its own copy. Assets (below) still land next to it either way.
+            logger.debug("Resolved report template '{}' to database key '{}'", reportName, key);
+            resolvedTemplateName = key;
+            htmlTarget = workingDirectory.resolve(key + ".html");
+            createParentDirectories(htmlTarget);
+            dbTemplateName = ReportTemplateResolver.getPath(key);
+        } else {
+            TemplateResource templateResource = locateTemplate(reportName);
+            resolvedTemplateName = templateResource.templateName();
+            htmlTarget = workingDirectory.resolve(templateResource.relativePath());
+            createParentDirectories(htmlTarget);
+            copyResourceTo(templateResource.resource(), htmlTarget);
+        }
+        // htmlTarget is registered for cleanup the same way regardless of branch — the database
+        // branch still writes real rendered bytes to it, just not by copying a classpath resource.
         copied.add(htmlTarget);
 
-        copied.addAll(copyAssetTree(templateResource.assetBase(), workingDirectory));
+        copied.addAll(copyAssetTree(key, workingDirectory));
 
         if (StringUtils.hasText(templateName)) {
             copied.addAll(copyTemplateAssetsFlat(templateName, htmlTarget.getParent()));
@@ -69,10 +95,11 @@ public class ReportTemplateService {
                 .collect(Collectors.toUnmodifiableList());
 
         return new ReportTemplateDescriptor(
-                templateResource.templateName(),
+                resolvedTemplateName,
                 htmlTarget,
                 List.copyOf(copied),
-                fontFiles
+                fontFiles,
+                dbTemplateName
         );
     }
 

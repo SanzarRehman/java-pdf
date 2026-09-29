@@ -12,9 +12,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import com.bracits.easyJavaPdf.repository.ReportTemplateRepository;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -53,7 +55,16 @@ class WelcomeLetterReportStrategyTest {
         objectMapper.findAndRegisterModules();
 
         templateRenderingService = new TemplateRenderingService(templateEngine, objectMapper);
-        reportTemplateService = new ReportTemplateService(new DefaultResourceLoader());
+        // No database wired up for this test - welcome-letter is a classpath-only report,
+        // and this exercises exactly that path (ReportTemplateService falls back to the
+        // classpath whenever no repository is available, same as with the "db" profile off).
+        ObjectProvider<ReportTemplateRepository> noRepository = new ObjectProvider<>() {
+            @Override
+            public ReportTemplateRepository getObject() {
+                return null;
+            }
+        };
+        reportTemplateService = new ReportTemplateService(new DefaultResourceLoader(), noRepository);
 
         PdfGenerationHelper helper = new PdfGenerationHelper(tempFileManager, templateRenderingService);
         strategy = new ReportBasedGenerationStrategy(pdfGenerator, helper, reportTemplateService);

@@ -100,11 +100,17 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
                 }
             }
 
-            // Resolve model and render template with Thymeleaf
+            // Resolve model and render template with Thymeleaf.
+            // dbTemplateName is set only when ReportTemplateService found this report's key in
+            // the database (see planning-db-templates.md) — in that case descriptor.htmlFile()
+            // has no content on disk yet (it is written below), so it must be rendered by name
+            // through ReportTemplateResolver rather than read back as inline HTML.
             List<Map<String, Object>> models = helper.getTemplateRenderingService()
                     .resolveModelCollection(request);
-            String templateContent = Files.readString(descriptor.htmlFile(), StandardCharsets.UTF_8);
-            String renderedHtml = helper.getTemplateRenderingService().renderTemplate(templateContent, models);
+            String renderedHtml = descriptor.dbTemplateName() != null
+                    ? helper.getTemplateRenderingService().renderNamedTemplate(descriptor.dbTemplateName(), models)
+                    : helper.getTemplateRenderingService().renderTemplate(
+                            Files.readString(descriptor.htmlFile(), StandardCharsets.UTF_8), models);
             helper.logRenderedHtml("report", descriptor.templateName(), renderedHtml);
             Files.writeString(descriptor.htmlFile(), renderedHtml, StandardCharsets.UTF_8);
 
