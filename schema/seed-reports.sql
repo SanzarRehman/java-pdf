@@ -18,8 +18,15 @@
 -- Its CSS/logo (style.css, logo.png) stay on the classpath under
 -- src/main/resources/templates/student-gradesheet/, copied flat next to the
 -- rendered HTML at request time, unchanged.
+--
+-- `variables` documents every ${...}/th: variable path the body actually
+-- references (cross-checked against the file with `grep -oE '\$\{[^}]*\}'`)
+-- so a person supplying `data`/`data_set` for this report can see every
+-- value it needs without reading the Thymeleaf markup. It is display-only —
+-- see pgsql.sql's comment. Flattened with "." for nested map keys and "[]"
+-- for the two repeating lists (one entry per semester, one per course).
 
-insert into pdf_report_templates (key, body)
+insert into pdf_report_templates (key, body, variables)
 values ('student-grade', $html$<!doctype html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
@@ -172,5 +179,5 @@ values ('student-grade', $html$<!doctype html>
 
 </body>
 </html>
-$html$)
-on conflict (key) do update set body = excluded.body;
+$html$, $json${"portfolioInfo.studentId":"Student ID","portfolioInfo.name":"Student Name","portfolioInfo.academicType":"Academic Type","portfolioInfo.program":"Program","portfolioInfo.academicStanding":"Academic Standing","qrCodeImage":"QR Code Image (URL or base64)","transcriptData":"Transcript Data (list, one entry per semester)","transcriptData[].semesterStanding.semester":"Semester Name","transcriptData[].semesterStanding.year":"Semester Year","transcriptData[].semesterStanding.semesterCreditAttempt":"Semester Credits Attempted","transcriptData[].semesterStanding.semesterCreditEarned":"Semester Credits Earned","transcriptData[].semesterStanding.semesterGpa":"Semester GPA","transcriptData[].semesterStanding.cumulativeCreditAttempt":"Cumulative Credits Attempted","transcriptData[].semesterStanding.cumulativeCreditEarned":"Cumulative Credits Earned","transcriptData[].semesterStanding.cumulativeCgpa":"Cumulative CGPA","transcriptData[].semesterStanding.recognitionType":"Recognition Type (e.g. Dean's List; optional)","transcriptData[].courseResults":"Course Results (list, one entry per course)","transcriptData[].courseResults[].courseCode":"Course Code","transcriptData[].courseResults[].name":"Course Title","transcriptData[].courseResults[].courseCredit":"Credit Earned","transcriptData[].courseResults[].grade":"Grade","transcriptData[].courseResults[].gpa":"Grade Points","preparedBy":"Prepared By","generateDate":"Generated Date"}$json$)
+on conflict (key) do update set body = excluded.body, variables = excluded.variables;

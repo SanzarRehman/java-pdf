@@ -22,6 +22,14 @@ import lombok.Setter;
  * trailing ".html" stripped) — see {@link com.bracits.easyJavaPdf.service.ReportTemplateResolver}.
  * A report with no row here simply falls back to the classpath, so this table only needs a row
  * for reports actually migrated to the database.
+ *
+ * <p>{@code variables} is documentation only, exactly like notification-service's
+ * {@code NotificationTemplate.variables} — a JSON object of {@code {"<thymeleaf variable
+ * path>": "<human-readable label>"}} describing every value the template's {@code data}/
+ * {@code data_set} payload needs to supply, so a user filling it in doesn't have to read the
+ * raw Thymeleaf markup to find out. Never read by {@link com.bracits.easyJavaPdf.service.ReportTemplateResolver}
+ * or by rendering — Thymeleaf only ever sees {@code body}. Nullable: a template with no
+ * documented variables simply has no row value here.
  */
 @Getter
 @Setter
@@ -38,4 +46,7 @@ public class ReportTemplate {
 
     @Column(name = "body", nullable = false, columnDefinition = "text")
     private String body;
+
+    @Column(name = "variables", columnDefinition = "text")
+    private String variables;
 }

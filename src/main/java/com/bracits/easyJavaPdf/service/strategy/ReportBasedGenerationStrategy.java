@@ -87,13 +87,16 @@ public class ReportBasedGenerationStrategy implements PdfGenerationStrategy {
             // Collect font files
             List<Path> fontFiles = new ArrayList<>(descriptor.fontFiles());
 
-            // Add additional uploaded assets
+            // Add additional uploaded assets next to the HTML file (not the temp root): the report
+            // lives in a subfolder (e.g. admission/id-card.html) and its relative <img src> values
+            // resolve against that folder, same as the template's own assets.
+            Path assetDir = descriptor.htmlFile().getParent();
             if (request.getAsset() != null) {
                 for (MultipartFile assetFile : request.getAsset()) {
                     String originalName = assetFile.getOriginalFilename();
                     String assetFileName = (originalName != null && !originalName.isEmpty()) 
                             ? originalName : "asset_" + System.currentTimeMillis();
-                    Path assetPath = helper.saveMultipartFileToDirectory(assetFile, requestTempDir, assetFileName);
+                    Path assetPath = helper.saveMultipartFileToDirectory(assetFile, assetDir, assetFileName);
                     if (assetPath != null && helper.isFontFile(assetFileName)) {
                         fontFiles.add(assetPath);
                     }
