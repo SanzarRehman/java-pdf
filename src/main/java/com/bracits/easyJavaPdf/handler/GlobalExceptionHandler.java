@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
@@ -39,6 +40,24 @@ public class GlobalExceptionHandler {
         );
         
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    /**
+     * Passes through the status chosen by the code that threw it (e.g. 404/409 from the
+     * template management API) instead of letting the generic handler turn it into a 500.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ErrorResponse> handleResponseStatusException(ResponseStatusException ex, WebRequest request) {
+        log.warn("Request failed with {}: {}", ex.getStatusCode(), ex.getReason());
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+                ex.getReason(),
+                "REQUEST_ERROR",
+                getPath(request),
+                ex.getStatusCode().value()
+        );
+
+        return ResponseEntity.status(ex.getStatusCode()).body(errorResponse);
     }
 
     /**

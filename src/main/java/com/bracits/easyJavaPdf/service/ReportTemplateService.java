@@ -126,7 +126,7 @@ public class ReportTemplateService {
         throw new ValidationException("Template '" + reportName + "' not found under classpath:/reports or classpath:/templates");
     }
 
-    private String normalizeReportName(String reportName) {
+    public static String normalizeReportName(String reportName) {
         if (!StringUtils.hasText(reportName)) {
             throw new ValidationException("Report template name cannot be empty");
         }

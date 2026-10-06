@@ -5,9 +5,13 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.time.LocalDateTime;
 
 /**
  * A report's HTML body, loaded from {@code pdf_report_templates} instead of the classpath.
@@ -49,4 +53,24 @@ public class ReportTemplate {
 
     @Column(name = "variables", columnDefinition = "text")
     private String variables;
+
+    /** Set once on insert, e.g. {@code 2023-09-24 12:15:34.163000}. */
+    @Column(name = "created_on", nullable = false, updatable = false, columnDefinition = "timestamp(6)")
+    private LocalDateTime createdOn;
+
+    /** Refreshed on every update; equals {@code createdOn} until the row is first modified. */
+    @Column(name = "updated_on", nullable = false, columnDefinition = "timestamp(6)")
+    private LocalDateTime updatedOn;
+
+    @PrePersist
+    void onCreate() {
+        LocalDateTime now = LocalDateTime.now();
+        createdOn = now;
+        updatedOn = now;
+    }
+
+    @PreUpdate
+    void onUpdate() {
+        updatedOn = LocalDateTime.now();
+    }
 }
