@@ -4,7 +4,6 @@ import com.bracits.easyJavaPdf.exception.ValidationException;
 import com.bracits.easyJavaPdf.repository.ReportTemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
@@ -40,13 +39,13 @@ public class ReportTemplateService {
 
     private final ResourceLoader resourceLoader;
     private final ResourcePatternResolver resourcePatternResolver;
-    private final ObjectProvider<ReportTemplateRepository> reportTemplateRepositoryProvider;
+    private final ReportTemplateRepository reportTemplateRepository;
 
     public ReportTemplateService(ResourceLoader resourceLoader,
-                                 ObjectProvider<ReportTemplateRepository> reportTemplateRepositoryProvider) {
+                                 ReportTemplateRepository reportTemplateRepository) {
         this.resourceLoader = resourceLoader;
         this.resourcePatternResolver = new PathMatchingResourcePatternResolver(resourceLoader.getClassLoader());
-        this.reportTemplateRepositoryProvider = reportTemplateRepositoryProvider;
+        this.reportTemplateRepository = reportTemplateRepository;
     }
 
     public ReportTemplateDescriptor prepareTemplate(String reportName, Path workingDirectory) {
@@ -55,14 +54,13 @@ public class ReportTemplateService {
 
     public ReportTemplateDescriptor prepareTemplate(String reportName, String templateName, Path workingDirectory) {
         String key = normalizeReportName(reportName);
-        ReportTemplateRepository repository = reportTemplateRepositoryProvider.getIfAvailable();
 
         String resolvedTemplateName;
         Path htmlTarget;
         String dbTemplateName = null;
         Set<Path> copied = new LinkedHashSet<>();
 
-        if (repository != null && repository.existsByKey(key)) {
+        if (reportTemplateRepository.existsByKey(key)) {
             // Database branch: the HTML body is not copied to disk here — it is rendered
             // straight from the database by name (see ReportTemplateResolver) and the result
             // written to htmlTarget by the caller, exactly where the classpath branch would

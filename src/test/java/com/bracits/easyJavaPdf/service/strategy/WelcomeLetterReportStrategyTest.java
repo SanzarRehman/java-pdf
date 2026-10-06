@@ -16,7 +16,6 @@ import com.bracits.easyJavaPdf.repository.ReportTemplateRepository;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
@@ -27,6 +26,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.*;
@@ -55,16 +55,10 @@ class WelcomeLetterReportStrategyTest {
         objectMapper.findAndRegisterModules();
 
         templateRenderingService = new TemplateRenderingService(templateEngine, objectMapper);
-        // No database wired up for this test - welcome-letter is a classpath-only report,
-        // and this exercises exactly that path (ReportTemplateService falls back to the
-        // classpath whenever no repository is available, same as with the "db" profile off).
-        ObjectProvider<ReportTemplateRepository> noRepository = new ObjectProvider<>() {
-            @Override
-            public ReportTemplateRepository getObject() {
-                return null;
-            }
-        };
-        reportTemplateService = new ReportTemplateService(new DefaultResourceLoader(), noRepository);
+        // welcome-letter is a classpath-only report: an empty repository (existsByKey -> false)
+        // makes ReportTemplateService fall back to the classpath, which is what this exercises.
+        ReportTemplateRepository emptyRepository = mock(ReportTemplateRepository.class);
+        reportTemplateService = new ReportTemplateService(new DefaultResourceLoader(), emptyRepository);
 
         PdfGenerationHelper helper = new PdfGenerationHelper(tempFileManager, templateRenderingService);
         strategy = new ReportBasedGenerationStrategy(pdfGenerator, helper, reportTemplateService);

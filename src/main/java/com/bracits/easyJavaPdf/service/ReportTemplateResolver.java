@@ -9,7 +9,6 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.IEngineConfiguration;
 import org.thymeleaf.templateresolver.StringTemplateResolver;
@@ -20,9 +19,8 @@ import org.thymeleaf.templateresource.ITemplateResource;
  * {@link ReportTemplateRepository}, the same pattern notification-service's
  * {@code NotificationTemplateResolver} uses for {@code @html/}, {@code @text/} etc.
  *
- * <p>Only created when the {@code db} Spring profile is active (see application-db.properties);
- * with no database configured, this bean does not exist, and
- * {@link ReportTemplateService} falls back to the classpath for every report, unchanged.
+ * <p>Only used for report keys that have a row in the database; every other report is served
+ * from the classpath by {@link ReportTemplateService}, unchanged.
  *
  * <p><b>Order matters.</b> {@link TemplateRenderingService} registers a catch-all
  * {@code StringTemplateResolver} with no name pattern and order {@code Integer.MAX_VALUE} — it
@@ -37,7 +35,6 @@ import org.thymeleaf.templateresource.ITemplateResource;
  * literal text rather than fail loudly.
  */
 @Component
-@ConditionalOnProperty(name = "pdf.report.db.enabled", havingValue = "true")
 public class ReportTemplateResolver extends StringTemplateResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(ReportTemplateResolver.class);

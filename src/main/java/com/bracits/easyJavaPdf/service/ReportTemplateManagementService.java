@@ -4,7 +4,6 @@ import com.bracits.easyJavaPdf.dto.ReportTemplateRequest;
 import com.bracits.easyJavaPdf.entity.ReportTemplate;
 import com.bracits.easyJavaPdf.exception.ValidationException;
 import com.bracits.easyJavaPdf.repository.ReportTemplateRepository;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,14 +14,12 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 import java.util.List;
 
 /**
- * Create / update / read of {@code pdf_report_templates} rows. Only exists with the database
- * enabled, like {@link ReportTemplateResolver}.
+ * Create / update / read of {@code pdf_report_templates} rows.
  *
  * <p>Timestamps are not set here: {@link ReportTemplate} fills {@code createdOn} on insert and
  * {@code updatedOn} on every update.
  */
 @Service
-@ConditionalOnProperty(name = "pdf.report.db.enabled", havingValue = "true")
 public class ReportTemplateManagementService {
 
     private final ReportTemplateRepository repository;
