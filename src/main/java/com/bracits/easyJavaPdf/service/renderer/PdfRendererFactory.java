@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 
 /**
  * Factory for selecting and creating PDF renderer instances based on configuration.
- * Supports: itext, flyingsaucer, chromium
+ * Supports: itext, chromium, playwright
  */
 @Component
 public class PdfRendererFactory {
@@ -43,7 +43,7 @@ public class PdfRendererFactory {
     /**
      * Gets a specific renderer by name.
      *
-     * @param name The renderer name (itext, flyingsaucer, chromium)
+     * @param name The renderer name (itext, chromium, playwright)
      * @return The renderer instance
      * @throws IllegalArgumentException if renderer is not found
      */

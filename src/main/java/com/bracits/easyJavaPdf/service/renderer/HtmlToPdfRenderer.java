@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * Interface for HTML to PDF rendering implementations.
- * Allows switching between different PDF generation backends (iText, Flying Saucer, Chromium/Puppeteer).
+ * Allows switching between different PDF generation backends (iText, Chromium/Puppeteer, Playwright).
  */
 public interface HtmlToPdfRenderer {
 
