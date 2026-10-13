@@ -4,12 +4,15 @@ import com.bracits.easyJavaPdf.exception.ValidationException;
 import com.bracits.easyJavaPdf.repository.ReportTemplateRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.util.StringUtils;
 
 import java.io.FileNotFoundException;
@@ -18,6 +21,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -25,10 +29,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
  * Loads predefined report templates and their associated assets from the classpath.
+ *
+ * <p>A report whose key has a row in the database is rendered from it instead. The database is
+ * optional: while it is unreachable every report resolves from the classpath, and it is not asked
+ * again until {@code pdf.report.db.retry-after} has passed, so an outage costs one failed
+ * connection attempt per window rather than one per request.
  */
 @Service
 public class ReportTemplateService {
@@ -40,12 +50,24 @@ public class ReportTemplateService {
     private final ResourceLoader resourceLoader;
     private final ResourcePatternResolver resourcePatternResolver;
     private final ReportTemplateRepository reportTemplateRepository;
+    private final Duration retryAfter;
+
+    // Outage state, shared by all request threads. skipDatabaseUntil is a System.nanoTime()
+    // deadline and is written before databaseDown, so a reader that sees databaseDown also sees it.
+    // probing makes the retry single-flight: a failed connection costs ~1s (Hikari pauses before
+    // giving up), and Hikari serializes pool start-up, so concurrent retries would queue behind
+    // each other instead of failing in parallel.
+    private volatile long skipDatabaseUntil;
+    private volatile boolean databaseDown;
+    private final AtomicBoolean probing = new AtomicBoolean();
 
     public ReportTemplateService(ResourceLoader resourceLoader,
-                                 ReportTemplateRepository reportTemplateRepository) {
+                                 ReportTemplateRepository reportTemplateRepository,
+                                 @Value("${pdf.report.db.retry-after:PT30S}") Duration retryAfter) {
         this.resourceLoader = resourceLoader;
         this.resourcePatternResolver = new PathMatchingResourcePatternResolver(resourceLoader.getClassLoader());
         this.reportTemplateRepository = reportTemplateRepository;
+        this.retryAfter = retryAfter;
     }
 
     public ReportTemplateDescriptor prepareTemplate(String reportName, Path workingDirectory) {
@@ -60,7 +82,7 @@ public class ReportTemplateService {
         String dbTemplateName = null;
         Set<Path> copied = new LinkedHashSet<>();
 
-        if (reportTemplateRepository.existsByKey(key)) {
+        if (existsInDatabase(key)) {
             // Database branch: the HTML body is not copied to disk here — it is rendered
             // straight from the database by name (see ReportTemplateResolver) and the result
             // written to htmlTarget by the caller, exactly where the classpath branch would
@@ -99,6 +121,44 @@ public class ReportTemplateService {
                 fontFiles,
                 dbTemplateName
         );
+    }
+
+    /**
+     * Whether {@code key} has a database row, treating an unreachable database as "no row" so the
+     * caller falls back to the classpath. Only connection failures are absorbed — anything else
+     * (a bad query, a schema mismatch) is a real defect and propagates.
+     */
+    private boolean existsInDatabase(String key) {
+        if (!databaseDown) {
+            return lookUpInDatabase(key);
+        }
+        // Down: once the window has passed, exactly one request probes; the rest — including any
+        // that arrive while that probe is in flight — keep resolving from the classpath.
+        if (System.nanoTime() - skipDatabaseUntil < 0 || !probing.compareAndSet(false, true)) {
+            return false;
+        }
+        try {
+            return lookUpInDatabase(key);
+        } finally {
+            probing.set(false);
+        }
+    }
+
+    private boolean lookUpInDatabase(String key) {
+        try {
+            boolean exists = reportTemplateRepository.existsByKey(key);
+            if (databaseDown) {
+                databaseDown = false;
+                logger.info("Database is reachable again; report templates resolve from it once more");
+            }
+            return exists;
+        } catch (CannotCreateTransactionException | DataAccessResourceFailureException e) {
+            skipDatabaseUntil = System.nanoTime() + retryAfter.toNanos();
+            databaseDown = true;
+            logger.warn("Database unavailable, resolving report '{}' from the classpath and retrying in {}: {}",
+                    key, retryAfter, e.getMostSpecificCause().getMessage());
+            return false;
+        }
     }
 
     private TemplateResource locateTemplate(String reportName) {

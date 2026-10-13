@@ -5,8 +5,11 @@ import com.bracits.easyJavaPdf.exception.FileProcessingException;
 import com.bracits.easyJavaPdf.exception.PdfProcessingException;
 import com.bracits.easyJavaPdf.exception.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.NestedRuntimeException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.CannotCreateTransactionException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.server.ResponseStatusException;
@@ -121,6 +124,25 @@ public class GlobalExceptionHandler {
         );
         
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(errorResponse);
+    }
+
+    /**
+     * Handles an unreachable database with HTTP 503 Service Unavailable. Only the template
+     * management API gets here — report rendering falls back to the classpath instead. An
+     * outage is an expected operational state, not a bug, so it is logged without a stack trace.
+     */
+    @ExceptionHandler({CannotCreateTransactionException.class, DataAccessResourceFailureException.class})
+    public ResponseEntity<ErrorResponse> handleDatabaseUnavailable(NestedRuntimeException ex, WebRequest request) {
+        log.warn("Database unavailable: {}", ex.getMostSpecificCause().getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+                "Database is unavailable. Please try again later.",
+                "DATABASE_UNAVAILABLE",
+                getPath(request),
+                HttpStatus.SERVICE_UNAVAILABLE.value()
+        );
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
     }
 
     /**
