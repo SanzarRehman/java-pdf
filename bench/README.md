@@ -61,33 +61,24 @@ RENDERER=chromium  REQUESTS=20 ./bench/concurrency-test.sh
 HTML_FILE=/data/report.html RENDERER=playwright ./bench/concurrency-test.sh
 ```
 
-## Playwright `mode=fast` (page reuse)
+## Playwright page reuse (removed)
 
-The Playwright renderer accepts a per-request form field **`mode=fast`** that reuses a warm
-browser page across renders instead of closing it each time. Add `-F "mode=fast"` to the curl
-(the reused page is recycled every `pdf.playwright.reuse-recycle-after` renders, default 50, to
-bound its memory).
+The Playwright renderer used to accept `mode=fast`, which reused one browser page per worker
+thread instead of opening and closing a page per render. It was removed: the speed gain is a
+fixed ~0.1-0.15 s per render, but a reused page's renderer process keeps ~1.5-2.2 GB after a
+few large reports and does not release it (loading `about:blank` between renders doesn't help).
+Recycling the page every N renders doesn't bound it either; the plateau is reached after ~4.
 
-**Use it for light/simple, high-volume documents — not heavy ones.** Measured here
-(2 cores / 4g, 10 concurrent):
+Measured on 16 cores, 4 worker threads, 4 in flight:
 
-| Doc type | default (close-per-render) | `mode=fast` (reuse) | Verdict |
-|----------|----------------------------|---------------------|---------|
-| **light** 1-page cert | 2.11 s · 4.7 req/s · 780 MiB | **0.80 s · 12.5 req/s · low** | **fast wins ~2.6×** |
-| **heavy** 1.8 MB table | **35.5 s · 2033 MiB** | 38.9 s · 3550 MiB | **default wins** |
+| Doc | default (fresh page) | reused page | RAM under load / after load |
+|-----|----------------------|-------------|-----------------------------|
+| 52 KB, 2 pages | 0.32 s · 7.0 req/s | 0.18 s · 13.4 req/s | 1.7 / 1.3 GB vs 2.2 / 2.2 GB |
+| 780 KB, 56 pages | 1.73 s · 1.47 req/s | 1.58 s · 1.62 req/s | 3.9 / 1.4 GB vs **12.1 / 9.7 GB** |
+| 1.8 MB, 35 pages | 1.88 s · 1.58 req/s | 1.80 s · 1.50 req/s | 3.8 / 1.4 GB vs **12.7 / 8.4 GB** |
 
-Why: page-creation is a big fraction of a *light* render, so reuse removes real overhead while
-the page stays small. For a *heavy* render the page accumulates a large DOM/heap, so reuse only
-inflates RAM (toward the container limit, where it thrashes) with no latency gain — the render
-itself dominates. Default (close-per-render) stays the safe, low-RAM choice for heavy docs.
-
-```bash
-# compare the two modes on your own doc:
-curl -s -o /dev/null -w "default: %{time_total}s\n" -X POST http://localhost:8081/api/v1.0/print \
-  -F "html=@doc.html" -F "renderer=playwright"
-curl -s -o /dev/null -w "fast:    %{time_total}s\n" -X POST http://localhost:8081/api/v1.0/print \
-  -F "html=@doc.html" -F "renderer=playwright" -F "mode=fast"
-```
+If light-document latency matters later, sharing one browser context and still opening a fresh
+page per render recovered about half the gain (318 → 255 ms on the 52 KB doc) with no RAM cost.
 
 ## End-to-end (compare two renderers at 8 cores)
 

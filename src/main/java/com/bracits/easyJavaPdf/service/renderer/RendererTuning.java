@@ -24,10 +24,4 @@ public class RendererTuning {
      * itext, chromium and playwright renderers; when set it replaces any automatic fitting.
      */
     Double scale;
-    /**
-     * Playwright only: when {@code true} ({@code mode=fast}), reuse a warm page across renders
-     * for lower latency at the cost of higher RAM (page recycled every N renders). Null/false =
-     * close the page after each render (lowest RAM). Ignored by other renderers.
-     */
-    Boolean fast;
 }

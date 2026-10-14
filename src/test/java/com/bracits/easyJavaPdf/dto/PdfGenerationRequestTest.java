@@ -167,7 +167,6 @@ class PdfGenerationRequestTest {
             "chromium",
             Boolean.TRUE,
             1.0,
-            "fast",
             "id-card",
             "custom-name"
         );
@@ -195,7 +194,6 @@ class PdfGenerationRequestTest {
         assertEquals("chromium", request.getRenderer());
         assertEquals(Boolean.TRUE, request.getFitToWidth());
         assertEquals(1.0, request.getScale());
-        assertEquals("fast", request.getMode());
         assertEquals("id-card", request.getTemplate());
         assertEquals("custom-name", request.getFileName());
     }
